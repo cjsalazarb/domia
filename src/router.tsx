@@ -16,6 +16,7 @@ import Comunicaciones from '@/pages/admin/condominio/Comunicaciones'
 import PortalDashboard from '@/pages/portal/PortalDashboard'
 import PortalRecibos from '@/pages/portal/PortalRecibos'
 import PortalMantenimiento from '@/pages/portal/PortalMantenimiento'
+import PagarCuota from '@/pages/portal/PagarCuota'
 
 import TurnoDashboard from '@/pages/guardia/TurnoDashboard'
 
@@ -101,6 +102,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute rolesPermitidos={['propietario', 'inquilino']}>
         <PortalRecibos />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/portal/pagar',
+    element: (
+      <ProtectedRoute rolesPermitidos={['propietario', 'inquilino']}>
+        <PagarCuota />
       </ProtectedRoute>
     ),
   },

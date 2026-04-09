@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import ConfiguradorCuotas from './Financiero/ConfiguradorCuotas'
 import ListaRecibos from './Financiero/ListaRecibos'
+import PagosPendientes from './Financiero/PagosPendientes'
 
 export default function Financiero() {
   const { id } = useParams()
@@ -73,6 +74,11 @@ export default function Financiero() {
         </p>
 
         <ConfiguradorCuotas condominioId={id} />
+
+        {/* Separator */}
+        <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
+
+        <PagosPendientes condominioId={id} />
 
         {/* Separator */}
         <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
