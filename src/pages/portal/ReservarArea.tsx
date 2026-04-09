@@ -37,6 +37,7 @@ export default function ReservarArea() {
     enabled: !!user,
   })
 
+  const areasActivas = areas.filter(a => a.activa)
   const areaSeleccionada = areas.find(a => a.id === areaId)
   const costoTotal = areaSeleccionada?.tarifa && areaSeleccionada.tarifa > 0 ? areaSeleccionada.tarifa : 0
 
@@ -97,24 +98,67 @@ export default function ReservarArea() {
             </div>
           )}
 
-          {/* Area */}
+          {/* Area selector — cards dinámicas desde areas_comunes */}
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#0D1117', marginBottom: '6px' }}>Área *</label>
-            <select value={areaId} onChange={e => setAreaId(e.target.value)} style={{ ...inputStyle, backgroundColor: 'white' }}>
-              <option value="">— Seleccionar —</option>
-              {areas.filter(a => a.activa).map(a => (
-                <option key={a.id} value={a.id}>{a.nombre} {a.tarifa && a.tarifa > 0 ? `(Bs. ${Number(a.tarifa).toFixed(2)})` : '(Gratis)'}</option>
-              ))}
-            </select>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#0D1117', marginBottom: '8px' }}>Selecciona un área *</label>
+            {areasActivas.length === 0 ? (
+              <div style={{ backgroundColor: '#F4F7F5', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>🏢</div>
+                <p style={{ fontSize: '14px', color: '#5E6B62', margin: 0 }}>No hay áreas comunes disponibles en tu condominio.</p>
+                <p style={{ fontSize: '12px', color: '#5E6B62', marginTop: '4px' }}>Contacta al administrador para configurar las áreas.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {areasActivas.map(a => {
+                  const selected = areaId === a.id
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => setAreaId(selected ? '' : a.id)}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '14px 16px',
+                        borderRadius: '12px',
+                        border: selected ? '2px solid #1A7A4A' : '1px solid #C8D4CB',
+                        backgroundColor: selected ? '#E8F4F0' : 'white',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        width: '100%',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '15px', fontWeight: 700, color: '#0D1117' }}>{a.nombre}</div>
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                          {a.horario_inicio && (
+                            <span style={{ fontSize: '11px', color: '#5E6B62' }}>
+                              {a.horario_inicio.slice(0,5)} — {a.horario_fin?.slice(0,5)}
+                            </span>
+                          )}
+                          {a.capacidad && <span style={{ fontSize: '11px', color: '#5E6B62' }}>· Cap. {a.capacidad}</span>}
+                          {a.tiempo_max_horas && <span style={{ fontSize: '11px', color: '#5E6B62' }}>· Máx. {a.tiempo_max_horas}h</span>}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                        <div style={{
+                          fontFamily: "'Nunito', sans-serif", fontSize: '14px', fontWeight: 800,
+                          color: a.tarifa && a.tarifa > 0 ? '#C07A2E' : '#1A7A4A',
+                        }}>
+                          {a.tarifa && a.tarifa > 0 ? `Bs. ${Number(a.tarifa).toFixed(2)}` : 'Gratis'}
+                        </div>
+                        {a.requiere_aprobacion && (
+                          <span style={{ fontSize: '10px', color: '#7B1AC8' }}>Requiere aprobación</span>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
-
-          {areaSeleccionada && (
-            <div style={{ backgroundColor: '#F4F7F5', borderRadius: '10px', padding: '12px', marginBottom: '16px', fontSize: '12px', color: '#5E6B62' }}>
-              {areaSeleccionada.horario_inicio && <span>Horario: {areaSeleccionada.horario_inicio.slice(0,5)} — {areaSeleccionada.horario_fin?.slice(0,5)}</span>}
-              {areaSeleccionada.capacidad && <span> · Cap. {areaSeleccionada.capacidad}</span>}
-              {areaSeleccionada.tiempo_max_horas && <span> · Máx. {areaSeleccionada.tiempo_max_horas}h</span>}
-            </div>
-          )}
 
           {/* Date + Time */}
           <div style={{ marginBottom: '16px' }}>
