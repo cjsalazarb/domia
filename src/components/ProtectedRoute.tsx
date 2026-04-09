@@ -1,14 +1,15 @@
-import { useEffect } from 'react'
-import { RouterProvider } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
-import { router } from '@/router'
 
-function App() {
-  const { loading, initialize } = useAuthStore()
+type Rol = 'super_admin' | 'admin_condominio' | 'propietario' | 'inquilino' | 'guardia'
 
-  useEffect(() => {
-    initialize()
-  }, [initialize])
+interface Props {
+  children: React.ReactNode
+  rolesPermitidos: Rol[]
+}
+
+export function ProtectedRoute({ children, rolesPermitidos }: Props) {
+  const { user, profile, loading } = useAuthStore()
 
   if (loading) {
     return (
@@ -31,7 +32,11 @@ function App() {
     )
   }
 
-  return <RouterProvider router={router} />
-}
+  if (!user) return <Navigate to="/login" replace />
 
-export default App
+  if (profile && !rolesPermitidos.includes(profile.rol)) {
+    return <Navigate to="/sin-acceso" replace />
+  }
+
+  return <>{children}</>
+}

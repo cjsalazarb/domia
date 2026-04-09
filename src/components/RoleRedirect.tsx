@@ -1,14 +1,8 @@
-import { useEffect } from 'react'
-import { RouterProvider } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
-import { router } from '@/router'
 
-function App() {
-  const { loading, initialize } = useAuthStore()
-
-  useEffect(() => {
-    initialize()
-  }, [initialize])
+export function RoleRedirect() {
+  const { user, profile, loading } = useAuthStore()
 
   if (loading) {
     return (
@@ -31,7 +25,21 @@ function App() {
     )
   }
 
-  return <RouterProvider router={router} />
-}
+  if (!user) return <Navigate to="/login" replace />
 
-export default App
+  if (!profile) return <Navigate to="/login" replace />
+
+  switch (profile.rol) {
+    case 'super_admin':
+      return <Navigate to="/admin" replace />
+    case 'admin_condominio':
+      return <Navigate to={`/admin/condominio/${profile.condominio_id}/residentes`} replace />
+    case 'propietario':
+    case 'inquilino':
+      return <Navigate to="/portal" replace />
+    case 'guardia':
+      return <Navigate to="/turno" replace />
+    default:
+      return <Navigate to="/login" replace />
+  }
+}
