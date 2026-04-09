@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
+import { supabase } from '@/lib/supabase'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -14,8 +15,26 @@ export default function Login() {
     setLoading(true)
     setError('')
     const { error } = await signIn(email, password)
-    if (error) setError('Email o contraseña incorrectos')
-    setLoading(false)
+    if (error) {
+      setError('Email o contraseña incorrectos')
+      setLoading(false)
+      return
+    }
+
+    // Redirect based on role after successful signIn
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('rol, condominio_id')
+        .eq('id', user.id)
+        .single()
+
+      if (profile?.rol === 'super_admin') window.location.href = '/admin'
+      else if (profile?.rol === 'admin_condominio') window.location.href = `/admin/condominio/${profile.condominio_id}/residentes`
+      else if (profile?.rol === 'guardia') window.location.href = '/turno'
+      else window.location.href = '/portal'
+    }
   }
 
   return (
