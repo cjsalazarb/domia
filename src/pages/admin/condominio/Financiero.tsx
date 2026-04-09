@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import ConfiguradorCuotas from './Financiero/ConfiguradorCuotas'
+import ListaRecibos from './Financiero/ListaRecibos'
 
 export default function Financiero() {
   const { id } = useParams()
@@ -72,6 +73,16 @@ export default function Financiero() {
         </p>
 
         <ConfiguradorCuotas condominioId={id} />
+
+        {/* Separator */}
+        <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
+
+        <ListaRecibos
+          condominioId={id}
+          condominioNombre="Residencial Los Pinos"
+          condominioDir="Av. Banzer 3er Anillo, Zona Norte"
+          condomionioCiudad="Santa Cruz de la Sierra"
+        />
       </div>
     </div>
   )
