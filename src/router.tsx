@@ -17,6 +17,7 @@ import PortalDashboard from '@/pages/portal/PortalDashboard'
 import PortalRecibos from '@/pages/portal/PortalRecibos'
 import PagarCuota from '@/pages/portal/PagarCuota'
 import SolicitarMantenimiento from '@/pages/portal/SolicitarMantenimiento'
+import ReservarArea from '@/pages/portal/ReservarArea'
 
 import TurnoDashboard from '@/pages/guardia/TurnoDashboard'
 
@@ -118,6 +119,15 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute rolesPermitidos={['propietario', 'inquilino']}>
         <SolicitarMantenimiento />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: '/portal/reservas',
+    element: (
+      <ProtectedRoute rolesPermitidos={['propietario', 'inquilino']}>
+        <ReservarArea />
       </ProtectedRoute>
     ),
   },
