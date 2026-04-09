@@ -1,9 +1,6 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
-import { DomiaCard } from '@/components/ui/domia'
-import { DomiaButton } from '@/components/ui/domia'
-import { DomiaBadge } from '@/components/ui/domia'
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
 export default function Login() {
   const { signIn, resetPassword } = useAuthStore()
@@ -38,133 +35,319 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-domia-bg flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen bg-[#F4F7F5] flex flex-col items-center justify-center px-4">
+      {/* Card */}
+      <div
+        className="w-full max-w-[420px] bg-white px-6 py-10 sm:px-12 sm:py-10"
+        style={{
+          borderRadius: '20px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+        }}
+      >
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-extrabold font-display">
-            DOM<span className="text-domia-primary">IA</span>
+          <h1
+            className="font-extrabold"
+            style={{ fontFamily: "'Nunito', sans-serif", fontSize: '32px', color: '#0D1117' }}
+          >
+            DOM<span style={{ color: '#1A7A4A' }}>IA</span>
           </h1>
-          <p className="text-sm font-body text-domia-muted mt-1">
+          <p
+            className="mt-1"
+            style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62' }}
+          >
             Administración de condominios · Bolivia
           </p>
         </div>
 
-        <DomiaCard>
-          {resetMode ? (
-            /* Reset Password Form */
-            <form onSubmit={handleReset} className="space-y-4">
-              <h2 className="text-lg font-bold font-display text-domia-ink text-center">
+        {resetMode ? (
+          /* ── Reset Password ── */
+          <form onSubmit={handleReset}>
+            <div className="mb-6">
+              <h2
+                className="font-bold"
+                style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', color: '#0D1117' }}
+              >
                 Recuperar contraseña
               </h2>
-              <p className="text-sm text-domia-muted text-center">
-                Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.
+              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#5E6B62' }} className="mt-1">
+                Ingresa tu email y te enviaremos un enlace
               </p>
+            </div>
 
-              {resetSent ? (
-                <div className="text-center space-y-3">
-                  <DomiaBadge variant="success">Email enviado</DomiaBadge>
-                  <p className="text-sm text-domia-muted">
-                    Revisa tu bandeja de entrada y sigue las instrucciones.
-                  </p>
-                  <DomiaButton
-                    variant="ghost"
-                    type="button"
-                    className="w-full"
-                    onClick={() => { setResetMode(false); setResetSent(false) }}
-                  >
-                    Volver al login
-                  </DomiaButton>
+            {resetSent ? (
+              <div className="text-center space-y-4">
+                <div
+                  className="px-3.5 py-2.5"
+                  style={{
+                    background: '#E8F4F0',
+                    borderLeft: '3px solid #1A7A4A',
+                    borderRadius: '8px',
+                    fontFamily: "'Inter', sans-serif",
+                    fontSize: '13px',
+                    color: '#1A7A4A',
+                  }}
+                >
+                  Revisa tu bandeja de entrada y sigue las instrucciones.
                 </div>
-              ) : (
-                <>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-domia-muted" />
-                    <input
-                      type="email"
-                      placeholder="Email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="w-full pl-10 pr-4 py-2.5 rounded-input border border-domia-border bg-domia-bg text-sm font-body text-domia-ink placeholder:text-domia-muted/60 focus:outline-none focus:ring-2 focus:ring-domia-primary/30 focus:border-domia-primary"
-                    />
+                <button
+                  type="button"
+                  onClick={() => { setResetMode(false); setResetSent(false); setError(null) }}
+                  style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#1A7A4A' }}
+                  className="hover:underline"
+                >
+                  ← Volver al login
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Email */}
+                <div className="mb-4">
+                  <label
+                    className="block mb-1"
+                    style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: '13px', color: '#0D1117' }}
+                  >
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full focus:outline-none"
+                    style={{
+                      border: '1px solid #C8D4CB',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
+                      fontFamily: "'Inter', sans-serif",
+                      fontSize: '14px',
+                      color: '#0D1117',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#1A7A4A'
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,122,74,0.12)'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#C8D4CB'
+                      e.currentTarget.style.boxShadow = 'none'
+                    }}
+                  />
+                </div>
+
+                {/* Error */}
+                {error && (
+                  <div
+                    className="mb-4 px-3.5 py-2.5"
+                    style={{
+                      background: '#FCEAEA',
+                      borderLeft: '3px solid #B83232',
+                      borderRadius: '8px',
+                      fontFamily: "'Inter', sans-serif",
+                      fontSize: '13px',
+                      color: '#B83232',
+                    }}
+                  >
+                    {error}
                   </div>
+                )}
 
-                  {error && <DomiaBadge variant="danger">{error}</DomiaBadge>}
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 text-white transition-colors disabled:opacity-50"
+                  style={{
+                    background: '#1A7A4A',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    fontFamily: "'Nunito', sans-serif",
+                    fontWeight: 700,
+                    fontSize: '15px',
+                  }}
+                  onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#0D9E6E' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = '#1A7A4A' }}
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loading ? 'Enviando...' : 'Enviar enlace →'}
+                </button>
 
-                  <DomiaButton type="submit" loading={loading} className="w-full">
-                    Enviar enlace
-                  </DomiaButton>
-
+                <div className="text-center mt-4">
                   <button
                     type="button"
                     onClick={() => { setResetMode(false); setError(null) }}
-                    className="w-full text-sm text-domia-primary hover:underline font-body"
+                    style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#1A7A4A' }}
+                    className="hover:underline"
                   >
-                    Volver al login
+                    ← Volver al login
                   </button>
-                </>
-              )}
-            </form>
-          ) : (
-            /* Login Form */
-            <form onSubmit={handleLogin} className="space-y-4">
-              <h2 className="text-lg font-bold font-display text-domia-ink text-center">
+                </div>
+              </>
+            )}
+          </form>
+        ) : (
+          /* ── Login Form ── */
+          <form onSubmit={handleLogin}>
+            {/* Title */}
+            <div className="mb-6">
+              <h2
+                className="font-bold"
+                style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', color: '#0D1117' }}
+              >
                 Iniciar sesión
               </h2>
+              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#5E6B62' }} className="mt-1">
+                Ingresa con tu cuenta DOMIA
+              </p>
+            </div>
 
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-domia-muted" />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full pl-10 pr-4 py-2.5 rounded-input border border-domia-border bg-domia-bg text-sm font-body text-domia-ink placeholder:text-domia-muted/60 focus:outline-none focus:ring-2 focus:ring-domia-primary/30 focus:border-domia-primary"
-                />
-              </div>
+            {/* Email */}
+            <div className="mb-4">
+              <label
+                className="block mb-1"
+                style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: '13px', color: '#0D1117' }}
+              >
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full focus:outline-none"
+                style={{
+                  border: '1px solid #C8D4CB',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  fontFamily: "'Inter', sans-serif",
+                  fontSize: '14px',
+                  color: '#0D1117',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#1A7A4A'
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,122,74,0.12)'
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#C8D4CB'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              />
+            </div>
 
+            {/* Password */}
+            <div className="mb-1">
+              <label
+                className="block mb-1"
+                style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: '13px', color: '#0D1117' }}
+              >
+                Contraseña
+              </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-domia-muted" />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full pl-10 pr-10 py-2.5 rounded-input border border-domia-border bg-domia-bg text-sm font-body text-domia-ink placeholder:text-domia-muted/60 focus:outline-none focus:ring-2 focus:ring-domia-primary/30 focus:border-domia-primary"
+                  className="w-full focus:outline-none"
+                  style={{
+                    border: '1px solid #C8D4CB',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    paddingRight: '44px',
+                    fontFamily: "'Inter', sans-serif",
+                    fontSize: '14px',
+                    color: '#0D1117',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#1A7A4A'
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,122,74,0.12)'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#C8D4CB'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-domia-muted hover:text-domia-ink"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  style={{ color: '#5E6B62' }}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+            </div>
 
-              {error && <DomiaBadge variant="danger">{error}</DomiaBadge>}
-
-              <DomiaButton type="submit" loading={loading} className="w-full">
-                Iniciar sesión
-              </DomiaButton>
-
+            {/* Forgot password link */}
+            <div className="text-right mb-6">
               <button
                 type="button"
                 onClick={() => { setResetMode(true); setError(null) }}
-                className="w-full text-sm text-domia-primary hover:underline font-body"
+                className="hover:underline"
+                style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#1A7A4A' }}
               >
                 ¿Olvidaste tu contraseña?
               </button>
-            </form>
-          )}
-        </DomiaCard>
+            </div>
 
-        <p className="text-center text-xs text-domia-muted mt-6 font-body">
-          DOMIA · Sistema de Administración de Condominios
-        </p>
+            {/* Error */}
+            {error && (
+              <div
+                className="mb-4 px-3.5 py-2.5"
+                style={{
+                  background: '#FCEAEA',
+                  borderLeft: '3px solid #B83232',
+                  borderRadius: '8px',
+                  fontFamily: "'Inter', sans-serif",
+                  fontSize: '13px',
+                  color: '#B83232',
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 text-white transition-colors disabled:opacity-50"
+              style={{
+                background: '#1A7A4A',
+                borderRadius: '12px',
+                padding: '14px',
+                fontFamily: "'Nunito', sans-serif",
+                fontWeight: 700,
+                fontSize: '15px',
+              }}
+              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#0D9E6E' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#1A7A4A' }}
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading ? 'Iniciando sesión...' : 'Iniciar sesión →'}
+            </button>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px" style={{ background: '#C8D4CB' }} />
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#5E6B62' }}>o</span>
+              <div className="flex-1 h-px" style={{ background: '#C8D4CB' }} />
+            </div>
+
+            {/* Registration link */}
+            <p className="text-center" style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62' }}>
+              ¿Primera vez?{' '}
+              <span className="cursor-pointer hover:underline" style={{ color: '#1A7A4A' }}>
+                Solicita acceso
+              </span>
+            </p>
+          </form>
+        )}
       </div>
+
+      {/* Footer */}
+      <p className="mt-6" style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62' }}>
+        ← Volver al inicio
+      </p>
     </div>
   )
 }
