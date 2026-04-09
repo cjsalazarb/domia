@@ -1,15 +1,72 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
+import { exportarExcel } from '@/lib/exportarReporte'
 import ConfiguradorCuotas from './Financiero/ConfiguradorCuotas'
 import ListaRecibos from './Financiero/ListaRecibos'
 import PagosPendientes from './Financiero/PagosPendientes'
+import Morosos from './Financiero/Morosos'
+import Balance from './Financiero/Balance'
 
 export default function Financiero() {
   const { id } = useParams()
   const { profile, signOut } = useAuthStore()
   const navigate = useNavigate()
 
+  // Fetch data for Excel export
+  const { data: exportData } = useQuery({
+    queryKey: ['export-data', id],
+    queryFn: async () => {
+      const [recibosRes, gastosRes, morososRes] = await Promise.all([
+        supabase.from('recibos').select('periodo, monto_total, estado, unidades(numero), residentes(nombre, apellido)').eq('condominio_id', id!),
+        supabase.from('gastos').select('fecha, categoria, descripcion, monto, proveedor_nombre').eq('condominio_id', id!),
+        supabase.from('recibos').select('residente_id, periodo, monto_total, residentes(nombre, apellido), unidades(numero)').eq('condominio_id', id!).in('estado', ['emitido', 'vencido']),
+      ])
+
+      const ingresos = (recibosRes.data || []).map((r: any) => ({
+        periodo: r.periodo,
+        unidad: r.unidades?.numero || '—',
+        residente: `${r.residentes?.nombre || ''} ${r.residentes?.apellido || ''}`.trim(),
+        monto: Number(r.monto_total),
+        estado: r.estado,
+      }))
+
+      const egresos = (gastosRes.data || []).map(g => ({
+        fecha: g.fecha,
+        categoria: g.categoria,
+        descripcion: g.descripcion,
+        monto: Number(g.monto),
+        proveedor: g.proveedor_nombre || '—',
+      }))
+
+      // Group morosos
+      const morosoMap: Record<string, { residente: string; unidad: string; meses: number; deuda: number }> = {}
+      for (const r of (morososRes.data || []) as any[]) {
+        const key = r.residente_id
+        if (!morosoMap[key]) {
+          morosoMap[key] = {
+            residente: `${r.residentes?.nombre || ''} ${r.residentes?.apellido || ''}`.trim(),
+            unidad: r.unidades?.numero || '—',
+            meses: 0,
+            deuda: 0,
+          }
+        }
+        morosoMap[key].meses++
+        morosoMap[key].deuda += Number(r.monto_total)
+      }
+
+      return { ingresos, egresos, morosos: Object.values(morosoMap) }
+    },
+    enabled: !!id,
+  })
+
   if (!id) return null
+
+  const handleExportExcel = () => {
+    if (!exportData) return
+    exportarExcel(exportData.ingresos, exportData.egresos, exportData.morosos, 'Residencial_Los_Pinos')
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif" }}>
@@ -31,16 +88,14 @@ export default function Financiero() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span style={{ fontSize: '13px' }}>{profile?.nombre} {profile?.apellido}</span>
           <button
+            onClick={handleExportExcel}
+            style={{ padding: '6px 14px', backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}
+          >
+            📊 Excel
+          </button>
+          <button
             onClick={() => { signOut(); navigate('/login') }}
-            style={{
-              padding: '6px 14px',
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '13px',
-              cursor: 'pointer',
-            }}
+            style={{ padding: '6px 14px', backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}
           >
             Salir
           </button>
@@ -49,20 +104,7 @@ export default function Financiero() {
 
       {/* Content */}
       <div style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto' }}>
-        {/* Back link */}
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            fontFamily: "'Inter', sans-serif",
-            fontSize: '13px',
-            color: '#1A7A4A',
-            padding: 0,
-            marginBottom: '16px',
-          }}
-        >
+        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#1A7A4A', padding: 0, marginBottom: '16px' }}>
           ← Volver
         </button>
 
@@ -73,16 +115,32 @@ export default function Financiero() {
           Gestión de cuotas, recibos y pagos del condominio
         </p>
 
+        {/* Balance */}
+        <Balance condominioId={id} />
+
+        <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
+
+        {/* Morosos */}
+        <Morosos
+          condominioId={id}
+          condominioNombre="Residencial Los Pinos"
+          condominioDir="Av. Banzer 3er Anillo, Zona Norte"
+          condomionioCiudad="Santa Cruz de la Sierra"
+        />
+
+        <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
+
+        {/* Cuotas */}
         <ConfiguradorCuotas condominioId={id} />
 
-        {/* Separator */}
         <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
 
+        {/* Pagos pendientes */}
         <PagosPendientes condominioId={id} />
 
-        {/* Separator */}
         <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
 
+        {/* Recibos */}
         <ListaRecibos
           condominioId={id}
           condominioNombre="Residencial Los Pinos"
