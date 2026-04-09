@@ -15,7 +15,17 @@ const ESTADO_STYLE: Record<string, { bg: string; text: string; label: string }> 
 export default function ReservarArea() {
   const { user, profile, signOut } = useAuthStore()
   const navigate = useNavigate()
-  const condominioId = profile?.condominio_id || ''
+  // Get residente info first (needed for condominio_id fallback)
+  const { data: residente } = useQuery({
+    queryKey: ['mi-residente', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('residentes').select('id, unidad_id, condominio_id').eq('user_id', user!.id).eq('estado', 'activo').single()
+      return data
+    },
+    enabled: !!user,
+  })
+
+  const condominioId = profile?.condominio_id || residente?.condominio_id || ''
   const { areas } = useAreasComunes(condominioId)
   const { crearReserva, reservas } = useReservas(condominioId)
 
@@ -26,16 +36,6 @@ export default function ReservarArea() {
   const [motivo, setMotivo] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-
-  // Get residente info
-  const { data: residente } = useQuery({
-    queryKey: ['mi-residente', user?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from('residentes').select('id, unidad_id').eq('user_id', user!.id).eq('estado', 'activo').single()
-      return data
-    },
-    enabled: !!user,
-  })
 
   const areasActivas = areas.filter(a => a.activa)
   const areaSeleccionada = areas.find(a => a.id === areaId)
