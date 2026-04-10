@@ -1,7 +1,25 @@
-import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '@/stores/authStore'
 
 export default function SinAcceso() {
-  const navigate = useNavigate()
+  const { profile } = useAuthStore()
+
+  const getRedirect = () => {
+    if (!profile) return '/login'
+    switch (profile.rol) {
+      case 'super_admin': return '/admin'
+      case 'admin_condominio': return `/admin/condominio/${profile.condominio_id}/residentes`
+      case 'guardia': return '/turno'
+      default: return '/portal'
+    }
+  }
+
+  const rolLabel: Record<string, string> = {
+    super_admin: 'Panel Admin',
+    admin_condominio: 'Panel Admin',
+    propietario: 'Portal Residente',
+    inquilino: 'Portal Residente',
+    guardia: 'Panel Guardia',
+  }
 
   return (
     <div style={{
@@ -29,9 +47,10 @@ export default function SinAcceso() {
         <p style={{ color: '#5E6B62', fontSize: '14px', marginBottom: '24px' }}>
           No tienes permisos para ver esta página.
         </p>
-        <button
-          onClick={() => navigate('/')}
+        <a
+          href={getRedirect()}
           style={{
+            display: 'inline-block',
             padding: '12px 24px',
             backgroundColor: '#1A7A4A',
             color: 'white',
@@ -41,10 +60,11 @@ export default function SinAcceso() {
             fontWeight: 700,
             fontFamily: "'Nunito', sans-serif",
             cursor: 'pointer',
+            textDecoration: 'none',
           }}
         >
-          Volver al inicio
-        </button>
+          Ir a {profile ? rolLabel[profile.rol] || 'inicio' : 'Login'} →
+        </a>
       </div>
     </div>
   )
