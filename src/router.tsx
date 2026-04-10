@@ -12,6 +12,7 @@ import Financiero from '@/pages/admin/condominio/Financiero'
 import Mantenimiento from '@/pages/admin/condominio/Mantenimiento'
 import Reservas from '@/pages/admin/condominio/Reservas'
 import Comunicaciones from '@/pages/admin/condominio/Comunicaciones'
+import GuardiasAdmin from '@/pages/admin/Guardias'
 
 import PortalDashboard from '@/pages/portal/PortalDashboard'
 import PortalRecibos from '@/pages/portal/PortalRecibos'
@@ -85,6 +86,15 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute rolesPermitidos={['super_admin', 'admin_condominio']}>
         <Comunicaciones />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: '/admin/condominio/:id/guardias',
+    element: (
+      <ProtectedRoute rolesPermitidos={['super_admin', 'admin_condominio']}>
+        <GuardiasAdmin />
       </ProtectedRoute>
     ),
   },
