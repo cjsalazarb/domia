@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { Residente, CreateResidenteInput } from '@/hooks/useResidentes'
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function FormResidente({ condominioId, residente, propietarios, onSave, onCancel, saving, error }: Props) {
+  const navigate = useNavigate()
   const [tipo, setTipo] = useState<'propietario' | 'inquilino'>(residente?.tipo || 'propietario')
   const [nombre, setNombre] = useState(residente?.nombre || '')
   const [apellido, setApellido] = useState(residente?.apellido || '')
@@ -120,6 +122,56 @@ export default function FormResidente({ condominioId, residente, propietarios, o
     color: '#0D1117',
     marginBottom: '6px',
     fontFamily: "'Inter', sans-serif",
+  }
+
+  // Show "no units" message when creating (not editing) and no units available
+  const isCreating = !residente
+  const noUnitsAvailable = isCreating && unidades !== undefined && unidadesFiltradas.length === 0
+
+  if (noUnitsAvailable) {
+    const msg = tipo === 'propietario'
+      ? 'No hay unidades disponibles para asignar. Todas las unidades ya tienen un propietario asignado.'
+      : 'No hay unidades con propietario asignado. Primero registra un propietario para poder agregar un inquilino.'
+
+    return (
+      <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', padding: '32px' }}>
+        <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 700, color: '#0D1117', margin: '0 0 4px' }}>
+          Nuevo Residente
+        </h2>
+
+        {/* Tipo selector so user can switch */}
+        <div style={{ marginTop: '16px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {(['propietario', 'inquilino'] as const).map(t => (
+              <button key={t} type="button" onClick={() => setTipo(t)}
+                style={{ flex: 1, padding: '10px', borderRadius: '10px', border: tipo === t ? '2px solid #1A7A4A' : '1px solid #C8D4CB', backgroundColor: tipo === t ? '#E8F4F0' : 'white', cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: 600, color: tipo === t ? '#1A7A4A' : '#5E6B62' }}>
+                {t === 'propietario' ? '🏠 Propietario' : '📋 Inquilino'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: '#FFF8E1', borderLeft: '4px solid #C07A2E', borderRadius: '8px', padding: '20px', marginBottom: '20px' }}>
+          <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '15px', fontWeight: 700, color: '#0D1117', marginBottom: '8px' }}>
+            Sin unidades disponibles
+          </div>
+          <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62', margin: 0, lineHeight: '1.5' }}>
+            {msg}
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button onClick={() => navigate(`/admin/condominios`)}
+            style={{ flex: 1, padding: '14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: 'pointer' }}>
+            Configurar unidades →
+          </button>
+          <button type="button" onClick={onCancel}
+            style={{ padding: '14px 24px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: 'pointer' }}>
+            Volver
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

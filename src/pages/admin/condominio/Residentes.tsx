@@ -45,6 +45,7 @@ export default function Residentes() {
       await createResidente.mutateAsync(input)
       setView('lista')
     } catch (err) {
+      console.error('Error creando residente:', err)
       setFormError(err instanceof Error ? err.message : 'Error al crear residente')
     }
   }
@@ -57,6 +58,7 @@ export default function Residentes() {
       setView('lista')
       setSelectedId(null)
     } catch (err) {
+      console.error('Error actualizando residente:', err)
       setFormError(err instanceof Error ? err.message : 'Error al actualizar residente')
     }
   }
