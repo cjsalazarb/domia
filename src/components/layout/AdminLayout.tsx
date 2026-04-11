@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 
 interface NavItem { path: string; label: string; icon: string }
@@ -12,19 +14,34 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const isSuper = profile?.rol === 'super_admin'
-  const cid = condominioId || profile?.condominio_id || '11111111-1111-1111-1111-111111111111'
 
-  const navItems: NavItem[] = [
-    ...(isSuper ? [
-      { path: '/admin', label: 'Dashboard', icon: '📊' },
-      { path: '/admin/condominios', label: 'Condominios', icon: '🏢' },
-    ] : []),
+  // For super_admin without explicit condominioId, fetch the first condominio
+  const { data: primerCondominio } = useQuery({
+    queryKey: ['primer-condominio'],
+    queryFn: async () => {
+      const { data } = await supabase.from('condominios').select('id').eq('estado', 'activo').order('nombre').limit(1).single()
+      return data?.id || null
+    },
+    enabled: isSuper && !condominioId,
+  })
+
+  const cid = condominioId || profile?.condominio_id || primerCondominio || ''
+
+  const condoLinks: NavItem[] = cid ? [
     { path: `/admin/condominio/${cid}/residentes`, label: 'Residentes', icon: '👥' },
     { path: `/admin/condominio/${cid}/financiero`, label: 'Financiero', icon: '💰' },
     { path: `/admin/condominio/${cid}/mantenimiento`, label: 'Mantenimiento', icon: '🔧' },
     { path: `/admin/condominio/${cid}/reservas`, label: 'Reservas', icon: '📅' },
     { path: `/admin/condominio/${cid}/comunicaciones`, label: 'Comunicaciones', icon: '📢' },
     { path: `/admin/condominio/${cid}/guardias`, label: 'Guardias', icon: '🛡️' },
+  ] : []
+
+  const navItems: NavItem[] = [
+    ...(isSuper ? [
+      { path: '/admin', label: 'Dashboard', icon: '📊' },
+      { path: '/admin/condominios', label: 'Condominios', icon: '🏢' },
+    ] : []),
+    ...condoLinks,
   ]
 
   const isActive = (path: string) => location.pathname === path || (path !== '/admin' && location.pathname.startsWith(path))
