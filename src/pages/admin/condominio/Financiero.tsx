@@ -1,8 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { pdf } from '@react-pdf/renderer'
 import AdminLayout from '@/components/layout/AdminLayout'
 import { supabase } from '@/lib/supabase'
 import { exportarExcel } from '@/lib/exportarReporte'
+import ReporteJuntaPDF from '@/components/financiero/ReporteJuntaPDF'
 import ConfiguradorCuotas from './Financiero/ConfiguradorCuotas'
 import ListaRecibos from './Financiero/ListaRecibos'
 import PagosPendientes from './Financiero/PagosPendientes'
@@ -61,11 +63,42 @@ export default function Financiero() {
     enabled: !!id,
   })
 
+  const { data: condominioInfo } = useQuery({
+    queryKey: ['condominio-info', id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('condominios').select('nombre, direccion, ciudad').eq('id', id!).single()
+      if (error) throw error
+      return data as { nombre: string; direccion: string | null; ciudad: string | null }
+    },
+    enabled: !!id,
+  })
+
   if (!id) return null
+
+  const condoNombre = condominioInfo?.nombre || 'Condominio'
+  const condoDir = condominioInfo?.direccion || ''
+  const condoCiudad = condominioInfo?.ciudad || ''
 
   const handleExportExcel = () => {
     if (!exportData) return
-    exportarExcel(exportData.ingresos, exportData.egresos, exportData.morosos, 'Residencial_Los_Pinos')
+    exportarExcel(exportData.ingresos, exportData.egresos, exportData.morosos, condoNombre)
+  }
+
+  const handleReporteJunta = async () => {
+    if (!exportData) return
+    const now = new Date()
+    const periodo = now.toLocaleDateString('es-BO', { month: 'long', year: 'numeric' })
+    const blob = await pdf(
+      <ReporteJuntaPDF
+        condominio={{ nombre: condoNombre, direccion: condoDir, ciudad: condoCiudad }}
+        periodo={periodo}
+        ingresos={exportData.ingresos}
+        egresos={exportData.egresos}
+        morosos={exportData.morosos}
+      />
+    ).toBlob()
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
   }
 
   return (
@@ -79,12 +112,20 @@ export default function Financiero() {
           <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: 0 }}>
             Módulo Financiero
           </h1>
-          <button
-            onClick={handleExportExcel}
-            style={{ padding: '6px 14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}
-          >
-            📊 Excel
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleReporteJunta}
+              style={{ padding: '6px 14px', backgroundColor: '#0D4A8F', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
+            >
+              Reporte Junta PDF
+            </button>
+            <button
+              onClick={handleExportExcel}
+              style={{ padding: '6px 14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
+            >
+              Excel
+            </button>
+          </div>
         </div>
         <p style={{ color: '#5E6B62', fontSize: '14px', marginBottom: '24px' }}>
           Gestión de cuotas, recibos y pagos del condominio
@@ -98,9 +139,9 @@ export default function Financiero() {
         {/* Morosos */}
         <Morosos
           condominioId={id}
-          condominioNombre="Residencial Los Pinos"
-          condominioDir="Av. Banzer 3er Anillo, Zona Norte"
-          condomionioCiudad="Santa Cruz de la Sierra"
+          condominioNombre={condoNombre}
+          condominioDir={condoDir}
+          condomionioCiudad={condoCiudad}
         />
 
         <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
@@ -123,9 +164,9 @@ export default function Financiero() {
         {/* Recibos */}
         <ListaRecibos
           condominioId={id}
-          condominioNombre="Residencial Los Pinos"
-          condominioDir="Av. Banzer 3er Anillo, Zona Norte"
-          condomionioCiudad="Santa Cruz de la Sierra"
+          condominioNombre={condoNombre}
+          condominioDir={condoDir}
+          condomionioCiudad={condoCiudad}
         />
       </div>
     </AdminLayout>

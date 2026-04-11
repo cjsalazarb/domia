@@ -1,7 +1,9 @@
 import { useAuthStore } from '@/stores/authStore'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { pdf } from '@react-pdf/renderer'
 import { supabase } from '@/lib/supabase'
+import EstadoCuentaPDF from '@/components/financiero/EstadoCuentaPDF'
 
 const ESTADO: Record<string, { bg: string; text: string; label: string }> = {
   emitido: { bg: '#F0F0F0', text: '#5E6B62', label: 'Emitido' },
@@ -14,18 +16,49 @@ export default function PortalRecibos() {
   const { user, signOut } = useAuthStore()
   const navigate = useNavigate()
 
-  const { data: recibos, isLoading } = useQuery({
-    queryKey: ['mis-recibos-all', user?.id],
+  const { data: residenteInfo } = useQuery({
+    queryKey: ['mi-residente-info', user?.id],
     queryFn: async () => {
-      const { data: residente } = await supabase.from('residentes').select('id').eq('user_id', user!.id).eq('estado', 'activo').single()
-      if (!residente) return []
-      const { data, error } = await supabase.from('recibos').select('id, periodo, monto_base, monto_recargo, monto_total, estado, fecha_vencimiento, unidades(numero)')
-        .eq('residente_id', residente.id).order('periodo', { ascending: false })
-      if (error) throw error
-      return data || []
+      const { data } = await supabase.from('residentes').select('id, nombre, apellido, ci, condominio_id, unidad_id, unidades(numero, tipo)').eq('user_id', user!.id).eq('estado', 'activo').single()
+      return data
     },
     enabled: !!user,
   })
+
+  const { data: condominioInfo } = useQuery({
+    queryKey: ['mi-condominio-info', residenteInfo?.condominio_id],
+    queryFn: async () => {
+      const { data } = await supabase.from('condominios').select('nombre, direccion, ciudad').eq('id', residenteInfo!.condominio_id).single()
+      return data
+    },
+    enabled: !!residenteInfo?.condominio_id,
+  })
+
+  const { data: recibos, isLoading } = useQuery({
+    queryKey: ['mis-recibos-all', user?.id],
+    queryFn: async () => {
+      if (!residenteInfo) return []
+      const { data, error } = await supabase.from('recibos').select('id, periodo, monto_base, monto_recargo, monto_total, estado, fecha_vencimiento, unidades(numero)')
+        .eq('residente_id', residenteInfo.id).order('periodo', { ascending: false })
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!residenteInfo,
+  })
+
+  const handleEstadoCuenta = async () => {
+    if (!recibos || !residenteInfo || !condominioInfo) return
+    const blob = await pdf(
+      <EstadoCuentaPDF
+        condominio={{ nombre: condominioInfo.nombre, direccion: condominioInfo.direccion || undefined, ciudad: condominioInfo.ciudad || undefined }}
+        residente={{ nombre: residenteInfo.nombre, apellido: residenteInfo.apellido, ci: residenteInfo.ci || undefined }}
+        unidad={{ numero: (residenteInfo.unidades as any)?.numero || '—', tipo: (residenteInfo.unidades as any)?.tipo || '' }}
+        recibos={recibos as any[]}
+      />
+    ).toBlob()
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+  }
 
   const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
@@ -41,7 +74,13 @@ export default function PortalRecibos() {
 
       <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
         <button onClick={() => navigate('/portal')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#1A7A4A', padding: 0, marginBottom: '16px', fontFamily: "'Inter', sans-serif" }}>← Volver al portal</button>
-        <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: '0 0 20px' }}>Mis Recibos</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Mis Recibos</h1>
+          <button onClick={handleEstadoCuenta} disabled={!recibos?.length}
+            style={{ padding: '8px 16px', backgroundColor: '#0D4A8F', color: 'white', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: 'pointer', opacity: recibos?.length ? 1 : 0.5 }}>
+            Estado de cuenta PDF
+          </button>
+        </div>
 
         {isLoading ? (
           <div style={{ textAlign: 'center', padding: '40px', color: '#5E6B62' }}>Cargando recibos...</div>

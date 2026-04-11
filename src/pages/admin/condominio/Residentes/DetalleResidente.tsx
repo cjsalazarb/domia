@@ -1,4 +1,8 @@
 import { useHistorialUnidad, type Residente } from '@/hooks/useResidentes'
+import { useQuery } from '@tanstack/react-query'
+import { pdf } from '@react-pdf/renderer'
+import { supabase } from '@/lib/supabase'
+import EstadoCuentaPDF from '@/components/financiero/EstadoCuentaPDF'
 
 const ESTADO_STYLE: Record<string, { bg: string; text: string; label: string }> = {
   activo: { bg: '#E8F4F0', text: '#1A7A4A', label: 'Activo' },
@@ -15,6 +19,87 @@ interface Props {
 export default function DetalleResidente({ residente, onBack, onEditar }: Props) {
   const { data: historial, isLoading: historialLoading } = useHistorialUnidad(residente.unidad_id)
   const estado = ESTADO_STYLE[residente.estado] || ESTADO_STYLE.activo
+
+  // Payment history
+  const { data: recibos = [] } = useQuery({
+    queryKey: ['recibos-residente', residente.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('recibos')
+        .select('id, periodo, monto_base, monto_recargo, monto_total, estado, fecha_vencimiento, unidades(numero, tipo)')
+        .eq('residente_id', residente.id).order('periodo', { ascending: false })
+      if (error) throw error
+      return data || []
+    },
+  })
+
+  // Maintenance history
+  const { data: mantenimientos = [] } = useQuery({
+    queryKey: ['mantenimientos-unidad', residente.unidad_id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('mantenimientos')
+        .select('id, titulo, estado, prioridad, created_at')
+        .eq('unidad_id', residente.unidad_id).order('created_at', { ascending: false }).limit(10)
+      if (error) throw error
+      return data || []
+    },
+  })
+
+  // Reservations history
+  const { data: reservasHist = [] } = useQuery({
+    queryKey: ['reservas-residente', residente.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('reservas')
+        .select('id, fecha, hora_inicio, hora_fin, estado, areas_comunes(nombre)')
+        .eq('residente_id', residente.id).order('fecha', { ascending: false }).limit(10)
+      if (error) throw error
+      return data || []
+    },
+  })
+
+  // Condominio info for PDF
+  const { data: condInfo } = useQuery({
+    queryKey: ['condo-pdf', residente.condominio_id],
+    queryFn: async () => {
+      const { data } = await supabase.from('condominios').select('nombre, direccion, ciudad').eq('id', residente.condominio_id).single()
+      return data
+    },
+  })
+
+  const handleEstadoCuenta = async () => {
+    if (!recibos.length || !condInfo) return
+    const blob = await pdf(
+      <EstadoCuentaPDF
+        condominio={{ nombre: condInfo.nombre, direccion: condInfo.direccion || undefined, ciudad: condInfo.ciudad || undefined }}
+        residente={{ nombre: residente.nombre, apellido: residente.apellido, ci: residente.ci || undefined }}
+        unidad={{ numero: residente.unidades?.numero || '—', tipo: residente.unidades?.tipo || '' }}
+        recibos={recibos as any[]}
+      />
+    ).toBlob()
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+  }
+
+  const RECIBO_EST: Record<string, { bg: string; text: string; label: string }> = {
+    emitido: { bg: '#F0F0F0', text: '#5E6B62', label: 'Emitido' },
+    pagado: { bg: '#E8F4F0', text: '#1A7A4A', label: 'Pagado' },
+    vencido: { bg: '#FCEAEA', text: '#B83232', label: 'Vencido' },
+    anulado: { bg: '#F0F0F0', text: '#999', label: 'Anulado' },
+  }
+
+  const MTTO_EST: Record<string, { bg: string; text: string; label: string }> = {
+    pendiente: { bg: '#FEF9EC', text: '#C07A2E', label: 'Pendiente' },
+    asignado: { bg: '#EBF4FF', text: '#0D4A8F', label: 'Asignado' },
+    en_proceso: { bg: '#EBF4FF', text: '#0D4A8F', label: 'En proceso' },
+    completado: { bg: '#E8F4F0', text: '#1A7A4A', label: 'Completado' },
+    cancelado: { bg: '#F0F0F0', text: '#5E6B62', label: 'Cancelado' },
+  }
+
+  const RESERVA_EST: Record<string, { bg: string; text: string; label: string }> = {
+    pendiente: { bg: '#FEF9EC', text: '#C07A2E', label: 'Pendiente' },
+    aprobada: { bg: '#E8F4F0', text: '#1A7A4A', label: 'Aprobada' },
+    rechazada: { bg: '#FCEAEA', text: '#B83232', label: 'Rechazada' },
+    cancelada: { bg: '#F0F0F0', text: '#5E6B62', label: 'Cancelada' },
+  }
 
   return (
     <div>
@@ -55,12 +140,16 @@ export default function DetalleResidente({ residente, onBack, onEditar }: Props)
               </span>
             </div>
           </div>
-          <button
-            onClick={onEditar}
-            style={{ padding: '8px 16px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
-          >
-            Editar
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={handleEstadoCuenta} disabled={!recibos.length}
+              style={{ padding: '8px 16px', backgroundColor: '#0D4A8F', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif", opacity: recibos.length ? 1 : 0.5 }}>
+              Estado de cuenta PDF
+            </button>
+            <button onClick={onEditar}
+              style={{ padding: '8px 16px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+              Editar
+            </button>
+          </div>
         </div>
 
         {/* Info grid */}
@@ -138,6 +227,83 @@ export default function DetalleResidente({ residente, onBack, onEditar }: Props)
                       {est.label}
                     </span>
                   </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Historial de pagos */}
+      <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px', marginTop: '16px' }}>
+        <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>
+          Historial de Pagos
+        </h3>
+        {recibos.length === 0 ? (
+          <div style={{ color: '#5E6B62', fontSize: '13px', fontFamily: "'Inter', sans-serif" }}>Sin recibos</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {(recibos as any[]).map(r => {
+              const d = new Date(r.periodo + 'T00:00:00')
+              const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+              const est = RECIBO_EST[r.estado] || RECIBO_EST.emitido
+              return (
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#FAFBFA', borderRadius: '8px', fontFamily: "'Inter', sans-serif", fontSize: '13px' }}>
+                  <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117' }}>{meses[d.getMonth()]} {d.getFullYear()}</span>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: r.estado === 'pagado' ? '#1A7A4A' : '#0D1117' }}>Bs. {Number(r.monto_total).toFixed(2)}</span>
+                    <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Historial de mantenimiento */}
+      <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px', marginTop: '16px' }}>
+        <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>
+          Historial de Mantenimiento
+        </h3>
+        {mantenimientos.length === 0 ? (
+          <div style={{ color: '#5E6B62', fontSize: '13px', fontFamily: "'Inter', sans-serif" }}>Sin solicitudes</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {(mantenimientos as any[]).map(m => {
+              const est = MTTO_EST[m.estado] || MTTO_EST.pendiente
+              return (
+                <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#FAFBFA', borderRadius: '8px', fontFamily: "'Inter', sans-serif", fontSize: '13px' }}>
+                  <div>
+                    <span style={{ fontWeight: 600, color: '#0D1117' }}>{m.titulo}</span>
+                    <span style={{ fontSize: '11px', color: '#5E6B62', marginLeft: '8px' }}>{new Date(m.created_at).toLocaleDateString('es-BO')}</span>
+                  </div>
+                  <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Historial de reservas */}
+      <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px', marginTop: '16px' }}>
+        <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>
+          Historial de Reservas
+        </h3>
+        {reservasHist.length === 0 ? (
+          <div style={{ color: '#5E6B62', fontSize: '13px', fontFamily: "'Inter', sans-serif" }}>Sin reservas</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {(reservasHist as any[]).map(r => {
+              const est = RESERVA_EST[r.estado] || RESERVA_EST.pendiente
+              return (
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#FAFBFA', borderRadius: '8px', fontFamily: "'Inter', sans-serif", fontSize: '13px' }}>
+                  <div>
+                    <span style={{ fontWeight: 600, color: '#0D1117' }}>{r.areas_comunes?.nombre || '—'}</span>
+                    <span style={{ fontSize: '11px', color: '#5E6B62', marginLeft: '8px' }}>{r.fecha} · {r.hora_inicio?.slice(0, 5)} — {r.hora_fin?.slice(0, 5)}</span>
+                  </div>
+                  <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
                 </div>
               )
             })}
