@@ -8,6 +8,7 @@ import ListaRecibos from './Financiero/ListaRecibos'
 import PagosPendientes from './Financiero/PagosPendientes'
 import Morosos from './Financiero/Morosos'
 import Balance from './Financiero/Balance'
+import Gastos from './Financiero/Gastos'
 
 export default function Financiero() {
   const { id } = useParams()
@@ -127,6 +128,11 @@ export default function Financiero() {
           condominioDir="Av. Banzer 3er Anillo, Zona Norte"
           condomionioCiudad="Santa Cruz de la Sierra"
         />
+
+        <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
+
+        {/* Gastos */}
+        <Gastos condominioId={id} />
 
         <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
 
