@@ -19,6 +19,8 @@ import PortalRecibos from '@/pages/portal/PortalRecibos'
 import PagarCuota from '@/pages/portal/PagarCuota'
 import SolicitarMantenimiento from '@/pages/portal/SolicitarMantenimiento'
 import ReservarArea from '@/pages/portal/ReservarArea'
+import Comunicados from '@/pages/portal/Comunicados'
+import MisDatos from '@/pages/portal/MisDatos'
 
 import TurnoDashboard from '@/pages/guardia/TurnoDashboard'
 
@@ -138,6 +140,22 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute rolesPermitidos={['propietario', 'inquilino']}>
         <ReservarArea />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/portal/comunicados',
+    element: (
+      <ProtectedRoute rolesPermitidos={['propietario', 'inquilino']}>
+        <Comunicados />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/portal/mis-datos',
+    element: (
+      <ProtectedRoute rolesPermitidos={['propietario', 'inquilino']}>
+        <MisDatos />
       </ProtectedRoute>
     ),
   },
