@@ -85,38 +85,36 @@ export default function MiTurno({ turno, isLoading, historial, onIniciar, onFina
             </button>
           </div>
         ) : turno.estado === 'activo' ? (
-          /* Shift active — show timer + end button */
+          /* Shift active — timer + end */
           <div>
-            <div style={{ fontSize: '12px', color: '#1A7A4A', fontFamily: "'Inter', sans-serif", fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
-              Turno en curso
+            <div style={{ display: 'inline-block', backgroundColor: '#E8F4F0', padding: '6px 16px', borderRadius: '20px', marginBottom: '12px' }}>
+              <span style={{ fontSize: '12px', color: '#1A7A4A', fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>● Turno activo desde las {formatTime(turno.hora_real_inicio)}</span>
             </div>
-            <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '48px', fontWeight: 800, color: '#0D1117', letterSpacing: '-2px' }}>
+            <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '56px', fontWeight: 800, color: '#1A7A4A', letterSpacing: '-2px', lineHeight: 1 }}>
               <Timer since={turno.hora_real_inicio!} />
             </div>
-            <div style={{ fontSize: '13px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", marginTop: '4px' }}>
-              Inicio: {formatTime(turno.hora_real_inicio)}
+            <div style={{ fontSize: '12px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", marginTop: '8px' }}>
+              Programado: {turno.hora_programada_inicio?.slice(0,5)} — {turno.hora_programada_fin?.slice(0,5)}
             </div>
-            <button
-              onClick={() => onFinalizar(turno.id)}
-              disabled={finalizando}
-              style={{
-                width: '100%',
-                maxWidth: '280px',
-                padding: '20px',
-                backgroundColor: finalizando ? '#5E6B62' : '#B83232',
-                color: 'white',
-                border: 'none',
-                borderRadius: '20px',
-                fontSize: '18px',
-                fontWeight: 800,
-                fontFamily: "'Nunito', sans-serif",
-                cursor: finalizando ? 'not-allowed' : 'pointer',
-                marginTop: '20px',
-                boxShadow: '0 4px 16px rgba(184,50,50,0.3)',
-              }}
-            >
+            <button onClick={() => onFinalizar(turno.id)} disabled={finalizando}
+              style={{ width: '100%', maxWidth: '280px', padding: '20px', backgroundColor: finalizando ? '#5E6B62' : '#B83232', color: 'white', border: 'none', borderRadius: '20px', fontSize: '18px', fontWeight: 800, fontFamily: "'Nunito', sans-serif", cursor: finalizando ? 'not-allowed' : 'pointer', marginTop: '24px', boxShadow: '0 4px 16px rgba(184,50,50,0.3)' }}>
               {finalizando ? 'Finalizando...' : '⏹ Finalizar Turno'}
             </button>
+          </div>
+        ) : turno.estado === 'completado' ? (
+          /* Shift completed — summary */
+          <div>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
+            <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 700, color: '#1A7A4A', margin: '0 0 8px' }}>Turno completado</h2>
+            <div style={{ backgroundColor: '#E8F4F0', borderRadius: '16px', padding: '20px', display: 'inline-block', marginBottom: '12px' }}>
+              <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '36px', fontWeight: 800, color: '#1A7A4A' }}>
+                {turno.horas_trabajadas ? `${Math.floor(Number(turno.horas_trabajadas))}h ${Math.round((Number(turno.horas_trabajadas) % 1) * 60)}m` : '—'}
+              </div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#5E6B62', marginTop: '4px' }}>trabajadas hoy</div>
+            </div>
+            <div style={{ fontSize: '12px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>
+              {formatTime(turno.hora_real_inicio)} — {formatTime(turno.hora_real_fin)}
+            </div>
           </div>
         ) : null}
       </div>
