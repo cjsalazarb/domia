@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useNavigate } from 'react-router-dom'
 import { useAreasComunes, useReservas } from '@/hooks/useReservas'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+
+interface ReservaSlot { fecha: string; hora_inicio: string; hora_fin: string }
 
 const ESTADO_STYLE: Record<string, { bg: string; text: string; label: string }> = {
   pendiente: { bg: '#FEF9EC', text: '#C07A2E', label: 'Pendiente' },
@@ -36,6 +38,50 @@ export default function ReservarArea() {
   const [motivo, setMotivo] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [calMes, setCalMes] = useState(() => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() } })
+
+  // Reservas del area seleccionada para el calendario
+  const { data: reservasArea = [] } = useQuery({
+    queryKey: ['reservas-area-cal', areaId],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0]
+      const { data, error } = await supabase
+        .from('reservas')
+        .select('fecha, hora_inicio, hora_fin')
+        .eq('area_id', areaId)
+        .in('estado', ['pendiente', 'aprobada'])
+        .gte('fecha', today)
+        .order('fecha')
+        .order('hora_inicio')
+      if (error) throw error
+      return data as ReservaSlot[]
+    },
+    enabled: !!areaId,
+  })
+
+  // Calendar helpers
+  const reservasPorFecha = useMemo(() => {
+    const map = new Map<string, ReservaSlot[]>()
+    for (const r of reservasArea) {
+      const list = map.get(r.fecha) || []
+      list.push(r)
+      map.set(r.fecha, list)
+    }
+    return map
+  }, [reservasArea])
+
+  const diasMes = useMemo(() => {
+    const { year, month } = calMes
+    const first = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0).getDate()
+    const startDow = first.getDay() // 0=sun
+    const days: (number | null)[] = []
+    for (let i = 0; i < startDow; i++) days.push(null)
+    for (let d = 1; d <= lastDay; d++) days.push(d)
+    return days
+  }, [calMes])
+
+  const today = new Date().toISOString().split('T')[0]
 
   const areasActivas = areas.filter(a => a.activa)
   const areaSeleccionada = areas.find(a => a.id === areaId)
@@ -159,6 +205,111 @@ export default function ReservarArea() {
               </div>
             )}
           </div>
+
+          {/* Calendar */}
+          {areaId && (
+            <div style={{ marginBottom: '20px', backgroundColor: '#F4F7F5', borderRadius: '16px', padding: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <button type="button" onClick={() => setCalMes(p => {
+                  const d = new Date(p.year, p.month - 1, 1)
+                  return { year: d.getFullYear(), month: d.getMonth() }
+                })} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: '#1A7A4A', padding: '4px 8px' }}>‹</button>
+                <span style={{ fontFamily: "'Nunito', sans-serif", fontSize: '15px', fontWeight: 700, color: '#0D1117' }}>
+                  {new Date(calMes.year, calMes.month).toLocaleDateString('es-BO', { month: 'long', year: 'numeric' })}
+                </span>
+                <button type="button" onClick={() => setCalMes(p => {
+                  const d = new Date(p.year, p.month + 1, 1)
+                  return { year: d.getFullYear(), month: d.getMonth() }
+                })} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: '#1A7A4A', padding: '4px 8px' }}>›</button>
+              </div>
+
+              {/* Day headers */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', marginBottom: '4px' }}>
+                {['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'].map(d => (
+                  <span key={d} style={{ fontSize: '10px', fontWeight: 600, color: '#5E6B62', fontFamily: "'Inter', sans-serif", padding: '4px 0' }}>{d}</span>
+                ))}
+              </div>
+
+              {/* Days grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
+                {diasMes.map((day, i) => {
+                  if (day === null) return <div key={`e-${i}`} />
+                  const dateStr = `${calMes.year}-${String(calMes.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                  const isPast = dateStr < today
+                  const reservasDelDia = reservasPorFecha.get(dateStr) || []
+                  const hasReservas = reservasDelDia.length > 0
+                  const isSelected = fecha === dateStr
+
+                  // Check if fully booked (simplified: if area has horario, check coverage)
+                  let fullyBooked = false
+                  if (hasReservas && areaSeleccionada?.horario_inicio && areaSeleccionada?.horario_fin) {
+                    const totalHorasArea = parseInt(areaSeleccionada.horario_fin) - parseInt(areaSeleccionada.horario_inicio)
+                    const horasReservadas = reservasDelDia.reduce((sum, r) => {
+                      return sum + (parseInt(r.hora_fin) - parseInt(r.hora_inicio))
+                    }, 0)
+                    if (horasReservadas >= totalHorasArea) fullyBooked = true
+                  }
+
+                  const bgColor = isPast ? '#E8E8E8'
+                    : isSelected ? '#1A7A4A'
+                    : fullyBooked ? '#FCEAEA'
+                    : hasReservas ? '#FFF8E1'
+                    : 'white'
+                  const textColor = isPast ? '#B0B0B0' : isSelected ? 'white' : fullyBooked ? '#B83232' : '#0D1117'
+
+                  return (
+                    <button
+                      key={dateStr}
+                      type="button"
+                      disabled={isPast || fullyBooked}
+                      onClick={() => setFecha(dateStr)}
+                      style={{
+                        width: '100%', aspectRatio: '1', borderRadius: '8px', border: 'none',
+                        backgroundColor: bgColor, color: textColor,
+                        fontSize: '13px', fontWeight: isSelected ? 700 : 500, fontFamily: "'Inter', sans-serif",
+                        cursor: isPast || fullyBooked ? 'not-allowed' : 'pointer',
+                        position: 'relative',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      {day}
+                      {hasReservas && !isSelected && !isPast && (
+                        <span style={{
+                          position: 'absolute', bottom: '3px', left: '50%', transform: 'translateX(-50%)',
+                          width: '4px', height: '4px', borderRadius: '50%',
+                          backgroundColor: fullyBooked ? '#B83232' : '#C07A2E',
+                        }} />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Legend */}
+              <div style={{ display: 'flex', gap: '12px', marginTop: '10px', fontSize: '10px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", flexWrap: 'wrap' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'white', border: '1px solid #C8D4CB', display: 'inline-block' }} /> Disponible</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFF8E1', display: 'inline-block' }} /> Parcial</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FCEAEA', display: 'inline-block' }} /> Ocupado</span>
+              </div>
+
+              {/* Available slots for selected date */}
+              {fecha && reservasPorFecha.get(fecha)?.length ? (
+                <div style={{ marginTop: '12px', backgroundColor: 'white', borderRadius: '10px', padding: '12px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#0D1117', marginBottom: '6px', fontFamily: "'Inter', sans-serif" }}>
+                    Horarios ocupados el {new Date(fecha + 'T12:00').toLocaleDateString('es-BO', { day: 'numeric', month: 'short' })}:
+                  </div>
+                  {reservasPorFecha.get(fecha)!.map((r, idx) => (
+                    <span key={idx} style={{
+                      display: 'inline-block', padding: '3px 8px', borderRadius: '6px', fontSize: '11px',
+                      backgroundColor: '#FCEAEA', color: '#B83232', marginRight: '6px', marginBottom: '4px',
+                    }}>
+                      {r.hora_inicio.slice(0, 5)} — {r.hora_fin.slice(0, 5)}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {/* Date + Time */}
           <div style={{ marginBottom: '16px' }}>
