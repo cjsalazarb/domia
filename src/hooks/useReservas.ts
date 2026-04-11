@@ -66,7 +66,15 @@ export function useAreasComunes(condominioId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['areas-comunes', condominioId] }),
   })
 
-  return { areas: query.data || [], isLoading: query.isLoading, crear, actualizar }
+  const eliminar = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('areas_comunes').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['areas-comunes', condominioId] }),
+  })
+
+  return { areas: query.data || [], isLoading: query.isLoading, crear, actualizar, eliminar }
 }
 
 export function useReservas(condominioId: string) {

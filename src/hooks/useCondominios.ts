@@ -96,7 +96,15 @@ export function useUnidades(condominioId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['unidades', condominioId] }),
   })
 
-  return { unidades: query.data || [], isLoading: query.isLoading, crear }
+  const eliminar = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('unidades').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['unidades', condominioId] }),
+  })
+
+  return { unidades: query.data || [], isLoading: query.isLoading, crear, eliminar }
 }
 
 export function useDocumentos(condominioId: string) {

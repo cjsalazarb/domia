@@ -46,11 +46,13 @@ function TabEdificios({ condominioId }: { condominioId: string }) {
 }
 
 function TabUnidades({ condominioId }: { condominioId: string }) {
-  const { unidades, crear } = useUnidades(condominioId)
+  const { unidades, crear, eliminar } = useUnidades(condominioId)
   const { edificios } = useEdificios(condominioId)
   const [show, setShow] = useState(false); const [edId, setEdId] = useState(''); const [num, setNum] = useState('')
   const [piso, setPiso] = useState(''); const [tipo, setTipo] = useState('apartamento'); const [area, setArea] = useState('')
   const [showImport, setShowImport] = useState(false)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
   const { data: condoNombre } = useQuery({
     queryKey: ['condo-nombre-tab', condominioId],
     queryFn: async () => {
@@ -59,7 +61,26 @@ function TabUnidades({ condominioId }: { condominioId: string }) {
     },
     enabled: !!condominioId,
   })
-  const save = async () => { await crear.mutateAsync({ edificio_id: edId, numero: num, piso: piso ? parseInt(piso) : undefined, tipo, area_m2: area ? parseFloat(area) : undefined }); setNum(''); setPiso(''); setArea(''); setShow(false) }
+
+  const save = async () => {
+    setError('')
+    setSaving(true)
+    try {
+      await crear.mutateAsync({ edificio_id: edId, numero: num, piso: piso ? parseInt(piso) : undefined, tipo, area_m2: area ? parseFloat(area) : undefined })
+      setNum(''); setPiso(''); setArea('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar unidad')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Eliminar esta unidad?')) return
+    try { await eliminar.mutateAsync(id) } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar')
+    }
+  }
 
   if (showImport) {
     return (
@@ -78,30 +99,47 @@ function TabUnidades({ condominioId }: { condominioId: string }) {
         <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Unidades ({unidades.length})</h3>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={() => setShowImport(true)} style={{ padding: '6px 14px', backgroundColor: '#0D4A8F', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Importar Excel</button>
-          <button onClick={() => setShow(!show)} style={{ padding: '6px 14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>{show ? 'Cancelar' : '+ Agregar'}</button>
+          <button onClick={() => { setShow(!show); setError('') }} style={{ padding: '6px 14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>{show ? 'Cancelar' : '+ Agregar'}</button>
         </div>
       </div>
-      {show && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
-          <div><label style={lS}>Edificio *</label><select value={edId} onChange={e => setEdId(e.target.value)} style={{ ...iS, backgroundColor: 'white' }}><option value="">—</option>{edificios.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}</select></div>
-          <div><label style={lS}>Número *</label><input value={num} onChange={e => setNum(e.target.value)} placeholder="101" style={iS} /></div>
-          <div><label style={lS}>Piso</label><input type="number" value={piso} onChange={e => setPiso(e.target.value)} style={iS} /></div>
-          <div><label style={lS}>Tipo</label><select value={tipo} onChange={e => setTipo(e.target.value)} style={{ ...iS, backgroundColor: 'white' }}>{TIPOS.map(t => <option key={t}>{t}</option>)}</select></div>
-          <div><label style={lS}>m²</label><div style={{ display: 'flex', gap: '4px' }}><input type="number" value={area} onChange={e => setArea(e.target.value)} style={{ ...iS, flex: 1 }} /><button onClick={save} disabled={!edId || !num} style={{ padding: '0 12px', backgroundColor: !edId || !num ? '#C8D4CB' : '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: !edId || !num ? 'not-allowed' : 'pointer' }}>+</button></div></div>
+
+      {error && (
+        <div style={{ backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#B83232', marginBottom: '12px', fontFamily: "'Inter', sans-serif" }}>
+          {error}
         </div>
       )}
+
+      {show && (
+        <div style={{ backgroundColor: '#F4F7F5', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 1fr 0.7fr', gap: '8px', marginBottom: '12px' }}>
+            <div><label style={lS}>Edificio *</label><select value={edId} onChange={e => setEdId(e.target.value)} style={{ ...iS, backgroundColor: 'white' }}><option value="">— Seleccionar —</option>{edificios.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}</select></div>
+            <div><label style={lS}>Numero *</label><input value={num} onChange={e => setNum(e.target.value)} placeholder="Ej: 101" style={iS} /></div>
+            <div><label style={lS}>Piso</label><input type="number" value={piso} onChange={e => setPiso(e.target.value)} placeholder="1" style={iS} /></div>
+            <div><label style={lS}>Tipo</label><select value={tipo} onChange={e => setTipo(e.target.value)} style={{ ...iS, backgroundColor: 'white' }}>{TIPOS.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}</select></div>
+            <div><label style={lS}>m²</label><input type="number" value={area} onChange={e => setArea(e.target.value)} placeholder="80" style={iS} /></div>
+          </div>
+          <button onClick={save} disabled={!edId || !num || saving} style={{
+            padding: '8px 20px', backgroundColor: (!edId || !num || saving) ? '#C8D4CB' : '#1A7A4A', color: 'white',
+            border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif",
+            cursor: (!edId || !num || saving) ? 'not-allowed' : 'pointer',
+          }}>{saving ? 'Guardando...' : 'Agregar unidad'}</button>
+          {edificios.length === 0 && <p style={{ fontSize: '12px', color: '#C07A2E', margin: '8px 0 0', fontFamily: "'Inter', sans-serif" }}>Primero crea un edificio en la tab "Edificios"</p>}
+        </div>
+      )}
+
       {unidades.length === 0 ? <div style={{ color: '#5E6B62', fontSize: '13px', padding: '20px', textAlign: 'center' }}>Sin unidades</div> : (
         <div style={{ backgroundColor: 'white', borderRadius: '16px', overflow: 'hidden', border: '1px solid #E8F4F0' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.8fr 0.8fr 0.8fr', padding: '10px 16px', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            <span>Número</span><span>Edificio</span><span>Piso</span><span>Tipo</span><span>m²</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 0.8fr 0.6fr 0.5fr', padding: '10px 16px', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <span>Numero</span><span>Edificio</span><span>Piso</span><span>Tipo</span><span>m²</span><span></span>
           </div>
           {unidades.map((u, i) => (
-            <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.8fr 0.8fr 0.8fr', padding: '10px 16px', fontSize: '13px', borderBottom: i < unidades.length - 1 ? '1px solid #F0F0F0' : 'none' }}>
+            <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 0.8fr 0.6fr 0.5fr', padding: '10px 16px', fontSize: '13px', borderBottom: i < unidades.length - 1 ? '1px solid #F0F0F0' : 'none', alignItems: 'center' }}>
               <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117' }}>{u.numero}</span>
               <span style={{ color: '#5E6B62' }}>{(u.edificios as { nombre: string } | null)?.nombre || '—'}</span>
               <span style={{ color: '#5E6B62' }}>{u.piso || '—'}</span>
               <span style={{ color: '#5E6B62', textTransform: 'capitalize' }}>{u.tipo.replace('_', ' ')}</span>
               <span style={{ color: '#5E6B62' }}>{u.area_m2 || '—'}</span>
+              <button onClick={() => handleDelete(u.id)} style={{ padding: '3px 8px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Eliminar</button>
             </div>
           ))}
         </div>
@@ -111,31 +149,99 @@ function TabUnidades({ condominioId }: { condominioId: string }) {
 }
 
 function TabAreas({ condominioId }: { condominioId: string }) {
-  const { areas, crear } = useAreasComunes(condominioId)
-  const [show, setShow] = useState(false); const [n, setN] = useState(''); const [cap, setCap] = useState(''); const [tar, setTar] = useState('')
-  const save = async () => { await crear.mutateAsync({ nombre: n, capacidad: cap ? parseInt(cap) : null, tarifa: tar ? parseFloat(tar) : null, activa: true, requiere_aprobacion: true } as any); setN(''); setCap(''); setTar(''); setShow(false) }
+  const { areas, crear, eliminar } = useAreasComunes(condominioId)
+  const [show, setShow] = useState(false)
+  const [n, setN] = useState(''); const [cap, setCap] = useState(''); const [tar, setTar] = useState('')
+  const [hInicio, setHInicio] = useState(''); const [hFin, setHFin] = useState('')
+  const [reqAprobacion, setReqAprobacion] = useState(true)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setError('')
+    setSaving(true)
+    try {
+      await crear.mutateAsync({
+        nombre: n,
+        capacidad: cap ? parseInt(cap) : null,
+        tarifa: tar ? parseFloat(tar) : null,
+        horario_inicio: hInicio || null,
+        horario_fin: hFin || null,
+        requiere_aprobacion: reqAprobacion,
+        activa: true,
+      } as any)
+      setN(''); setCap(''); setTar(''); setHInicio(''); setHFin('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar area')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Eliminar esta area comun?')) return
+    try { await eliminar.mutateAsync(id) } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar — puede tener reservas asociadas')
+    }
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Áreas Comunes</h3>
-        <button onClick={() => setShow(!show)} style={{ padding: '6px 14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>{show ? 'Cancelar' : '+ Agregar'}</button>
+        <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Areas Comunes ({areas.length})</h3>
+        <button onClick={() => { setShow(!show); setError('') }} style={{ padding: '6px 14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>{show ? 'Cancelar' : '+ Agregar'}</button>
       </div>
-      {show && (
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <input value={n} onChange={e => setN(e.target.value)} placeholder="Nombre (Ej: Salón)" style={{ ...iS, flex: 1, minWidth: '150px' }} />
-          <input type="number" value={cap} onChange={e => setCap(e.target.value)} placeholder="Capacidad" style={{ ...iS, width: '100px' }} />
-          <input type="number" value={tar} onChange={e => setTar(e.target.value)} placeholder="Tarifa Bs." style={{ ...iS, width: '100px' }} />
-          <button onClick={save} disabled={!n} style={{ padding: '10px 18px', backgroundColor: !n ? '#C8D4CB' : '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: !n ? 'not-allowed' : 'pointer' }}>Guardar</button>
+
+      {error && (
+        <div style={{ backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#B83232', marginBottom: '12px', fontFamily: "'Inter', sans-serif" }}>
+          {error}
         </div>
       )}
-      {areas.length === 0 ? <div style={{ color: '#5E6B62', fontSize: '13px', padding: '20px', textAlign: 'center' }}>Sin áreas comunes</div> : (
+
+      {show && (
+        <div style={{ backgroundColor: '#F4F7F5', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.6fr 0.6fr', gap: '8px', marginBottom: '10px' }}>
+            <div><label style={lS}>Nombre *</label><input value={n} onChange={e => setN(e.target.value)} placeholder="Ej: Salon de Eventos" style={iS} /></div>
+            <div><label style={lS}>Capacidad</label><input type="number" value={cap} onChange={e => setCap(e.target.value)} placeholder="50" style={iS} /></div>
+            <div><label style={lS}>Tarifa (Bs.)</label><input type="number" value={tar} onChange={e => setTar(e.target.value)} placeholder="0 = gratis" style={iS} /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+            <div><label style={lS}>Horario inicio</label><input type="time" value={hInicio} onChange={e => setHInicio(e.target.value)} style={iS} /></div>
+            <div><label style={lS}>Horario fin</label><input type="time" value={hFin} onChange={e => setHFin(e.target.value)} style={iS} /></div>
+            <div><label style={lS}>Aprobacion</label>
+              <select value={reqAprobacion ? 'si' : 'no'} onChange={e => setReqAprobacion(e.target.value === 'si')} style={{ ...iS, backgroundColor: 'white' }}>
+                <option value="si">Requiere</option>
+                <option value="no">Automatica</option>
+              </select>
+            </div>
+          </div>
+          <button onClick={save} disabled={!n || saving} style={{
+            padding: '8px 20px', backgroundColor: (!n || saving) ? '#C8D4CB' : '#1A7A4A', color: 'white',
+            border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif",
+            cursor: (!n || saving) ? 'not-allowed' : 'pointer',
+          }}>{saving ? 'Guardando...' : 'Guardar area'}</button>
+        </div>
+      )}
+
+      {areas.length === 0 ? <div style={{ color: '#5E6B62', fontSize: '13px', padding: '20px', textAlign: 'center' }}>Sin areas comunes</div> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {areas.map(a => (
-            <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', backgroundColor: '#F4F7F5', borderRadius: '10px', alignItems: 'center' }}>
-              <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117' }}>{a.nombre}</span>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {a.capacidad && <span style={{ fontSize: '11px', color: '#5E6B62' }}>Cap. {a.capacidad}</span>}
-                <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', backgroundColor: a.tarifa ? '#FEF9EC' : '#E8F4F0', color: a.tarifa ? '#C07A2E' : '#1A7A4A' }}>{a.tarifa ? `Bs. ${Number(a.tarifa).toFixed(0)}` : 'Gratis'}</span>
+            <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 16px', backgroundColor: '#F4F7F5', borderRadius: '12px', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117', fontSize: '14px' }}>{a.nombre}</span>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                  {a.horario_inicio && (
+                    <span style={{ fontSize: '11px', color: '#5E6B62' }}>{a.horario_inicio.slice(0, 5)} — {a.horario_fin?.slice(0, 5)}</span>
+                  )}
+                  {a.capacidad && <span style={{ fontSize: '11px', color: '#5E6B62' }}>Cap. {a.capacidad}</span>}
+                  {a.requiere_aprobacion && <span style={{ fontSize: '10px', color: '#7B1AC8' }}>Req. aprobacion</span>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '6px', fontWeight: 600, backgroundColor: a.tarifa && Number(a.tarifa) > 0 ? '#FEF9EC' : '#E8F4F0', color: a.tarifa && Number(a.tarifa) > 0 ? '#C07A2E' : '#1A7A4A' }}>
+                  {a.tarifa && Number(a.tarifa) > 0 ? `Bs. ${Number(a.tarifa).toFixed(0)}` : 'Gratis'}
+                </span>
+                <button onClick={() => handleDelete(a.id)} style={{ padding: '4px 10px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Eliminar</button>
               </div>
             </div>
           ))}
