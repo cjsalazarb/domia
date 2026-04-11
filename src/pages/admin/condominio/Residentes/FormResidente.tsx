@@ -26,7 +26,7 @@ export default function FormResidente({ condominioId, residente, propietarios, o
   const [fechaFin, setFechaFin] = useState(residente?.fecha_fin || '')
   const [notas, setNotas] = useState(residente?.notas || '')
 
-  // Fetch unidades
+  // Fetch unidades + residentes activos para filtrar disponibilidad
   const { data: unidades } = useQuery({
     queryKey: ['unidades', condominioId],
     queryFn: async () => {
@@ -39,6 +39,32 @@ export default function FormResidente({ condominioId, residente, propietarios, o
       if (error) throw error
       return data
     },
+  })
+
+  const { data: unidadesConPropietario = [] } = useQuery({
+    queryKey: ['unidades-con-propietario', condominioId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('residentes')
+        .select('unidad_id')
+        .eq('condominio_id', condominioId)
+        .eq('tipo', 'propietario')
+        .neq('estado', 'inactivo')
+      if (error) throw error
+      return (data || []).map(r => r.unidad_id)
+    },
+  })
+
+  const unidadesFiltradas = (unidades || []).filter(u => {
+    // In edit mode, always show the current unit
+    if (residente && u.id === residente.unidad_id) return true
+    if (tipo === 'propietario') {
+      // Show only units WITHOUT an active owner
+      return !unidadesConPropietario.includes(u.id)
+    } else {
+      // Inquilino: show only units WITH an active owner
+      return unidadesConPropietario.includes(u.id)
+    }
   })
 
   useEffect(() => {
@@ -181,7 +207,7 @@ export default function FormResidente({ condominioId, residente, propietarios, o
           <select value={unidadId} onChange={e => setUnidadId(e.target.value)} required
             style={{ ...inputStyle, backgroundColor: 'white' }}>
             <option value="">— Seleccionar unidad —</option>
-            {(unidades || []).map(u => (
+            {unidadesFiltradas.map(u => (
               <option key={u.id} value={u.id}>{u.numero} ({u.tipo})</option>
             ))}
           </select>
