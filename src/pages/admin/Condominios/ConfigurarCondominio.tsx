@@ -1,7 +1,10 @@
 import { useState, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
 import { useEdificios, useUnidades, useDocumentos } from '@/hooks/useCondominios'
 import { useAreasComunes } from '@/hooks/useReservas'
 import { useCuotas } from '@/hooks/useCuotas'
+import ImportarResidentes from '@/pages/admin/condominio/Residentes/ImportarResidentes'
 
 type Tab = 'edificios' | 'unidades' | 'areas' | 'documentos' | 'config'
 
@@ -47,12 +50,36 @@ function TabUnidades({ condominioId }: { condominioId: string }) {
   const { edificios } = useEdificios(condominioId)
   const [show, setShow] = useState(false); const [edId, setEdId] = useState(''); const [num, setNum] = useState('')
   const [piso, setPiso] = useState(''); const [tipo, setTipo] = useState('apartamento'); const [area, setArea] = useState('')
+  const [showImport, setShowImport] = useState(false)
+  const { data: condoNombre } = useQuery({
+    queryKey: ['condo-nombre-tab', condominioId],
+    queryFn: async () => {
+      const { data } = await supabase.from('condominios').select('nombre').eq('id', condominioId).single()
+      return data?.nombre || ''
+    },
+    enabled: !!condominioId,
+  })
   const save = async () => { await crear.mutateAsync({ edificio_id: edId, numero: num, piso: piso ? parseInt(piso) : undefined, tipo, area_m2: area ? parseFloat(area) : undefined }); setNum(''); setPiso(''); setArea(''); setShow(false) }
+
+  if (showImport) {
+    return (
+      <ImportarResidentes
+        condominioId={condominioId}
+        condominioNombre={condoNombre || ''}
+        onBack={() => setShowImport(false)}
+        onComplete={() => setShowImport(false)}
+      />
+    )
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Unidades ({unidades.length})</h3>
-        <button onClick={() => setShow(!show)} style={{ padding: '6px 14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>{show ? 'Cancelar' : '+ Agregar'}</button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => setShowImport(true)} style={{ padding: '6px 14px', backgroundColor: '#0D4A8F', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Importar Excel</button>
+          <button onClick={() => setShow(!show)} style={{ padding: '6px 14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>{show ? 'Cancelar' : '+ Agregar'}</button>
+        </div>
       </div>
       {show && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
