@@ -208,9 +208,7 @@ function TabAreas({ condominioId }: { condominioId: string }) {
             <div><label style={lS}>Capacidad</label><input type="number" value={cap} onChange={e => setCap(e.target.value)} placeholder="50" style={iS} /></div>
             <div><label style={lS}>Tarifa (Bs.)</label><input type="number" value={tar} onChange={e => setTar(e.target.value)} placeholder="0 = gratis" style={iS} /></div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-            <div><label style={lS}>Horario inicio</label><input type="time" value={hInicio} onChange={e => setHInicio(e.target.value)} style={iS} /></div>
-            <div><label style={lS}>Horario fin</label><input type="time" value={hFin} onChange={e => setHFin(e.target.value)} style={iS} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginBottom: '12px' }}>
             <div><label style={lS}>Aprobacion</label>
               <select value={reqAprobacion ? 'si' : 'no'} onChange={e => setReqAprobacion(e.target.value === 'si')} style={{ ...iS, backgroundColor: 'white' }}>
                 <option value="si">Requiere</option>
