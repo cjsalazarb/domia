@@ -1,10 +1,79 @@
+import { useAuthStore } from '@/stores/authStore'
+import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
+
+const ESTADO: Record<string, { bg: string; text: string; label: string }> = {
+  emitido: { bg: '#F0F0F0', text: '#5E6B62', label: 'Emitido' },
+  pagado: { bg: '#E8F4F0', text: '#1A7A4A', label: 'Pagado' },
+  vencido: { bg: '#FCEAEA', text: '#B83232', label: 'Vencido' },
+  anulado: { bg: '#F0F0F0', text: '#999', label: 'Anulado' },
+}
+
 export default function PortalRecibos() {
+  const { user, signOut } = useAuthStore()
+  const navigate = useNavigate()
+
+  const { data: recibos, isLoading } = useQuery({
+    queryKey: ['mis-recibos-all', user?.id],
+    queryFn: async () => {
+      const { data: residente } = await supabase.from('residentes').select('id').eq('user_id', user!.id).eq('estado', 'activo').single()
+      if (!residente) return []
+      const { data, error } = await supabase.from('recibos').select('id, periodo, monto_base, monto_recargo, monto_total, estado, fecha_vencimiento, unidades(numero)')
+        .eq('residente_id', residente.id).order('periodo', { ascending: false })
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!user,
+  })
+
+  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
   return (
-    <div style={{ padding: '24px', fontFamily: "'Inter', sans-serif" }}>
-      <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117' }}>
-        Mis Recibos
-      </h1>
-      <p style={{ color: '#5E6B62', fontSize: '14px' }}>Módulo en construcción</p>
+    <div style={{ minHeight: '100vh', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ background: 'linear-gradient(to right, #1A7A4A, #0D9E6E)', padding: '20px 24px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 800 }}>DOM<span style={{ opacity: 0.9 }}>IA</span></span>
+          <span style={{ fontSize: '13px', opacity: 0.8 }}>Mis Recibos</span>
+        </div>
+        <button onClick={() => { signOut(); navigate('/login') }} style={{ padding: '6px 14px', backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>Salir</button>
+      </div>
+
+      <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+        <button onClick={() => navigate('/portal')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#1A7A4A', padding: 0, marginBottom: '16px', fontFamily: "'Inter', sans-serif" }}>← Volver al portal</button>
+        <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: '0 0 20px' }}>Mis Recibos</h1>
+
+        {isLoading ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#5E6B62' }}>Cargando recibos...</div>
+        ) : !recibos || recibos.length === 0 ? (
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '40px', textAlign: 'center', color: '#5E6B62' }}>No tienes recibos todavía</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {(recibos as any[]).map(r => {
+              const d = new Date(r.periodo + 'T00:00:00')
+              const est = ESTADO[r.estado] || ESTADO.emitido
+              return (
+                <div key={r.id} style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '15px', fontWeight: 700, color: '#0D1117' }}>{meses[d.getMonth()]} {d.getFullYear()}</div>
+                    <div style={{ fontSize: '12px', color: '#5E6B62', marginTop: '2px' }}>Unidad {r.unidades?.numero || '—'} · Vence {new Date(r.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-BO')}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 800, color: r.estado === 'pagado' ? '#1A7A4A' : '#0D1117' }}>Bs. {Number(r.monto_total).toFixed(2)}</div>
+                    <span style={{ display: 'inline-block', marginTop: '4px', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {recibos && recibos.length > 0 && (recibos as any[]).some(r => r.estado !== 'pagado') && (
+          <button onClick={() => navigate('/portal/pagar')} style={{ marginTop: '20px', width: '100%', padding: '14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: 'pointer' }}>
+            Pagar cuota →
+          </button>
+        )}
+      </div>
     </div>
   )
 }
