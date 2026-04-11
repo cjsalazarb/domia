@@ -2,190 +2,195 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '@/components/layout/AdminLayout'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-
-const CONDO_ID = '11111111-1111-1111-1111-111111111111'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
 
-  const { data: stats } = useQuery({
-    queryKey: ['admin-stats'],
+  // Global KPIs across ALL condominios
+  const { data: global } = useQuery({
+    queryKey: ['admin-global-stats'],
     queryFn: async () => {
-      const [condos, residentes, recibos, pagos, mantenimientos, guardias, turnos] = await Promise.all([
-        supabase.from('condominios').select('id', { count: 'exact', head: true }),
-        supabase.from('residentes').select('id, estado', { count: 'exact' }).eq('condominio_id', CONDO_ID),
-        supabase.from('recibos').select('id, estado, monto_total').eq('condominio_id', CONDO_ID),
-        supabase.from('pagos').select('id, monto').eq('condominio_id', CONDO_ID).not('confirmado_por', 'is', null),
-        supabase.from('mantenimientos').select('id, estado').eq('condominio_id', CONDO_ID),
-        supabase.from('guardias').select('id').eq('condominio_id', CONDO_ID).eq('activo', true),
-        supabase.from('turnos').select('id, estado').eq('condominio_id', CONDO_ID),
+      const [condosRes, residentesRes, recibosRes, pagosRes, mttoRes, guardiasRes, turnosRes, reservasRes] = await Promise.all([
+        supabase.from('condominios').select('id, nombre, direccion, ciudad, estado').eq('estado', 'activo'),
+        supabase.from('residentes').select('id, condominio_id, estado'),
+        supabase.from('recibos').select('id, condominio_id, estado, monto_total'),
+        supabase.from('pagos').select('id, condominio_id, monto').not('confirmado_por', 'is', null),
+        supabase.from('mantenimientos').select('id, condominio_id, estado').in('estado', ['pendiente', 'asignado', 'en_proceso']),
+        supabase.from('guardias').select('id, condominio_id').eq('activo', true),
+        supabase.from('turnos').select('id, condominio_id').eq('estado', 'activo'),
+        supabase.from('reservas').select('id, condominio_id').eq('estado', 'pendiente'),
       ])
 
-      const totalResidentes = residentes.count || 0
-      const morosos = (residentes.data || []).filter(r => r.estado === 'moroso').length
-      const recibosData = recibos.data || []
-      const totalRecibos = recibosData.length
-      const recibosPagados = recibosData.filter(r => r.estado === 'pagado').length
-      const recibosVencidos = recibosData.filter(r => r.estado === 'vencido').length
-      const recibosEmitidos = recibosData.filter(r => r.estado === 'emitido').length
-      const totalRecaudado = (pagos.data || []).reduce((s, p) => s + Number(p.monto), 0)
-      const totalPendiente = recibosData.filter(r => r.estado !== 'pagado').reduce((s, r) => s + Number(r.monto_total), 0)
-      const mttoData = mantenimientos.data || []
-      const mttoPendientes = mttoData.filter(m => m.estado === 'pendiente').length
-      const mttoEnProceso = mttoData.filter(m => ['asignado', 'en_proceso'].includes(m.estado)).length
-      const mttoResueltos = mttoData.filter(m => m.estado === 'resuelto').length
+      const condos = condosRes.data || []
+      const residentes = residentesRes.data || []
+      const recibos = recibosRes.data || []
+      const pagos = pagosRes.data || []
+      const mtto = mttoRes.data || []
+      const guardias = guardiasRes.data || []
+      const turnos = turnosRes.data || []
+      const reservas = reservasRes.data || []
+
+      const totalRecaudado = pagos.reduce((s, p) => s + Number(p.monto), 0)
+      const totalPendiente = recibos.filter(r => r.estado !== 'pagado').reduce((s, r) => s + Number(r.monto_total), 0)
+      const morosos = residentes.filter(r => r.estado === 'moroso').length
+      const recibosVencidos = recibos.filter(r => r.estado === 'vencido')
+
+      // Per-condominio stats
+      const condoStats = condos.map(c => {
+        const cRecibos = recibos.filter(r => r.condominio_id === c.id)
+        const cPagados = cRecibos.filter(r => r.estado === 'pagado').length
+        const cTotal = cRecibos.length
+        const cobranza = cTotal > 0 ? Math.round((cPagados / cTotal) * 100) : 0
+        const cMorosos = residentes.filter(r => r.condominio_id === c.id && r.estado === 'moroso').length
+        const cMtto = mtto.filter(m => m.condominio_id === c.id).length
+        const cGuardias = turnos.filter(t => t.condominio_id === c.id).length
+        const cResidentes = residentes.filter(r => r.condominio_id === c.id).length
+        return { ...c, cobranza, morosos: cMorosos, ticketsPendientes: cMtto, guardiasEnTurno: cGuardias, residentes: cResidentes }
+      })
 
       return {
-        condominios: condos.count || 0,
-        totalResidentes, morosos,
-        totalRecibos, recibosPagados, recibosVencidos, recibosEmitidos,
-        totalRecaudado, totalPendiente,
-        mttoPendientes, mttoEnProceso, mttoResueltos, mttoTotal: mttoData.length,
-        totalGuardias: guardias.data?.length || 0,
-        turnosActivos: (turnos.data || []).filter(t => t.estado === 'activo').length,
+        totalCondominios: condos.length,
+        totalResidentes: residentes.length,
+        totalRecaudado,
+        totalPendiente,
+        morosos,
+        totalGuardias: guardias.length,
+        guardiasEnTurno: turnos.length,
+        ticketsPendientes: mtto.length,
+        reservasPendientes: reservas.length,
+        recibosVencidos: recibosVencidos.length,
+        condoStats,
       }
     },
   })
 
-  const cobranzaData = stats ? [
-    { name: 'Pagados', value: stats.recibosPagados, color: '#1A7A4A' },
-    { name: 'Emitidos', value: stats.recibosEmitidos, color: '#C07A2E' },
-    { name: 'Vencidos', value: stats.recibosVencidos, color: '#B83232' },
-  ].filter(d => d.value > 0) : []
-
-  const mttoData = stats ? [
-    { name: 'Pendientes', value: stats.mttoPendientes, color: '#C07A2E' },
-    { name: 'En proceso', value: stats.mttoEnProceso, color: '#7B1AC8' },
-    { name: 'Resueltos', value: stats.mttoResueltos, color: '#1A7A4A' },
-  ].filter(d => d.value > 0) : []
-
-  const kpiStyle = (color: string) => ({
-    backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-    padding: '20px', borderLeft: `4px solid ${color}`,
-  })
+  const kpi = (label: string, value: string | number, color: string, sub?: string) => (
+    <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '20px', borderLeft: `4px solid ${color}` }}>
+      <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
+      <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '28px', fontWeight: 800, color: '#0D1117', marginTop: '4px' }}>{value}</div>
+      {sub && <div style={{ fontSize: '11px', color: '#5E6B62', marginTop: '2px' }}>{sub}</div>}
+    </div>
+  )
 
   return (
     <AdminLayout title="Dashboard">
-      <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: '0 0 4px' }}>
-        Dashboard
-      </h1>
-      <p style={{ color: '#5E6B62', fontSize: '14px', marginBottom: '24px' }}>
-        Vista general del sistema DOMIA
-      </p>
-
-      {/* KPIs row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-        <div style={kpiStyle('#1A7A4A')}>
-          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Residentes</div>
-          <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '28px', fontWeight: 800, color: '#0D1117', marginTop: '4px' }}>{stats?.totalResidentes || 0}</div>
-          {(stats?.morosos || 0) > 0 && <div style={{ fontSize: '11px', color: '#B83232', marginTop: '2px' }}>{stats?.morosos} moroso{stats?.morosos !== 1 ? 's' : ''}</div>}
-        </div>
-
-        <div style={kpiStyle('#1A7A4A')}>
-          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Recaudado</div>
-          <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '28px', fontWeight: 800, color: '#1A7A4A', marginTop: '4px' }}>Bs. {(stats?.totalRecaudado || 0).toFixed(0)}</div>
-          <div style={{ fontSize: '11px', color: '#5E6B62', marginTop: '2px' }}>{stats?.recibosPagados || 0} recibos pagados</div>
-        </div>
-
-        <div style={kpiStyle('#B83232')}>
-          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pendiente</div>
-          <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '28px', fontWeight: 800, color: '#B83232', marginTop: '4px' }}>Bs. {(stats?.totalPendiente || 0).toFixed(0)}</div>
-          <div style={{ fontSize: '11px', color: '#5E6B62', marginTop: '2px' }}>{(stats?.recibosEmitidos || 0) + (stats?.recibosVencidos || 0)} recibos</div>
-        </div>
-
-        <div style={kpiStyle('#0D4A8F')}>
-          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Mantenimiento</div>
-          <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '28px', fontWeight: 800, color: '#0D4A8F', marginTop: '4px' }}>{stats?.mttoPendientes || 0}</div>
-          <div style={{ fontSize: '11px', color: '#5E6B62', marginTop: '2px' }}>tickets pendientes</div>
-        </div>
-
-        <div style={kpiStyle('#7B1AC8')}>
-          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Guardias</div>
-          <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '28px', fontWeight: 800, color: '#7B1AC8', marginTop: '4px' }}>{stats?.totalGuardias || 0}</div>
-          <div style={{ fontSize: '11px', color: '#5E6B62', marginTop: '2px' }}>{stats?.turnosActivos || 0} en turno ahora</div>
-        </div>
+      {/* Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: '0 0 4px' }}>Dashboard Global</h1>
+        <p style={{ color: '#5E6B62', fontSize: '14px', fontFamily: "'Inter', sans-serif" }}>Vista consolidada de todos los condominios</p>
       </div>
 
-      {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-        {/* Cobranza pie */}
-        <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px' }}>
-          <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Estado de Cobranza</h3>
-          {cobranzaData.length > 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{ width: '140px', height: '140px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={cobranzaData} dataKey="value" cx="50%" cy="50%" outerRadius={60} innerRadius={35}>
-                      {cobranzaData.map((d, i) => <Cell key={i} fill={d.color} />)}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {cobranzaData.map(d => (
-                  <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Inter', sans-serif", fontSize: '12px' }}>
-                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: d.color, flexShrink: 0 }} />
-                    <span style={{ color: '#5E6B62' }}>{d.name}</span>
-                    <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117' }}>{d.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div style={{ color: '#5E6B62', fontSize: '13px', textAlign: 'center', padding: '20px' }}>Sin datos</div>
-          )}
-        </div>
-
-        {/* Mantenimiento bar */}
-        <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px' }}>
-          <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Mantenimiento</h3>
-          {mttoData.length > 0 ? (
-            <div style={{ width: '100%', height: '160px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mttoData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E8F4F0" />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: '#5E6B62' }} />
-                  <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 11, fill: '#5E6B62' }} />
-                  <Tooltip contentStyle={{ borderRadius: '10px', border: '1px solid #C8D4CB', fontSize: '12px' }} />
-                  <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                    {mttoData.map((d, i) => <Cell key={i} fill={d.color} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div style={{ color: '#5E6B62', fontSize: '13px', textAlign: 'center', padding: '20px' }}>Sin datos</div>
-          )}
-        </div>
+      {/* Global KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px', marginBottom: '32px' }}>
+        {kpi('Condominios', global?.totalCondominios || 0, '#1A7A4A', 'activos')}
+        {kpi('Residentes', global?.totalResidentes || 0, '#0D4A8F', 'en el sistema')}
+        {kpi('Recaudado', `Bs. ${(global?.totalRecaudado || 0).toFixed(0)}`, '#1A7A4A', 'este período')}
+        {kpi('Pendiente', `Bs. ${(global?.totalPendiente || 0).toFixed(0)}`, '#B83232', `${global?.morosos || 0} moroso${(global?.morosos || 0) !== 1 ? 's' : ''}`)}
+        {kpi('Guardias', global?.totalGuardias || 0, '#7B1AC8', `${global?.guardiasEnTurno || 0} en turno`)}
+        {kpi('Tickets', global?.ticketsPendientes || 0, '#C07A2E', 'pendientes')}
       </div>
 
-      {/* Quick actions */}
-      <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px' }}>
-        <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Acceso rápido</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px' }}>
-          {[
-            { label: 'Residentes', icon: '👥', path: `/admin/condominio/${CONDO_ID}/residentes` },
-            { label: 'Financiero', icon: '💰', path: `/admin/condominio/${CONDO_ID}/financiero` },
-            { label: 'Mantenimiento', icon: '🔧', path: `/admin/condominio/${CONDO_ID}/mantenimiento` },
-            { label: 'Reservas', icon: '📅', path: `/admin/condominio/${CONDO_ID}/reservas` },
-            { label: 'Comunicaciones', icon: '📢', path: `/admin/condominio/${CONDO_ID}/comunicaciones` },
-            { label: 'Guardias', icon: '🛡️', path: `/admin/condominio/${CONDO_ID}/guardias` },
-          ].map(a => (
-            <button key={a.path} onClick={() => navigate(a.path)} style={{
-              display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', borderRadius: '12px',
-              border: '1px solid #E8F4F0', backgroundColor: 'white', cursor: 'pointer',
-              fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: 500, color: '#0D1117',
-              transition: 'all 0.15s', textAlign: 'left',
-            }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#E8F4F0' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'white' }}
-            >
-              <span style={{ fontSize: '20px' }}>{a.icon}</span>
-              {a.label}
+      {/* Condominios list */}
+      <div style={{ marginBottom: '32px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Mis Condominios</h2>
+          <button onClick={() => navigate('/admin/condominios')} style={{ padding: '8px 16px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: 'pointer' }}>
+            + Nuevo condominio
+          </button>
+        </div>
+
+        {!global?.condoStats?.length ? (
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '40px', textAlign: 'center' }}>
+            <div style={{ fontSize: '36px', marginBottom: '12px' }}>🏢</div>
+            <p style={{ color: '#5E6B62', fontSize: '14px', marginBottom: '16px' }}>No hay condominios registrados</p>
+            <button onClick={() => navigate('/admin/condominios')} style={{ padding: '12px 24px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: 'pointer' }}>
+              Crear primer condominio →
             </button>
-          ))}
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '14px' }}>
+            {global!.condoStats.map(c => (
+              <div key={c.id} style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px', fontFamily: "'Inter', sans-serif" }}>
+                {/* Name + badge */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+                  <div>
+                    <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '17px', fontWeight: 700, color: '#0D1117' }}>{c.nombre}</div>
+                    <div style={{ fontSize: '12px', color: '#5E6B62', marginTop: '2px' }}>{c.ciudad} · {c.residentes} residentes</div>
+                  </div>
+                  <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 500, backgroundColor: '#E8F4F0', color: '#1A7A4A' }}>Activo</span>
+                </div>
+
+                {/* Cobranza bar */}
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#5E6B62', marginBottom: '4px' }}>
+                    <span>Cobranza del mes</span>
+                    <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: c.cobranza >= 80 ? '#1A7A4A' : c.cobranza >= 50 ? '#C07A2E' : '#B83232' }}>{c.cobranza}%</span>
+                  </div>
+                  <div style={{ height: '8px', backgroundColor: '#E8F4F0', borderRadius: '100px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${c.cobranza}%`, backgroundColor: c.cobranza >= 80 ? '#1A7A4A' : c.cobranza >= 50 ? '#C07A2E' : '#B83232', borderRadius: '100px', transition: 'width 0.5s' }} />
+                  </div>
+                </div>
+
+                {/* Mini stats */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                  {c.morosos > 0 && <span style={{ fontSize: '11px', backgroundColor: '#FCEAEA', color: '#B83232', padding: '3px 8px', borderRadius: '6px', fontWeight: 600 }}>⚠ {c.morosos} moroso{c.morosos !== 1 ? 's' : ''}</span>}
+                  {c.ticketsPendientes > 0 && <span style={{ fontSize: '11px', backgroundColor: '#FEF9EC', color: '#C07A2E', padding: '3px 8px', borderRadius: '6px' }}>🔧 {c.ticketsPendientes} ticket{c.ticketsPendientes !== 1 ? 's' : ''}</span>}
+                  {c.guardiasEnTurno > 0 && <span style={{ fontSize: '11px', backgroundColor: '#F5ECFF', color: '#7B1AC8', padding: '3px 8px', borderRadius: '6px' }}>🛡 {c.guardiasEnTurno} en turno</span>}
+                  {c.morosos === 0 && c.ticketsPendientes === 0 && <span style={{ fontSize: '11px', backgroundColor: '#E8F4F0', color: '#1A7A4A', padding: '3px 8px', borderRadius: '6px' }}>✓ Todo al día</span>}
+                </div>
+
+                {/* Action */}
+                <button onClick={() => navigate(`/admin/condominio/${c.id}/residentes`)} style={{
+                  width: '100%', padding: '10px', backgroundColor: '#F4F7F5', color: '#1A7A4A', border: 'none',
+                  borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: 'pointer',
+                  transition: 'background-color 0.15s',
+                }} onMouseEnter={e => (e.currentTarget).style.backgroundColor = '#E8F4F0'}
+                   onMouseLeave={e => (e.currentTarget).style.backgroundColor = '#F4F7F5'}>
+                  Administrar →
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Alerts */}
+      <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px' }}>
+        <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Alertas del Sistema</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {(global?.recibosVencidos || 0) > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', backgroundColor: '#FCEAEA', borderRadius: '10px', borderLeft: '3px solid #B83232' }}>
+              <span style={{ fontSize: '16px' }}>💸</span>
+              <div>
+                <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: 600, color: '#B83232' }}>{global!.recibosVencidos} recibo{global!.recibosVencidos !== 1 ? 's' : ''} vencido{global!.recibosVencidos !== 1 ? 's' : ''}</div>
+                <div style={{ fontSize: '11px', color: '#5E6B62' }}>Recibos sin pago pasada la fecha de vencimiento</div>
+              </div>
+            </div>
+          )}
+          {(global?.reservasPendientes || 0) > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', backgroundColor: '#FEF9EC', borderRadius: '10px', borderLeft: '3px solid #C07A2E' }}>
+              <span style={{ fontSize: '16px' }}>📅</span>
+              <div>
+                <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: 600, color: '#C07A2E' }}>{global!.reservasPendientes} reserva{global!.reservasPendientes !== 1 ? 's' : ''} pendiente{global!.reservasPendientes !== 1 ? 's' : ''}</div>
+                <div style={{ fontSize: '11px', color: '#5E6B62' }}>Solicitudes de áreas comunes por aprobar</div>
+              </div>
+            </div>
+          )}
+          {(global?.ticketsPendientes || 0) > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', backgroundColor: '#EBF4FF', borderRadius: '10px', borderLeft: '3px solid #0D4A8F' }}>
+              <span style={{ fontSize: '16px' }}>🔧</span>
+              <div>
+                <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: 600, color: '#0D4A8F' }}>{global!.ticketsPendientes} ticket{global!.ticketsPendientes !== 1 ? 's' : ''} de mantenimiento</div>
+                <div style={{ fontSize: '11px', color: '#5E6B62' }}>Solicitudes pendientes o en proceso</div>
+              </div>
+            </div>
+          )}
+          {!global?.recibosVencidos && !global?.reservasPendientes && !global?.ticketsPendientes && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', backgroundColor: '#E8F4F0', borderRadius: '10px', borderLeft: '3px solid #1A7A4A' }}>
+              <span style={{ fontSize: '16px' }}>✅</span>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#1A7A4A', fontWeight: 600 }}>Sin alertas — todo en orden</div>
+            </div>
+          )}
         </div>
       </div>
     </AdminLayout>
