@@ -15,11 +15,12 @@ const TIPO_STYLE: Record<string, { bg: string; text: string; label: string }> = 
 interface Props {
   residentes: Residente[]
   onNuevo: () => void
+  onImportar: () => void
   onDetalle: (id: string) => void
   onEditar: (id: string) => void
 }
 
-export default function ListaResidentes({ residentes, onNuevo, onDetalle, onEditar }: Props) {
+export default function ListaResidentes({ residentes, onNuevo, onImportar, onDetalle, onEditar }: Props) {
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<string>('todos')
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
@@ -43,24 +44,44 @@ export default function ListaResidentes({ residentes, onNuevo, onDetalle, onEdit
             {residentes.length} residente{residentes.length !== 1 ? 's' : ''} registrado{residentes.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <button
-          onClick={onNuevo}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#1A7A4A',
-            color: 'white',
-            border: 'none',
-            borderRadius: '10px',
-            fontSize: '13px',
-            fontWeight: 700,
-            fontFamily: "'Nunito', sans-serif",
-            cursor: 'pointer',
-          }}
-          onMouseEnter={e => (e.target as HTMLButtonElement).style.backgroundColor = '#0D9E6E'}
-          onMouseLeave={e => (e.target as HTMLButtonElement).style.backgroundColor = '#1A7A4A'}
-        >
-          + Nuevo residente
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={onImportar}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#0D4A8F',
+              color: 'white',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 700,
+              fontFamily: "'Nunito', sans-serif",
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => (e.target as HTMLButtonElement).style.backgroundColor = '#1060B0'}
+            onMouseLeave={e => (e.target as HTMLButtonElement).style.backgroundColor = '#0D4A8F'}
+          >
+            Importar Excel
+          </button>
+          <button
+            onClick={onNuevo}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#1A7A4A',
+              color: 'white',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 700,
+              fontFamily: "'Nunito', sans-serif",
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => (e.target as HTMLButtonElement).style.backgroundColor = '#0D9E6E'}
+            onMouseLeave={e => (e.target as HTMLButtonElement).style.backgroundColor = '#1A7A4A'}
+          >
+            + Nuevo residente
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

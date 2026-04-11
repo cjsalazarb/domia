@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
 import { useResidentes, type CreateResidenteInput } from '@/hooks/useResidentes'
 import AdminLayout from '@/components/layout/AdminLayout'
 import ListaResidentes from './Residentes/ListaResidentes'
 import FormResidente from './Residentes/FormResidente'
 import DetalleResidente from './Residentes/DetalleResidente'
+import ImportarResidentes from './Residentes/ImportarResidentes'
 
-type View = 'lista' | 'nuevo' | 'editar' | 'detalle'
+type View = 'lista' | 'nuevo' | 'editar' | 'detalle' | 'importar'
 
 export default function Residentes() {
   const { id } = useParams()
@@ -15,6 +18,20 @@ export default function Residentes() {
 
   const [view, setView] = useState<View>('lista')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const { data: condominio } = useQuery({
+    queryKey: ['condominio-nombre', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('condominios')
+        .select('nombre')
+        .eq('id', id!)
+        .single()
+      if (error) throw error
+      return data as { nombre: string }
+    },
+    enabled: !!id,
+  })
 
   if (!id) return null
 
@@ -54,6 +71,7 @@ export default function Residentes() {
               <ListaResidentes
                 residentes={residentes}
                 onNuevo={() => setView('nuevo')}
+                onImportar={() => setView('importar')}
                 onDetalle={(rid) => { setSelectedId(rid); setView('detalle') }}
                 onEditar={(rid) => { setSelectedId(rid); setView('editar') }}
               />
@@ -87,6 +105,15 @@ export default function Residentes() {
             residente={selectedResidente}
             onBack={() => { setView('lista'); setSelectedId(null) }}
             onEditar={() => setView('editar')}
+          />
+        )}
+
+        {view === 'importar' && (
+          <ImportarResidentes
+            condominioId={id}
+            condominioNombre={condominio?.nombre || ''}
+            onBack={() => setView('lista')}
+            onComplete={() => setView('lista')}
           />
         )}
       </div>
