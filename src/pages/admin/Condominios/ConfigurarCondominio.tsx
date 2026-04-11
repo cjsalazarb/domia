@@ -200,8 +200,11 @@ function TabAreas({ condominioId }: { condominioId: string }) {
 
       {show && (
         <div style={{ backgroundColor: '#F4F7F5', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+          <p style={{ fontSize: '13px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", margin: '0 0 14px', lineHeight: '1.5' }}>
+            Configura las areas comunes disponibles en este condominio. Los residentes podran reservarlas desde su portal.
+          </p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.6fr 0.6fr', gap: '8px', marginBottom: '10px' }}>
-            <div><label style={lS}>Nombre *</label><input value={n} onChange={e => setN(e.target.value)} placeholder="Ej: Salon de Eventos" style={iS} /></div>
+            <div><label style={lS}>Nombre del area *</label><input value={n} onChange={e => setN(e.target.value)} placeholder="Ej: Salon de Eventos, Piscina, BBQ" style={iS} /></div>
             <div><label style={lS}>Capacidad</label><input type="number" value={cap} onChange={e => setCap(e.target.value)} placeholder="50" style={iS} /></div>
             <div><label style={lS}>Tarifa (Bs.)</label><input type="number" value={tar} onChange={e => setTar(e.target.value)} placeholder="0 = gratis" style={iS} /></div>
           </div>
@@ -305,7 +308,7 @@ export default function ConfigurarCondominio({ condominioId, onBack }: Props) {
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'edificios', label: 'Edificios', icon: '🏢' },
     { key: 'unidades', label: 'Unidades', icon: '🏠' },
-    { key: 'areas', label: 'Áreas', icon: '📅' },
+    { key: 'areas', label: 'Areas Comunes', icon: '📅' },
     { key: 'documentos', label: 'Documentos', icon: '📄' },
     { key: 'config', label: 'Cuotas', icon: '💰' },
   ]
