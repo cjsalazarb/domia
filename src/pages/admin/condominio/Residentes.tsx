@@ -18,6 +18,7 @@ export default function Residentes() {
 
   const [view, setView] = useState<View>('lista')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [formError, setFormError] = useState('')
 
   const { data: condominio } = useQuery({
     queryKey: ['condominio-nombre', id],
@@ -39,15 +40,25 @@ export default function Residentes() {
   const propietarios = residentes.filter(r => r.tipo === 'propietario' && r.estado === 'activo')
 
   const handleCreate = async (input: CreateResidenteInput) => {
-    await createResidente.mutateAsync(input)
-    setView('lista')
+    setFormError('')
+    try {
+      await createResidente.mutateAsync(input)
+      setView('lista')
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Error al crear residente')
+    }
   }
 
   const handleUpdate = async (input: CreateResidenteInput) => {
     if (!selectedId) return
-    await updateResidente.mutateAsync({ id: selectedId, updates: input })
-    setView('lista')
-    setSelectedId(null)
+    setFormError('')
+    try {
+      await updateResidente.mutateAsync({ id: selectedId, updates: input })
+      setView('lista')
+      setSelectedId(null)
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Error al actualizar residente')
+    }
   }
 
   return (
@@ -84,8 +95,9 @@ export default function Residentes() {
             condominioId={id}
             propietarios={propietarios}
             onSave={handleCreate}
-            onCancel={() => setView('lista')}
+            onCancel={() => { setView('lista'); setFormError('') }}
             saving={createResidente.isPending}
+            error={formError}
           />
         )}
 
@@ -95,8 +107,9 @@ export default function Residentes() {
             residente={selectedResidente}
             propietarios={propietarios}
             onSave={handleUpdate}
-            onCancel={() => { setView('lista'); setSelectedId(null) }}
+            onCancel={() => { setView('lista'); setSelectedId(null); setFormError('') }}
             saving={updateResidente.isPending}
+            error={formError}
           />
         )}
 

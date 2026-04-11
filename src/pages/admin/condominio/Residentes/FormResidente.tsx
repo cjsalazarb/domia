@@ -10,9 +10,10 @@ interface Props {
   onSave: (input: CreateResidenteInput) => void
   onCancel: () => void
   saving: boolean
+  error?: string
 }
 
-export default function FormResidente({ condominioId, residente, propietarios, onSave, onCancel, saving }: Props) {
+export default function FormResidente({ condominioId, residente, propietarios, onSave, onCancel, saving, error }: Props) {
   const [tipo, setTipo] = useState<'propietario' | 'inquilino'>(residente?.tipo || 'propietario')
   const [nombre, setNombre] = useState(residente?.nombre || '')
   const [apellido, setApellido] = useState(residente?.apellido || '')
@@ -220,6 +221,13 @@ export default function FormResidente({ condominioId, residente, propietarios, o
             onFocus={e => e.target.style.borderColor = '#1A7A4A'}
             onBlur={e => e.target.style.borderColor = '#C8D4CB'} />
         </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{ backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '12px 14px', fontSize: '13px', color: '#B83232', marginBottom: '16px', fontFamily: "'Inter', sans-serif" }}>
+            {error}
+          </div>
+        )}
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: '12px' }}>
