@@ -33,7 +33,7 @@ export default function Condominios() {
       {view === 'lista' && (
         <ListaCondominios
           onNuevo={() => setView('nuevo')}
-          onVer={(id) => navigate(`/admin/condominio/${id}/residentes`)}
+          onVer={(id) => navigate(`/admin/condominio/${id}/dashboard`)}
           onEditar={(id) => { setSelectedId(id); setView('editar') }}
           onConfigurar={(id) => { setSelectedId(id); setView('configurar') }}
         />

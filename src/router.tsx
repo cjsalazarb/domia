@@ -1,12 +1,13 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { RoleRedirect } from '@/components/RoleRedirect'
 
 import Login from '@/pages/auth/Login'
 import SinAcceso from '@/pages/auth/SinAcceso'
 
-import AdminDashboard from '@/pages/admin/AdminDashboard'
+import MisCondominios from '@/pages/admin/MisCondominios'
 import Condominios from '@/pages/admin/Condominios'
+import CondominioDashboard from '@/pages/admin/condominio/Dashboard'
 import Residentes from '@/pages/admin/condominio/Residentes'
 import Financiero from '@/pages/admin/condominio/Financiero'
 import Mantenimiento from '@/pages/admin/condominio/Mantenimiento'
@@ -32,12 +33,12 @@ export const router = createBrowserRouter([
   // Raíz — redirige según rol
   { path: '/', element: <RoleRedirect /> },
 
-  // Admin — super_admin
+  // Admin — pantalla de selección de condominios
   {
     path: '/admin',
     element: (
       <ProtectedRoute rolesPermitidos={['super_admin']}>
-        <AdminDashboard />
+        <MisCondominios />
       </ProtectedRoute>
     ),
   },
@@ -50,7 +51,15 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // Condominio — super_admin + admin_condominio
+  // Condominio — dashboard y módulos
+  {
+    path: '/admin/condominio/:id/dashboard',
+    element: (
+      <ProtectedRoute rolesPermitidos={['super_admin', 'admin_condominio']}>
+        <CondominioDashboard />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: '/admin/condominio/:id/residentes',
     element: (
@@ -91,7 +100,6 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-
   {
     path: '/admin/condominio/:id/guardias',
     element: (
@@ -101,7 +109,7 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // Portal residente — propietario + inquilino
+  // Portal residente
   {
     path: '/portal',
     element: (
@@ -134,7 +142,6 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-
   {
     path: '/portal/reservas',
     element: (

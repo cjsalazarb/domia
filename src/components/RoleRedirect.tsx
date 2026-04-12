@@ -33,7 +33,7 @@ export function RoleRedirect() {
     case 'super_admin':
       return <Navigate to="/admin" replace />
     case 'admin_condominio':
-      return <Navigate to={`/admin/condominio/${profile.condominio_id}/residentes`} replace />
+      return <Navigate to={`/admin/condominio/${profile.condominio_id}/dashboard`} replace />
     case 'propietario':
     case 'inquilino':
       return <Navigate to="/portal" replace />

@@ -15,36 +15,27 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
 
   const isSuper = profile?.rol === 'super_admin'
 
-  // For super_admin without explicit condominioId, fetch the first condominio
-  const { data: primerCondominio } = useQuery({
-    queryKey: ['primer-condominio'],
+  // Fetch condominio name for sidebar header
+  const { data: condominioNombre } = useQuery({
+    queryKey: ['condo-nombre', condominioId],
     queryFn: async () => {
-      const { data } = await supabase.from('condominios').select('id').eq('estado', 'activo').order('nombre').limit(1).single()
-      return data?.id || null
+      const { data } = await supabase.from('condominios').select('nombre').eq('id', condominioId!).single()
+      return data?.nombre || 'Condominio'
     },
-    enabled: isSuper && !condominioId,
+    enabled: !!condominioId,
   })
 
-  const cid = condominioId || profile?.condominio_id || primerCondominio || ''
-
-  const condoLinks: NavItem[] = cid ? [
-    { path: `/admin/condominio/${cid}/residentes`, label: 'Residentes', icon: '👥' },
-    { path: `/admin/condominio/${cid}/financiero`, label: 'Financiero', icon: '💰' },
-    { path: `/admin/condominio/${cid}/mantenimiento`, label: 'Mantenimiento', icon: '🔧' },
-    { path: `/admin/condominio/${cid}/reservas`, label: 'Reservas', icon: '📅' },
-    { path: `/admin/condominio/${cid}/comunicaciones`, label: 'Comunicaciones', icon: '📢' },
-    { path: `/admin/condominio/${cid}/guardias`, label: 'Guardias', icon: '🛡️' },
+  const navItems: NavItem[] = condominioId ? [
+    { path: `/admin/condominio/${condominioId}/dashboard`, label: 'Dashboard', icon: '📊' },
+    { path: `/admin/condominio/${condominioId}/residentes`, label: 'Residentes', icon: '👥' },
+    { path: `/admin/condominio/${condominioId}/financiero`, label: 'Financiero', icon: '💰' },
+    { path: `/admin/condominio/${condominioId}/mantenimiento`, label: 'Mantenimiento', icon: '🔧' },
+    { path: `/admin/condominio/${condominioId}/reservas`, label: 'Reservas', icon: '📅' },
+    { path: `/admin/condominio/${condominioId}/comunicaciones`, label: 'Comunicaciones', icon: '📢' },
+    { path: `/admin/condominio/${condominioId}/guardias`, label: 'Guardias', icon: '🛡️' },
   ] : []
 
-  const navItems: NavItem[] = [
-    ...(isSuper ? [
-      { path: '/admin', label: 'Dashboard', icon: '📊' },
-      { path: '/admin/condominios', label: 'Condominios', icon: '🏢' },
-    ] : []),
-    ...condoLinks,
-  ]
-
-  const isActive = (path: string) => location.pathname === path || (path !== '/admin' && location.pathname.startsWith(path))
+  const isActive = (path: string) => location.pathname === path
 
   return (
     <>
@@ -61,17 +52,33 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
       `}</style>
       <div style={{ minHeight: '100vh', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif", display: 'flex' }}>
         {/* Overlay */}
-        {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 40 }} className="lg:hidden" />}
+        {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 40 }} />}
 
         {/* Sidebar */}
         <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`} style={{ backgroundColor: '#0D1117', display: 'flex', flexDirection: 'column' }}>
+          {/* Logo */}
           <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <a href="/admin" style={{ fontFamily: "'Nunito', sans-serif", fontSize: '22px', fontWeight: 800, color: 'white', cursor: 'pointer', textDecoration: 'none', display: 'block' }}>
               DOM<span style={{ color: '#0D9E6E' }}>IA</span>
             </a>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{isSuper ? 'Super Admin' : 'Administrador'}</div>
           </div>
 
+          {/* Back to condominios + condominio name */}
+          {condominioId && (
+            <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              {isSuper && (
+                <a href="/admin"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', marginBottom: '8px', transition: 'color 0.15s' }}>
+                  ← Mis condominios
+                </a>
+              )}
+              <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '14px', fontWeight: 700, color: '#0D9E6E', lineHeight: '1.3' }}>
+                {condominioNombre || '...'}
+              </div>
+            </div>
+          )}
+
+          {/* Nav */}
           <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
             {navItems.map(item => {
               const active = isActive(item.path)
@@ -86,12 +93,13 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
             })}
           </nav>
 
+          {/* User */}
           <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
             <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{profile?.nombre} {profile?.apellido}</div>
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{profile?.email}</div>
             <button onClick={() => { signOut(); navigate('/login') }}
               style={{ marginTop: '10px', width: '100%', padding: '8px', backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
-              Cerrar sesión
+              Cerrar sesion
             </button>
           </div>
         </aside>
