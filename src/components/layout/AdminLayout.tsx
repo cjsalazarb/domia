@@ -53,7 +53,7 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
         .admin-sidebar.open { left: 0; }
         .admin-main { margin-left: 0; }
         @media (min-width: 1024px) {
-          .admin-sidebar { position: sticky; left: 0 !important; min-height: 100vh; flex-shrink: 0; }
+          .admin-sidebar { position: sticky; top: 0; left: 0 !important; height: 100vh; flex-shrink: 0; align-self: flex-start; overflow-y: auto; }
           .admin-main { margin-left: 0; }
           .admin-hamburger { display: none !important; }
         }
