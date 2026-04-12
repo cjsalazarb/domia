@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { pdf } from '@react-pdf/renderer'
 import AdminLayout from '@/components/layout/AdminLayout'
 import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/authStore'
 import { exportarExcel } from '@/lib/exportarReporte'
 import ReporteJuntaPDF from '@/components/financiero/ReporteJuntaPDF'
 import ConfiguradorCuotas from './Financiero/ConfiguradorCuotas'
@@ -15,15 +17,36 @@ import Gastos from './Financiero/Gastos'
 export default function Financiero() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const profile = useAuthStore(s => s.profile)
+  const isSuperAdmin = profile?.rol === 'super_admin'
 
-  // Fetch data for Excel export
+  // Selector state — defaults to the condominio from URL
+  const [selectedCondoId, setSelectedCondoId] = useState<string>('')
+  const activeCondoId = selectedCondoId || id!
+
+  // Fetch all condominios for super_admin selector
+  const { data: condominios } = useQuery({
+    queryKey: ['all-condominios'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('condominios')
+        .select('id, nombre')
+        .eq('activo', true)
+        .order('nombre')
+      if (error) throw error
+      return data
+    },
+    enabled: isSuperAdmin,
+  })
+
+  // Fetch data for Excel/PDF export
   const { data: exportData } = useQuery({
-    queryKey: ['export-data', id],
+    queryKey: ['export-data', activeCondoId],
     queryFn: async () => {
       const [recibosRes, gastosRes, morososRes] = await Promise.all([
-        supabase.from('recibos').select('periodo, monto_total, estado, unidades(numero), residentes(nombre, apellido)').eq('condominio_id', id!),
-        supabase.from('gastos').select('fecha, categoria, descripcion, monto, proveedor_nombre').eq('condominio_id', id!),
-        supabase.from('recibos').select('residente_id, periodo, monto_total, residentes(nombre, apellido), unidades(numero)').eq('condominio_id', id!).in('estado', ['emitido', 'vencido']),
+        supabase.from('recibos').select('periodo, monto_total, estado, unidades(numero), residentes(nombre, apellido)').eq('condominio_id', activeCondoId),
+        supabase.from('gastos').select('fecha, categoria, descripcion, monto, proveedor_nombre').eq('condominio_id', activeCondoId),
+        supabase.from('recibos').select('residente_id, periodo, monto_total, residentes(nombre, apellido), unidades(numero)').eq('condominio_id', activeCondoId).in('estado', ['emitido', 'vencido']),
       ])
 
       const ingresos = (recibosRes.data || []).map((r: any) => ({
@@ -60,18 +83,22 @@ export default function Financiero() {
 
       return { ingresos, egresos, morosos: Object.values(morosoMap) }
     },
-    enabled: !!id,
+    enabled: !!activeCondoId,
   })
 
   const { data: condominioInfo } = useQuery({
-    queryKey: ['condominio-info', id],
+    queryKey: ['condominio-info', activeCondoId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('condominios').select('nombre, direccion, ciudad').eq('id', id!).single()
+      const { data, error } = await supabase.from('condominios').select('nombre, direccion, ciudad').eq('id', activeCondoId).single()
       if (error) throw error
       return data as { nombre: string; direccion: string | null; ciudad: string | null }
     },
-    enabled: !!id,
+    enabled: !!activeCondoId,
   })
+
+  // Reporte Junta PDF state
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [pdfError, setPdfError] = useState<string | null>(null)
 
   if (!id) return null
 
@@ -86,19 +113,28 @@ export default function Financiero() {
 
   const handleReporteJunta = async () => {
     if (!exportData) return
-    const now = new Date()
-    const periodo = now.toLocaleDateString('es-BO', { month: 'long', year: 'numeric' })
-    const blob = await pdf(
-      <ReporteJuntaPDF
-        condominio={{ nombre: condoNombre, direccion: condoDir, ciudad: condoCiudad }}
-        periodo={periodo}
-        ingresos={exportData.ingresos}
-        egresos={exportData.egresos}
-        morosos={exportData.morosos}
-      />
-    ).toBlob()
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
+    setPdfLoading(true)
+    setPdfError(null)
+    try {
+      const now = new Date()
+      const periodo = now.toLocaleDateString('es-BO', { month: 'long', year: 'numeric' })
+      const blob = await pdf(
+        <ReporteJuntaPDF
+          condominio={{ nombre: condoNombre, direccion: condoDir, ciudad: condoCiudad }}
+          periodo={periodo}
+          ingresos={exportData.ingresos}
+          egresos={exportData.egresos}
+          morosos={exportData.morosos}
+        />
+      ).toBlob()
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank')
+    } catch (err: any) {
+      console.error('Error generando Reporte Junta PDF:', err)
+      setPdfError(err?.message || 'Error al generar el PDF. Intenta de nuevo.')
+    } finally {
+      setPdfLoading(false)
+    }
   }
 
   return (
@@ -115,9 +151,20 @@ export default function Financiero() {
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               onClick={handleReporteJunta}
-              style={{ padding: '6px 14px', backgroundColor: '#0D4A8F', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
+              disabled={pdfLoading || !exportData}
+              style={{
+                padding: '6px 14px',
+                backgroundColor: pdfLoading ? '#5E6B62' : '#0D4A8F',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '13px',
+                cursor: pdfLoading || !exportData ? 'not-allowed' : 'pointer',
+                fontFamily: "'Inter', sans-serif",
+                opacity: !exportData ? 0.5 : 1,
+              }}
             >
-              Reporte Junta PDF
+              {pdfLoading ? 'Generando...' : 'Reporte Junta PDF'}
             </button>
             <button
               onClick={handleExportExcel}
@@ -127,18 +174,65 @@ export default function Financiero() {
             </button>
           </div>
         </div>
-        <p style={{ color: '#5E6B62', fontSize: '14px', marginBottom: '24px' }}>
+        <p style={{ color: '#5E6B62', fontSize: '14px', marginBottom: isSuperAdmin ? '12px' : '24px' }}>
           Gestión de cuotas, recibos y pagos del condominio
         </p>
 
+        {/* Selector de condominio para super_admin */}
+        {isSuperAdmin && condominios && condominios.length > 1 && (
+          <div style={{ marginBottom: '24px' }}>
+            <select
+              value={selectedCondoId}
+              onChange={e => setSelectedCondoId(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                border: '1px solid #C8D4CB',
+                borderRadius: '10px',
+                fontSize: '14px',
+                color: '#0D1117',
+                fontFamily: "'Inter', sans-serif",
+                backgroundColor: 'white',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="">— {condominioInfo?.nombre || 'Condominio actual'} (actual) —</option>
+              {condominios.filter(c => c.id !== id).map(c => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* PDF error */}
+        {pdfError && (
+          <div style={{
+            backgroundColor: '#FCEAEA',
+            borderLeft: '3px solid #B83232',
+            borderRadius: '8px',
+            padding: '12px 14px',
+            fontSize: '13px',
+            color: '#B83232',
+            marginBottom: '16px',
+            fontFamily: "'Inter', sans-serif",
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <span>{pdfError}</span>
+            <button onClick={() => setPdfError(null)} style={{ background: 'none', border: 'none', color: '#B83232', cursor: 'pointer', fontSize: '16px', padding: '0 4px' }}>✕</button>
+          </div>
+        )}
+
         {/* Balance */}
-        <Balance condominioId={id} />
+        <Balance condominioId={activeCondoId} />
 
         <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
 
         {/* Morosos */}
         <Morosos
-          condominioId={id}
+          condominioId={activeCondoId}
           condominioNombre={condoNombre}
           condominioDir={condoDir}
           condomionioCiudad={condoCiudad}
@@ -147,23 +241,23 @@ export default function Financiero() {
         <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
 
         {/* Gastos */}
-        <Gastos condominioId={id} />
+        <Gastos condominioId={activeCondoId} />
 
         <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
 
         {/* Cuotas */}
-        <ConfiguradorCuotas condominioId={id} />
+        <ConfiguradorCuotas condominioId={activeCondoId} />
 
         <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
 
         {/* Pagos pendientes */}
-        <PagosPendientes condominioId={id} />
+        <PagosPendientes condominioId={activeCondoId} />
 
         <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
 
         {/* Recibos */}
         <ListaRecibos
-          condominioId={id}
+          condominioId={activeCondoId}
           condominioNombre={condoNombre}
           condominioDir={condoDir}
           condomionioCiudad={condoCiudad}
