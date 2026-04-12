@@ -31,7 +31,7 @@ export default function Financiero() {
       const { data, error } = await supabase
         .from('condominios')
         .select('id, nombre')
-        .eq('activo', true)
+        .eq('estado', 'activo')
         .order('nombre')
       if (error) throw error
       return data
