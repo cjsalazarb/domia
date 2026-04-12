@@ -105,7 +105,7 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
             </div>
             <span style={{ fontSize: '12px', color: '#5E6B62' }}>{profile?.nombre}</span>
           </div>
-          <div className="admin-content" style={{ padding: '20px', maxWidth: '1100px', margin: '0 auto' }}>{children}</div>
+          <div key={location.pathname} className="admin-content" style={{ padding: '20px', maxWidth: '1100px', margin: '0 auto' }}>{children}</div>
         </div>
       </div>
     </>
