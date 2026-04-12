@@ -1,44 +1,27 @@
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
-
-Font.register({
-  family: 'Nunito',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgevT5.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTo3j6zbXWjgevT5.woff2', fontWeight: 700 },
-    { src: 'https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdQQ3j6zbXWjgevT5.woff2', fontWeight: 800 },
-  ],
-})
-
-Font.register({
-  family: 'Inter',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fAZ9hiJ-Ek-_EeA.woff2', fontWeight: 500 },
-  ],
-})
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 
 const s = StyleSheet.create({
-  page: { padding: 40, fontFamily: 'Inter', fontSize: 10, color: '#0D1117' },
+  page: { padding: 40, fontFamily: 'Helvetica', fontSize: 10, color: '#0D1117' },
   // Cover
   coverCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  coverTitle: { fontFamily: 'Nunito', fontSize: 28, fontWeight: 800, color: '#1A7A4A', marginBottom: 8 },
-  coverSub: { fontFamily: 'Inter', fontSize: 14, color: '#5E6B62', marginBottom: 4 },
-  coverPeriodo: { fontFamily: 'Nunito', fontSize: 18, fontWeight: 700, color: '#0D1117', marginTop: 20, marginBottom: 4 },
+  coverTitle: { fontFamily: 'Helvetica-Bold', fontSize: 28, color: '#1A7A4A', marginBottom: 8 },
+  coverSub: { fontFamily: 'Helvetica', fontSize: 14, color: '#5E6B62', marginBottom: 4 },
+  coverPeriodo: { fontFamily: 'Helvetica-Bold', fontSize: 18, color: '#0D1117', marginTop: 20, marginBottom: 4 },
   coverLine: { width: 60, height: 3, backgroundColor: '#1A7A4A', borderRadius: 2, marginTop: 12, marginBottom: 12 },
   // Common
-  sectionTitle: { fontFamily: 'Nunito', fontSize: 14, fontWeight: 700, color: '#1A7A4A', marginBottom: 10, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#E8F4F0' },
+  sectionTitle: { fontFamily: 'Helvetica-Bold', fontSize: 14, color: '#1A7A4A', marginBottom: 10, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#E8F4F0' },
   tableHeader: { flexDirection: 'row', backgroundColor: '#1A7A4A', borderRadius: 6, padding: 8, marginBottom: 4 },
-  thText: { color: 'white', fontSize: 8, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.5 },
+  thText: { color: 'white', fontSize: 8, fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   tableRow: { flexDirection: 'row', padding: 8, borderBottomWidth: 1, borderBottomColor: '#E8F4F0' },
   tableRowAlt: { backgroundColor: '#FAFBFA' },
   totalRow: { flexDirection: 'row', padding: 10, backgroundColor: '#E8F4F0', borderRadius: 6, marginTop: 4, marginBottom: 20 },
-  totalLabel: { fontFamily: 'Nunito', fontSize: 11, fontWeight: 700, color: '#1A7A4A' },
-  totalMonto: { fontFamily: 'Nunito', fontSize: 13, fontWeight: 800, textAlign: 'right', color: '#1A7A4A' },
+  totalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: '#1A7A4A' },
+  totalMonto: { fontFamily: 'Helvetica-Bold', fontSize: 13, textAlign: 'right', color: '#1A7A4A' },
   // KPI
   kpiRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   kpiCard: { flex: 1, backgroundColor: '#F4F7F5', borderRadius: 10, padding: 14, alignItems: 'center' },
-  kpiLabel: { fontSize: 8, fontWeight: 500, color: '#5E6B62', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  kpiValue: { fontFamily: 'Nunito', fontSize: 16, fontWeight: 800 },
+  kpiLabel: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#5E6B62', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  kpiValue: { fontFamily: 'Helvetica-Bold', fontSize: 16 },
   // Footer
   footer: { position: 'absolute', bottom: 30, left: 40, right: 40, borderTopWidth: 1, borderTopColor: '#C8D4CB', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' },
   footerText: { fontSize: 8, color: '#5E6B62' },
@@ -50,7 +33,7 @@ interface MorosoRow { residente: string; unidad: string; meses: number; deuda: n
 
 interface Props {
   condominio: { nombre: string; direccion?: string; ciudad?: string }
-  periodo: string // e.g. "Abril 2026"
+  periodo: string
   ingresos: IngresoRow[]
   egresos: EgresoRow[]
   morosos: MorosoRow[]
@@ -79,7 +62,7 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
           {condominio.direccion && <Text style={s.coverSub}>{condominio.direccion}</Text>}
           {condominio.ciudad && <Text style={s.coverSub}>{condominio.ciudad}</Text>}
           <View style={s.coverLine} />
-          <Text style={{ fontFamily: 'Nunito', fontSize: 16, fontWeight: 700, color: '#0D1117', textTransform: 'uppercase', letterSpacing: 2 }}>
+          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 16, color: '#0D1117', textTransform: 'uppercase', letterSpacing: 2 }}>
             Reporte Financiero
           </Text>
           <Text style={s.coverPeriodo}>{periodo}</Text>
@@ -92,7 +75,7 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
           </Text>
         </View>
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>DOMIA — Sistema de Administracion de Condominios</Text>
+          <Text style={s.footerText}>DOMIA - Sistema de Administracion de Condominios</Text>
           <Text style={s.footerText}>{condominio.nombre}</Text>
         </View>
       </Page>
@@ -118,8 +101,8 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
 
         {totalMorosidad > 0 && (
           <View style={{ backgroundColor: '#FCEAEA', borderRadius: 8, padding: 12, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 11, fontWeight: 500, color: '#B83232' }}>Morosidad total ({morosos.length} residente{morosos.length !== 1 ? 's' : ''})</Text>
-            <Text style={{ fontFamily: 'Nunito', fontSize: 14, fontWeight: 800, color: '#B83232' }}>{formatBs(totalMorosidad)}</Text>
+            <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#B83232' }}>Morosidad total ({morosos.length} residente{morosos.length !== 1 ? 's' : ''})</Text>
+            <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 14, color: '#B83232' }}>{formatBs(totalMorosidad)}</Text>
           </View>
         )}
 
@@ -128,12 +111,12 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
         {Object.entries(egresosPorCat).sort((a, b) => b[1] - a[1]).map(([cat, monto], i) => (
           <View key={cat} style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 8, backgroundColor: i % 2 === 0 ? '#FAFBFA' : 'white', borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}>
             <Text style={{ fontSize: 10, color: '#0D1117' }}>{cat}</Text>
-            <Text style={{ fontSize: 10, fontWeight: 500, color: '#0D1117' }}>{formatBs(monto)}</Text>
+            <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#0D1117' }}>{formatBs(monto)}</Text>
           </View>
         ))}
 
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>DOMIA — {condominio.nombre} — {periodo}</Text>
+          <Text style={s.footerText}>DOMIA - {condominio.nombre} - {periodo}</Text>
           <Text style={s.footerText}>Pag. 2</Text>
         </View>
       </Page>
@@ -166,7 +149,7 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
         </View>
 
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>DOMIA — {condominio.nombre} — {periodo}</Text>
+          <Text style={s.footerText}>DOMIA - {condominio.nombre} - {periodo}</Text>
           <Text style={s.footerText}>Pag. 3</Text>
         </View>
       </Page>
@@ -197,7 +180,7 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
         </View>
 
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>DOMIA — {condominio.nombre} — {periodo}</Text>
+          <Text style={s.footerText}>DOMIA - {condominio.nombre} - {periodo}</Text>
           <Text style={s.footerText}>Pag. 4</Text>
         </View>
       </Page>
@@ -219,7 +202,7 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
               <Text style={{ flex: 2, fontSize: 10 }}>{m.residente}</Text>
               <Text style={{ flex: 1, fontSize: 10 }}>{m.unidad}</Text>
               <Text style={{ flex: 1, fontSize: 10, textAlign: 'center' }}>{m.meses}</Text>
-              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right', color: '#B83232', fontWeight: 500 }}>{formatBs(m.deuda)}</Text>
+              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right', color: '#B83232', fontFamily: 'Helvetica-Bold' }}>{formatBs(m.deuda)}</Text>
             </View>
           ))}
 
@@ -229,7 +212,7 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
           </View>
 
           <View style={s.footer} fixed>
-            <Text style={s.footerText}>DOMIA — {condominio.nombre} — {periodo}</Text>
+            <Text style={s.footerText}>DOMIA - {condominio.nombre} - {periodo}</Text>
             <Text style={s.footerText}>Pag. 5</Text>
           </View>
         </Page>

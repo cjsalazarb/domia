@@ -1,38 +1,21 @@
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
-
-Font.register({
-  family: 'Nunito',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgevT5.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTo3j6zbXWjgevT5.woff2', fontWeight: 700 },
-    { src: 'https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdQQ3j6zbXWjgevT5.woff2', fontWeight: 800 },
-  ],
-})
-
-Font.register({
-  family: 'Inter',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fAZ9hiJ-Ek-_EeA.woff2', fontWeight: 500 },
-  ],
-})
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 
 const s = StyleSheet.create({
-  page: { padding: 50, fontFamily: 'Inter', fontSize: 11, color: '#0D1117' },
+  page: { padding: 50, fontFamily: 'Helvetica', fontSize: 11, color: '#0D1117' },
   header: { marginBottom: 30, paddingBottom: 16, borderBottomWidth: 2, borderBottomColor: '#1A7A4A' },
-  condoName: { fontFamily: 'Nunito', fontSize: 18, fontWeight: 800, color: '#1A7A4A' },
+  condoName: { fontFamily: 'Helvetica-Bold', fontSize: 18, color: '#1A7A4A' },
   condoAddr: { fontSize: 9, color: '#5E6B62', marginTop: 2 },
-  title: { fontFamily: 'Nunito', fontSize: 16, fontWeight: 700, textAlign: 'center', marginBottom: 24, textTransform: 'uppercase', letterSpacing: 1, color: '#B83232' },
+  title: { fontFamily: 'Helvetica-Bold', fontSize: 16, textAlign: 'center', marginBottom: 24, textTransform: 'uppercase', letterSpacing: 1, color: '#B83232' },
   date: { textAlign: 'right', fontSize: 10, color: '#5E6B62', marginBottom: 20 },
   para: { fontSize: 11, lineHeight: 1.6, marginBottom: 12, textAlign: 'justify' },
-  bold: { fontWeight: 500 },
+  bold: { fontFamily: 'Helvetica-Bold' },
   table: { marginTop: 16, marginBottom: 16 },
   tableHeader: { flexDirection: 'row', backgroundColor: '#B83232', borderRadius: 4, padding: 8 },
-  tableHeaderText: { color: 'white', fontSize: 9, fontWeight: 500, textTransform: 'uppercase' },
+  tableHeaderText: { color: 'white', fontSize: 9, fontFamily: 'Helvetica-Bold', textTransform: 'uppercase' },
   tableRow: { flexDirection: 'row', padding: 8, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
   totalRow: { flexDirection: 'row', padding: 10, backgroundColor: '#FCEAEA', borderRadius: 4, marginTop: 4 },
-  totalLabel: { flex: 3, fontFamily: 'Nunito', fontSize: 12, fontWeight: 700, color: '#B83232' },
-  totalMonto: { flex: 1, fontFamily: 'Nunito', fontSize: 14, fontWeight: 800, textAlign: 'right', color: '#B83232' },
+  totalLabel: { flex: 3, fontFamily: 'Helvetica-Bold', fontSize: 12, color: '#B83232' },
+  totalMonto: { flex: 1, fontFamily: 'Helvetica-Bold', fontSize: 14, textAlign: 'right', color: '#B83232' },
   footer: { position: 'absolute', bottom: 40, left: 50, right: 50, borderTopWidth: 1, borderTopColor: '#C8D4CB', paddingTop: 10 },
   footerText: { fontSize: 8, color: '#5E6B62', textAlign: 'center' },
 })
@@ -85,12 +68,12 @@ export default function CartaMoraPDF({ condominio, residente, unidad, deudas, to
         </Text>
 
         <Text style={s.para}>
-          A continuación el detalle de la deuda:
+          A continuacion el detalle de la deuda:
         </Text>
 
         <View style={s.table}>
           <View style={s.tableHeader}>
-            <Text style={{ ...s.tableHeaderText, flex: 3 }}>Período</Text>
+            <Text style={{ ...s.tableHeaderText, flex: 3 }}>Periodo</Text>
             <Text style={{ ...s.tableHeaderText, flex: 1, textAlign: 'right' }}>Monto</Text>
           </View>
           {deudas.map((d, i) => (
@@ -106,23 +89,23 @@ export default function CartaMoraPDF({ condominio, residente, unidad, deudas, to
         </View>
 
         <Text style={s.para}>
-          Le solicitamos regularizar su situación a la brevedad posible. De persistir la mora,
-          la administración se reserva el derecho de aplicar las medidas establecidas en el
+          Le solicitamos regularizar su situacion a la brevedad posible. De persistir la mora,
+          la administracion se reserva el derecho de aplicar las medidas establecidas en el
           reglamento interno del condominio.
         </Text>
 
         <Text style={s.para}>
           Atentamente,
         </Text>
-        <Text style={{ ...s.para, fontFamily: 'Nunito', fontWeight: 700, marginTop: 24 }}>
-          Administración
+        <Text style={{ ...s.para, fontFamily: 'Helvetica-Bold', marginTop: 24 }}>
+          Administracion
         </Text>
         <Text style={{ fontSize: 10, color: '#5E6B62' }}>
           {condominio.nombre}
         </Text>
 
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>DOMIA — Sistema de Administración de Condominios · Bolivia · Generado: {fechaHoy}</Text>
+          <Text style={s.footerText}>DOMIA - Sistema de Administracion de Condominios - Generado: {fechaHoy}</Text>
         </View>
       </Page>
     </Document>

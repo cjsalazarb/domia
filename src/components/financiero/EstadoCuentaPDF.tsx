@@ -1,44 +1,27 @@
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
-
-Font.register({
-  family: 'Nunito',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgevT5.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTo3j6zbXWjgevT5.woff2', fontWeight: 700 },
-    { src: 'https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdQQ3j6zbXWjgevT5.woff2', fontWeight: 800 },
-  ],
-})
-
-Font.register({
-  family: 'Inter',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fAZ9hiJ-Ek-_EeA.woff2', fontWeight: 500 },
-  ],
-})
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 
 const s = StyleSheet.create({
-  page: { padding: 40, fontFamily: 'Inter', fontSize: 10, color: '#0D1117' },
+  page: { padding: 40, fontFamily: 'Helvetica', fontSize: 10, color: '#0D1117' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, paddingBottom: 16, borderBottomWidth: 2, borderBottomColor: '#1A7A4A' },
-  condoName: { fontFamily: 'Nunito', fontSize: 18, fontWeight: 800, color: '#1A7A4A' },
+  condoName: { fontFamily: 'Helvetica-Bold', fontSize: 18, color: '#1A7A4A' },
   condoSub: { fontSize: 9, color: '#5E6B62', marginTop: 2 },
-  domiaLogo: { fontFamily: 'Nunito', fontSize: 14, fontWeight: 800 },
+  domiaLogo: { fontFamily: 'Helvetica-Bold', fontSize: 14 },
   domiaGreen: { color: '#1A7A4A' },
-  title: { fontFamily: 'Nunito', fontSize: 14, fontWeight: 700, textAlign: 'center', marginBottom: 4, color: '#0D1117', textTransform: 'uppercase', letterSpacing: 1 },
-  subtitle: { fontFamily: 'Inter', fontSize: 11, textAlign: 'center', color: '#5E6B62', marginBottom: 20 },
+  title: { fontFamily: 'Helvetica-Bold', fontSize: 14, textAlign: 'center', marginBottom: 4, color: '#0D1117', textTransform: 'uppercase', letterSpacing: 1 },
+  subtitle: { fontFamily: 'Helvetica', fontSize: 11, textAlign: 'center', color: '#5E6B62', marginBottom: 20 },
   infoRow: { flexDirection: 'row', marginBottom: 16, gap: 20 },
   infoBlock: { flex: 1, backgroundColor: '#F4F7F5', borderRadius: 8, padding: 12 },
-  infoLabel: { fontSize: 8, fontWeight: 500, color: '#5E6B62', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  infoValue: { fontFamily: 'Nunito', fontSize: 11, fontWeight: 700, color: '#0D1117' },
-  sectionTitle: { fontFamily: 'Nunito', fontSize: 12, fontWeight: 700, color: '#0D1117', marginBottom: 8, marginTop: 16 },
+  infoLabel: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#5E6B62', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  infoValue: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: '#0D1117' },
+  sectionTitle: { fontFamily: 'Helvetica-Bold', fontSize: 12, color: '#0D1117', marginBottom: 8, marginTop: 16 },
   tableHeader: { flexDirection: 'row', backgroundColor: '#1A7A4A', borderRadius: 6, padding: 8, marginBottom: 4 },
-  thText: { color: 'white', fontSize: 8, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.5 },
+  thText: { color: 'white', fontSize: 8, fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   tableRow: { flexDirection: 'row', padding: 8, borderBottomWidth: 1, borderBottomColor: '#E8F4F0' },
   tableRowAlt: { backgroundColor: '#FAFBFA' },
-  badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3, fontSize: 8, fontWeight: 500 },
+  badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3, fontSize: 8, fontFamily: 'Helvetica-Bold' },
   totalRow: { flexDirection: 'row', padding: 10, backgroundColor: '#E8F4F0', borderRadius: 6, marginTop: 4, marginBottom: 20 },
-  totalLabel: { flex: 4, fontFamily: 'Nunito', fontSize: 12, fontWeight: 700, color: '#1A7A4A' },
-  totalMonto: { flex: 1, fontFamily: 'Nunito', fontSize: 14, fontWeight: 800, textAlign: 'right', color: '#1A7A4A' },
+  totalLabel: { flex: 4, fontFamily: 'Helvetica-Bold', fontSize: 12, color: '#1A7A4A' },
+  totalMonto: { flex: 1, fontFamily: 'Helvetica-Bold', fontSize: 14, textAlign: 'right', color: '#1A7A4A' },
   footer: { position: 'absolute', bottom: 30, left: 40, right: 40, borderTopWidth: 1, borderTopColor: '#C8D4CB', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' },
   footerText: { fontSize: 8, color: '#5E6B62' },
 })
@@ -140,7 +123,7 @@ export default function EstadoCuentaPDF({ condominio, residente, unidad, recibos
               <Text style={{ flex: 1, fontSize: 10, textAlign: 'right', color: Number(r.monto_recargo) > 0 ? '#B83232' : '#5E6B62' }}>
                 {Number(r.monto_recargo) > 0 ? formatBs(Number(r.monto_recargo)) : '—'}
               </Text>
-              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right', fontWeight: 500, color: '#0D1117' }}>{formatBs(Number(r.monto_total))}</Text>
+              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right', fontFamily: 'Helvetica-Bold', color: '#0D1117' }}>{formatBs(Number(r.monto_total))}</Text>
               <View style={{ flex: 1, alignItems: 'center' }}>
                 <Text style={{ ...s.badge, backgroundColor: ec.bg, color: ec.color }}>{estadoLabel(r.estado)}</Text>
               </View>
@@ -161,7 +144,7 @@ export default function EstadoCuentaPDF({ condominio, residente, unidad, recibos
         )}
 
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>DOMIA — Sistema de Administracion de Condominios · Bolivia</Text>
+          <Text style={s.footerText}>DOMIA - Sistema de Administracion de Condominios</Text>
           <Text style={s.footerText}>Generado: {new Date().toLocaleDateString('es-BO')}</Text>
         </View>
       </Page>

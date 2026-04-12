@@ -1,55 +1,38 @@
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
-
-Font.register({
-  family: 'Nunito',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgevT5.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTo3j6zbXWjgevT5.woff2', fontWeight: 700 },
-    { src: 'https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdQQ3j6zbXWjgevT5.woff2', fontWeight: 800 },
-  ],
-})
-
-Font.register({
-  family: 'Inter',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fAZ9hiJ-Ek-_EeA.woff2', fontWeight: 500 },
-  ],
-})
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 
 const s = StyleSheet.create({
-  page: { padding: 40, fontFamily: 'Inter', fontSize: 10, color: '#0D1117' },
+  page: { padding: 40, fontFamily: 'Helvetica', fontSize: 10, color: '#0D1117' },
   // Header
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, paddingBottom: 16, borderBottomWidth: 2, borderBottomColor: '#1A7A4A' },
   headerLeft: {},
-  condoName: { fontFamily: 'Nunito', fontSize: 18, fontWeight: 800, color: '#1A7A4A' },
+  condoName: { fontFamily: 'Helvetica-Bold', fontSize: 18, color: '#1A7A4A' },
   condoAddress: { fontSize: 9, color: '#5E6B62', marginTop: 2 },
   headerRight: { alignItems: 'flex-end' },
-  domiaLogo: { fontFamily: 'Nunito', fontSize: 14, fontWeight: 800 },
+  domiaLogo: { fontFamily: 'Helvetica-Bold', fontSize: 14 },
   domiaGreen: { color: '#1A7A4A' },
   // Title
-  title: { fontFamily: 'Nunito', fontSize: 14, fontWeight: 700, textAlign: 'center', marginBottom: 4, color: '#0D1117', textTransform: 'uppercase', letterSpacing: 1 },
-  periodo: { fontFamily: 'Inter', fontSize: 11, textAlign: 'center', color: '#5E6B62', marginBottom: 20 },
+  title: { fontFamily: 'Helvetica-Bold', fontSize: 14, textAlign: 'center', marginBottom: 4, color: '#0D1117', textTransform: 'uppercase', letterSpacing: 1 },
+  periodo: { fontFamily: 'Helvetica', fontSize: 11, textAlign: 'center', color: '#5E6B62', marginBottom: 20 },
   // Info grid
   infoRow: { flexDirection: 'row', marginBottom: 16, gap: 20 },
   infoBlock: { flex: 1, backgroundColor: '#F4F7F5', borderRadius: 8, padding: 12 },
-  infoLabel: { fontSize: 8, fontWeight: 500, color: '#5E6B62', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  infoValue: { fontFamily: 'Nunito', fontSize: 11, fontWeight: 700, color: '#0D1117' },
+  infoLabel: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#5E6B62', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  infoValue: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: '#0D1117' },
   infoSub: { fontSize: 9, color: '#5E6B62', marginTop: 2 },
   // Table
   table: { marginTop: 8, marginBottom: 20 },
   tableHeader: { flexDirection: 'row', backgroundColor: '#1A7A4A', borderRadius: 6, padding: 8, marginBottom: 4 },
-  tableHeaderText: { color: 'white', fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.5 },
+  tableHeaderText: { color: 'white', fontSize: 9, fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   tableRow: { flexDirection: 'row', padding: 10, borderBottomWidth: 1, borderBottomColor: '#E8F4F0' },
   tableRowAlt: { backgroundColor: '#FAFBFA' },
   tableConcept: { flex: 3, fontSize: 10, color: '#0D1117' },
   tableMonto: { flex: 1, fontSize: 10, textAlign: 'right', color: '#0D1117' },
   tableTotal: { flexDirection: 'row', padding: 10, backgroundColor: '#E8F4F0', borderRadius: 6, marginTop: 4 },
-  tableTotalLabel: { flex: 3, fontFamily: 'Nunito', fontSize: 12, fontWeight: 700, color: '#1A7A4A' },
-  tableTotalMonto: { flex: 1, fontFamily: 'Nunito', fontSize: 14, fontWeight: 800, textAlign: 'right', color: '#1A7A4A' },
+  tableTotalLabel: { flex: 3, fontFamily: 'Helvetica-Bold', fontSize: 12, color: '#1A7A4A' },
+  tableTotalMonto: { flex: 1, fontFamily: 'Helvetica-Bold', fontSize: 14, textAlign: 'right', color: '#1A7A4A' },
   // Estado
   estadoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4, fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.5 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4, fontSize: 9, fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   badgePagado: { backgroundColor: '#E8F4F0', color: '#1A7A4A' },
   badgeVencido: { backgroundColor: '#FCEAEA', color: '#B83232' },
   badgeEmitido: { backgroundColor: '#F0F0F0', color: '#5E6B62' },
@@ -115,13 +98,13 @@ export default function ReciboPDF(props: ReciboPDFProps) {
             <Text style={s.domiaLogo}>
               DOM<Text style={s.domiaGreen}>IA</Text>
             </Text>
-            <Text style={{ fontSize: 7, color: '#5E6B62', marginTop: 2 }}>Sistema de Administración</Text>
+            <Text style={{ fontSize: 7, color: '#5E6B62', marginTop: 2 }}>Sistema de Administracion</Text>
           </View>
         </View>
 
         {/* Title */}
         <Text style={s.title}>Recibo de Cuota de Mantenimiento</Text>
-        <Text style={s.periodo}>Período: {formatPeriodo(periodo)}</Text>
+        <Text style={s.periodo}>Periodo: {formatPeriodo(periodo)}</Text>
 
         {/* Info */}
         <View style={s.infoRow}>
@@ -144,7 +127,7 @@ export default function ReciboPDF(props: ReciboPDFProps) {
           </View>
 
           <View style={s.tableRow}>
-            <Text style={s.tableConcept}>Cuota de mantenimiento — {formatPeriodo(periodo)}</Text>
+            <Text style={s.tableConcept}>Cuota de mantenimiento - {formatPeriodo(periodo)}</Text>
             <Text style={s.tableMonto}>{formatBs(monto_base)}</Text>
           </View>
 
@@ -171,7 +154,7 @@ export default function ReciboPDF(props: ReciboPDFProps) {
 
         {/* Footer */}
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>DOMIA — Sistema de Administración de Condominios · Bolivia</Text>
+          <Text style={s.footerText}>DOMIA - Sistema de Administracion de Condominios</Text>
           <Text style={s.footerText}>Generado: {new Date().toLocaleDateString('es-BO')}</Text>
         </View>
       </Page>
