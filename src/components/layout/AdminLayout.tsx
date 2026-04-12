@@ -25,7 +25,7 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
     enabled: !!condominioId,
   })
 
-  const navItems: NavItem[] = condominioId ? [
+  const operacionItems: NavItem[] = condominioId ? [
     { path: `/admin/condominio/${condominioId}/dashboard`, label: 'Dashboard', icon: '📊' },
     { path: `/admin/condominio/${condominioId}/residentes`, label: 'Residentes', icon: '👥' },
     { path: `/admin/condominio/${condominioId}/financiero`, label: 'Financiero', icon: '💰' },
@@ -33,6 +33,10 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
     { path: `/admin/condominio/${condominioId}/reservas`, label: 'Reservas', icon: '📅' },
     { path: `/admin/condominio/${condominioId}/comunicaciones`, label: 'Comunicaciones', icon: '📢' },
     { path: `/admin/condominio/${condominioId}/guardias`, label: 'Guardias', icon: '🛡️' },
+  ] : []
+
+  const configItems: NavItem[] = condominioId ? [
+    { path: `/admin/condominio/${condominioId}/configurar`, label: 'Configurar', icon: '⚙️' },
   ] : []
 
   const isActive = (path: string) => location.pathname === path
@@ -80,7 +84,7 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
 
           {/* Nav */}
           <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
-            {navItems.map(item => {
+            {operacionItems.map(item => {
               const active = isActive(item.path)
               return (
                 <a key={item.path} href={item.path}
@@ -91,6 +95,23 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
                 </a>
               )
             })}
+
+            {configItems.length > 0 && (
+              <>
+                <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.08)', margin: '8px 4px' }} />
+                {configItems.map(item => {
+                  const active = isActive(item.path)
+                  return (
+                    <a key={item.path} href={item.path}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', borderRadius: '10px', textDecoration: 'none',
+                        backgroundColor: active ? 'rgba(13,158,110,0.15)' : 'transparent', color: active ? '#0D9E6E' : 'rgba(255,255,255,0.5)',
+                        cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: active ? 600 : 400, width: '100%', transition: 'all 0.15s' }}>
+                      <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>{item.icon}</span>{item.label}
+                    </a>
+                  )
+                })}
+              </>
+            )}
           </nav>
 
           {/* User */}

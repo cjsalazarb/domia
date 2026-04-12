@@ -85,6 +85,7 @@ export default function CondominioDashboard() {
             { label: 'Reservas', icon: '📅', path: `/admin/condominio/${id}/reservas`, color: '#7B1AC8' },
             { label: 'Comunicaciones', icon: '📢', path: `/admin/condominio/${id}/comunicaciones`, color: '#0D4A8F' },
             { label: 'Guardias', icon: '🛡️', path: `/admin/condominio/${id}/guardias`, color: '#5E6B62' },
+            { label: 'Configurar', icon: '⚙️', path: `/admin/condominio/${id}/configurar`, color: '#0D1117' },
           ].map(item => (
             <a key={item.path} href={item.path}
               style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '20px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px', transition: 'box-shadow 0.2s', borderLeft: `4px solid ${item.color}` }}>
