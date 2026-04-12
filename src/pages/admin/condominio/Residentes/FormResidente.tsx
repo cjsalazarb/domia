@@ -51,7 +51,7 @@ export default function FormResidente({ condominioId, residente, propietarios, o
         .select('unidad_id')
         .eq('condominio_id', condominioId)
         .eq('tipo', 'propietario')
-        .neq('estado', 'inactivo')
+        .or('estado.is.null,estado.neq.inactivo')
       if (error) throw error
       return (data || []).map(r => r.unidad_id)
     },
