@@ -66,9 +66,9 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
         {/* Sidebar */}
         <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`} style={{ backgroundColor: '#0D1117', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '22px', fontWeight: 800, color: 'white', cursor: 'pointer' }} onClick={() => { navigate('/admin'); setSidebarOpen(false) }}>
+            <a href="/admin" style={{ fontFamily: "'Nunito', sans-serif", fontSize: '22px', fontWeight: 800, color: 'white', cursor: 'pointer', textDecoration: 'none', display: 'block' }}>
               DOM<span style={{ color: '#0D9E6E' }}>IA</span>
-            </div>
+            </a>
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{isSuper ? 'Super Admin' : 'Administrador'}</div>
           </div>
 
@@ -76,12 +76,12 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
             {navItems.map(item => {
               const active = isActive(item.path)
               return (
-                <button key={item.path} onClick={() => { navigate(item.path); setSidebarOpen(false) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', borderRadius: '10px', border: 'none',
+                <a key={item.path} href={item.path}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', borderRadius: '10px', textDecoration: 'none',
                     backgroundColor: active ? 'rgba(13,158,110,0.15)' : 'transparent', color: active ? '#0D9E6E' : 'rgba(255,255,255,0.6)',
-                    cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: active ? 600 : 400, textAlign: 'left', width: '100%', transition: 'all 0.15s' }}>
+                    cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: active ? 600 : 400, width: '100%', transition: 'all 0.15s' }}>
                   <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>{item.icon}</span>{item.label}
-                </button>
+                </a>
               )
             })}
           </nav>
@@ -105,7 +105,7 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
             </div>
             <span style={{ fontSize: '12px', color: '#5E6B62' }}>{profile?.nombre}</span>
           </div>
-          <div key={location.pathname} className="admin-content" style={{ padding: '20px', maxWidth: '1100px', margin: '0 auto' }}>{children}</div>
+          <div className="admin-content" style={{ padding: '20px', maxWidth: '1100px', margin: '0 auto' }}>{children}</div>
         </div>
       </div>
     </>
