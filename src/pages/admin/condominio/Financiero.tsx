@@ -21,7 +21,7 @@ export default function Financiero() {
   const isSuperAdmin = profile?.rol === 'super_admin'
 
   // Selector state — defaults to the condominio from URL
-  const [selectedCondoId, setSelectedCondoId] = useState<string>('')
+  const [selectedCondoId, setSelectedCondoId] = useState<string>(id || '')
   const activeCondoId = selectedCondoId || id!
 
   // Fetch all condominios for super_admin selector
@@ -174,22 +174,34 @@ export default function Financiero() {
             </button>
           </div>
         </div>
-        <p style={{ color: '#5E6B62', fontSize: '14px', marginBottom: isSuperAdmin ? '12px' : '24px' }}>
+        <p style={{ color: '#5E6B62', fontSize: '14px', marginBottom: '24px' }}>
           Gestión de cuotas, recibos y pagos del condominio
         </p>
 
         {/* Selector de condominio para super_admin */}
-        {isSuperAdmin && condominios && condominios.length > 1 && (
-          <div style={{ marginBottom: '24px' }}>
+        {isSuperAdmin && condominios && condominios.length > 0 && (
+          <div style={{
+            backgroundColor: '#F4F7F5',
+            borderRadius: '12px',
+            padding: '14px 16px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+          }}>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#5E6B62', whiteSpace: 'nowrap' }}>
+              Condominio:
+            </span>
             <select
               value={selectedCondoId}
               onChange={e => setSelectedCondoId(e.target.value)}
               style={{
-                width: '100%',
+                flex: 1,
                 padding: '10px 14px',
                 border: '1px solid #C8D4CB',
                 borderRadius: '10px',
                 fontSize: '14px',
+                fontWeight: 600,
                 color: '#0D1117',
                 fontFamily: "'Inter', sans-serif",
                 backgroundColor: 'white',
@@ -197,8 +209,7 @@ export default function Financiero() {
                 cursor: 'pointer',
               }}
             >
-              <option value="">— {condominioInfo?.nombre || 'Condominio actual'} (actual) —</option>
-              {condominios.filter(c => c.id !== id).map(c => (
+              {condominios.map(c => (
                 <option key={c.id} value={c.id}>{c.nombre}</option>
               ))}
             </select>
