@@ -21,7 +21,7 @@ const PAGO_STATUS: Record<string, { bg: string; text: string; label: string }> =
   sin_recibo: { bg: '#F0F0F0', text: '#5E6B62', label: 'Sin recibo' },
 }
 
-type FiltroPago = 'todos' | 'morosos' | 'al_dia'
+type FiltroPago = 'todos' | 'al_dia' | 'pendiente' | 'morosos'
 
 interface Props {
   residentes: Residente[]
@@ -30,9 +30,10 @@ interface Props {
   onImportar: () => void
   onDetalle: (id: string) => void
   onEditar: (id: string) => void
+  onRegistrarPago?: (id: string) => void
 }
 
-export default function ListaResidentes({ residentes, condominioId, onNuevo, onImportar, onDetalle, onEditar }: Props) {
+export default function ListaResidentes({ residentes, condominioId, onNuevo, onImportar, onDetalle, onEditar, onRegistrarPago }: Props) {
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<string>('todos')
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
@@ -81,6 +82,8 @@ export default function ListaResidentes({ residentes, condominioId, onNuevo, onI
       matchPago = getPaymentStatus(r.id) === 'vencido'
     } else if (filtroPago === 'al_dia') {
       matchPago = getPaymentStatus(r.id) === 'pagado'
+    } else if (filtroPago === 'pendiente') {
+      matchPago = getPaymentStatus(r.id) === 'emitido'
     }
 
     return matchBusqueda && matchTipo && matchEstado && matchPago
@@ -156,17 +159,14 @@ export default function ListaResidentes({ residentes, condominioId, onNuevo, onI
         <button onClick={() => { setFiltroPago('todos'); setFiltroTipo('todos') }} style={filterBtnStyle(filtroPago === 'todos' && filtroTipo === 'todos')}>
           Todos
         </button>
-        <button onClick={() => { setFiltroPago('todos'); setFiltroTipo('propietario') }} style={filterBtnStyle(filtroTipo === 'propietario' && filtroPago === 'todos')}>
-          Propietarios
-        </button>
-        <button onClick={() => { setFiltroPago('todos'); setFiltroTipo('inquilino') }} style={filterBtnStyle(filtroTipo === 'inquilino' && filtroPago === 'todos')}>
-          Inquilinos
-        </button>
-        <button onClick={() => { setFiltroPago('morosos'); setFiltroTipo('todos') }} style={filterBtnStyle(filtroPago === 'morosos')}>
-          Morosos
-        </button>
         <button onClick={() => { setFiltroPago('al_dia'); setFiltroTipo('todos') }} style={filterBtnStyle(filtroPago === 'al_dia')}>
           Al dia
+        </button>
+        <button onClick={() => { setFiltroPago('pendiente'); setFiltroTipo('todos') }} style={filterBtnStyle(filtroPago === 'pendiente')}>
+          Pendiente
+        </button>
+        <button onClick={() => { setFiltroPago('morosos'); setFiltroTipo('todos') }} style={filterBtnStyle(filtroPago === 'morosos')}>
+          Moroso
         </button>
       </div>
 
@@ -279,19 +279,21 @@ export default function ListaResidentes({ residentes, condominioId, onNuevo, onI
                   {r.email && <div>{r.email}</div>}
                   {r.telefono && <div>{r.telefono}</div>}
                 </span>
-                <span style={{ textAlign: 'center', display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                <span style={{ textAlign: 'center', display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
                   <button
                     onClick={() => onDetalle(r.id)}
                     style={{ padding: '5px 10px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
                   >
                     Ver
                   </button>
-                  <button
-                    onClick={() => onEditar(r.id)}
-                    style={{ padding: '5px 10px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
-                  >
-                    Editar
-                  </button>
+                  {onRegistrarPago && (pagoStatus === 'emitido' || pagoStatus === 'vencido') && (
+                    <button
+                      onClick={() => onRegistrarPago(r.id)}
+                      style={{ padding: '5px 10px', backgroundColor: '#FEF9EC', color: '#C07A2E', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
+                    >
+                      Registrar pago
+                    </button>
+                  )}
                 </span>
               </div>
             )

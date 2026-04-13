@@ -88,6 +88,7 @@ export default function Residentes() {
                 onImportar={() => setView('importar')}
                 onDetalle={(rid) => { setSelectedId(rid); setView('detalle') }}
                 onEditar={(rid) => { setSelectedId(rid); setView('editar') }}
+                onRegistrarPago={(rid) => { setSelectedId(rid); setView('detalle') }}
               />
             )}
           </>

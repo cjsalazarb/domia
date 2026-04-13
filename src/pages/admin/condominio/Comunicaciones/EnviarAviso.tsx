@@ -26,7 +26,29 @@ export default function EnviarAviso({ condominioId, condominioNombre }: Props) {
   const [titulo, setTitulo] = useState('')
   const [cuerpo, setCuerpo] = useState('')
   const [destinatarios, setDestinatarios] = useState<Destinatario>('todos')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [selectAll, setSelectAll] = useState(true)
   const [showPreview, setShowPreview] = useState(false)
+
+  // Fetch residents for individual selection
+  const { data: residentesList = [] } = useQuery({
+    queryKey: ['residentes-comunicaciones', condominioId, destinatarios],
+    queryFn: async () => {
+      let query = supabase
+        .from('residentes')
+        .select('id, nombre, apellido, tipo, user_id, unidades(numero)')
+        .eq('condominio_id', condominioId)
+        .eq('estado', 'activo')
+
+      if (destinatarios === 'propietarios') query = query.eq('tipo', 'propietario')
+      if (destinatarios === 'inquilinos') query = query.eq('tipo', 'inquilino')
+
+      const { data, error } = await query.order('nombre')
+      if (error) throw error
+      return (data || []) as Array<{ id: string; nombre: string; apellido: string; tipo: string; user_id: string | null; unidades: { numero: string } | null }>
+    },
+    enabled: !!condominioId && destinatarios !== 'todos',
+  })
 
   // Historial de notificaciones
   const { data: historial, isLoading: historialLoading } = useQuery({
@@ -61,10 +83,16 @@ export default function EnviarAviso({ condominioId, condominioNombre }: Props) {
       const { data: residentes, error: resErr } = await query
       if (resErr) throw resErr
 
+      // Filter by selected IDs when using individual selection
+      let targetResidentes = residentes || []
+      if (destinatarios !== 'todos' && !selectAll) {
+        targetResidentes = targetResidentes.filter(r => selectedIds.has(r.id))
+      }
+
       const fecha = new Date().toLocaleDateString('es-BO', { day: 'numeric', month: 'long', year: 'numeric' })
 
       // Insert notification for each resident (or general if no specific target)
-      const notificaciones = (residentes || []).map(r => ({
+      const notificaciones = targetResidentes.map(r => ({
         condominio_id: condominioId,
         titulo,
         cuerpo,
@@ -91,7 +119,7 @@ export default function EnviarAviso({ condominioId, condominioNombre }: Props) {
       // Generate email HTML (for reference — actual sending needs Resend API key)
       const _emailHtml = templateAvisoGeneral(titulo, cuerpo, condominioNombre, fecha)
 
-      return { enviados: residentes?.length || 0, emailHtml: _emailHtml }
+      return { enviados: targetResidentes.length || 0, emailHtml: _emailHtml }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notificaciones-historial', condominioId] })
@@ -203,6 +231,62 @@ export default function EnviarAviso({ condominioId, condominioNombre }: Props) {
             ))}
           </div>
         </div>
+
+        {/* Individual selection */}
+        {destinatarios !== 'todos' && residentesList.length > 0 && (
+          <div style={{ marginBottom: '16px', backgroundColor: '#F4F7F5', borderRadius: '12px', padding: '14px 16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>
+                {destinatarios === 'propietarios' ? 'Propietarios' : 'Inquilinos'} ({selectAll ? residentesList.length : selectedIds.size} seleccionado{(selectAll ? residentesList.length : selectedIds.size) !== 1 ? 's' : ''})
+              </span>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0', borderBottom: '1px solid #E0E0E0', cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: 600, color: '#1A7A4A' }}>
+              <input
+                type="checkbox"
+                checked={selectAll}
+                onChange={() => {
+                  if (selectAll) {
+                    setSelectAll(false)
+                    setSelectedIds(new Set())
+                  } else {
+                    setSelectAll(true)
+                    setSelectedIds(new Set(residentesList.map(r => r.id)))
+                  }
+                }}
+                style={{ accentColor: '#1A7A4A', width: '16px', height: '16px' }}
+              />
+              Seleccionar todos
+            </label>
+            <div style={{ maxHeight: '200px', overflowY: 'auto', marginTop: '4px' }}>
+              {residentesList.map(r => (
+                <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#0D1117' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectAll || selectedIds.has(r.id)}
+                    onChange={() => {
+                      if (selectAll) {
+                        // Switch from "all" to individual, uncheck this one
+                        const newSet = new Set(residentesList.map(x => x.id))
+                        newSet.delete(r.id)
+                        setSelectedIds(newSet)
+                        setSelectAll(false)
+                      } else {
+                        const newSet = new Set(selectedIds)
+                        if (newSet.has(r.id)) newSet.delete(r.id)
+                        else newSet.add(r.id)
+                        setSelectedIds(newSet)
+                        if (newSet.size === residentesList.length) setSelectAll(true)
+                      }
+                    }}
+                    style={{ accentColor: '#1A7A4A', width: '16px', height: '16px' }}
+                  />
+                  {r.nombre} {r.apellido}
+                  {r.unidades && <span style={{ fontSize: '11px', color: '#5E6B62', marginLeft: '4px' }}>— Unidad {r.unidades.numero}</span>}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Título */}
         <div style={{ marginBottom: '16px' }}>

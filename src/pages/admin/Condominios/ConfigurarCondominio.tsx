@@ -4,9 +4,10 @@ import { supabase } from '@/lib/supabase'
 import { useEdificios, useUnidades, useDocumentos } from '@/hooks/useCondominios'
 import { useAreasComunes } from '@/hooks/useReservas'
 import { useCuotas } from '@/hooks/useCuotas'
+import { useProveedores } from '@/hooks/useMantenimientos'
 import ImportarResidentes from '@/pages/admin/condominio/Residentes/ImportarResidentes'
 
-type Tab = 'edificios' | 'unidades' | 'areas' | 'documentos' | 'config'
+type Tab = 'edificios' | 'unidades' | 'areas' | 'documentos' | 'config' | 'proveedores'
 
 interface Props { condominioId: string; onBack: () => void }
 
@@ -301,12 +302,77 @@ function TabConfig({ condominioId }: { condominioId: string }) {
   )
 }
 
+function TabProveedores({ condominioId }: { condominioId: string }) {
+  const { proveedores, isLoading, crear, actualizar } = useProveedores(condominioId)
+  const [show, setShow] = useState(false)
+  const [nombre, setNombre] = useState(''); const [rubro, setRubro] = useState('')
+  const [telefono, setTelefono] = useState(''); const [email, setEmail] = useState('')
+  const [contacto, setContacto] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await crear.mutateAsync({ nombre, rubro, telefono: telefono || undefined, email: email || undefined, contacto_nombre: contacto || undefined })
+      setNombre(''); setRubro(''); setTelefono(''); setEmail(''); setContacto(''); setShow(false)
+    } finally { setSaving(false) }
+  }
+
+  if (isLoading) return <div style={{ color: '#5E6B62', fontSize: '13px', padding: '20px', textAlign: 'center' }}>Cargando...</div>
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Proveedores ({proveedores.length})</h3>
+        <button onClick={() => setShow(!show)} style={{ padding: '6px 14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>{show ? 'Cancelar' : '+ Agregar'}</button>
+      </div>
+      {show && (
+        <div style={{ backgroundColor: '#F4F7F5', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+            <div><label style={lS}>Nombre *</label><input value={nombre} onChange={e => setNombre(e.target.value)} style={iS} /></div>
+            <div><label style={lS}>Rubro *</label><input value={rubro} onChange={e => setRubro(e.target.value)} placeholder="Ej: Plomeria, Electricidad" style={iS} /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+            <div><label style={lS}>Telefono</label><input value={telefono} onChange={e => setTelefono(e.target.value)} style={iS} /></div>
+            <div><label style={lS}>Email</label><input value={email} onChange={e => setEmail(e.target.value)} type="email" style={iS} /></div>
+            <div><label style={lS}>Contacto</label><input value={contacto} onChange={e => setContacto(e.target.value)} style={iS} /></div>
+          </div>
+          <button onClick={save} disabled={!nombre || !rubro || saving} style={{
+            padding: '8px 20px', backgroundColor: (!nombre || !rubro || saving) ? '#C8D4CB' : '#1A7A4A', color: 'white',
+            border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif",
+            cursor: (!nombre || !rubro || saving) ? 'not-allowed' : 'pointer',
+          }}>{saving ? 'Guardando...' : 'Guardar proveedor'}</button>
+        </div>
+      )}
+      {proveedores.length === 0 ? <div style={{ color: '#5E6B62', fontSize: '13px', padding: '20px', textAlign: 'center' }}>Sin proveedores</div> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {proveedores.map((p: any) => (
+            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 16px', backgroundColor: '#F4F7F5', borderRadius: '12px', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117', fontSize: '14px' }}>{p.nombre}</span>
+                <div style={{ fontSize: '12px', color: '#5E6B62', marginTop: '2px' }}>
+                  {p.rubro}{p.telefono ? ` · ${p.telefono}` : ''}{p.email ? ` · ${p.email}` : ''}
+                </div>
+              </div>
+              <button onClick={() => actualizar.mutate({ id: p.id, updates: { activo: !p.activo } })} style={{
+                padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', cursor: 'pointer',
+                backgroundColor: p.activo ? '#E8F4F0' : '#F0F0F0', color: p.activo ? '#1A7A4A' : '#5E6B62',
+              }}>{p.activo ? 'Activo' : 'Inactivo'}</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ConfigurarCondominio({ condominioId, onBack }: Props) {
   const [tab, setTab] = useState<Tab>('edificios')
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'edificios', label: 'Edificios', icon: '🏢' },
     { key: 'unidades', label: 'Unidades', icon: '🏠' },
     { key: 'areas', label: 'Areas Comunes', icon: '📅' },
+    { key: 'proveedores', label: 'Proveedores', icon: '🔧' },
     { key: 'documentos', label: 'Documentos', icon: '📄' },
     { key: 'config', label: 'Cuotas', icon: '💰' },
   ]
@@ -332,6 +398,7 @@ export default function ConfigurarCondominio({ condominioId, onBack }: Props) {
         {tab === 'edificios' && <TabEdificios condominioId={condominioId} />}
         {tab === 'unidades' && <TabUnidades condominioId={condominioId} />}
         {tab === 'areas' && <TabAreas condominioId={condominioId} />}
+        {tab === 'proveedores' && <TabProveedores condominioId={condominioId} />}
         {tab === 'documentos' && <TabDocumentos condominioId={condominioId} />}
         {tab === 'config' && <TabConfig condominioId={condominioId} />}
       </div>

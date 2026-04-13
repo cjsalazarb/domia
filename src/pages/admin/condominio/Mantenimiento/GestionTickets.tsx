@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
 import { useMantenimientos, useProveedores } from '@/hooks/useMantenimientos'
 
 const ESTADOS = [
@@ -20,12 +22,42 @@ const PRIORIDAD_STYLE: Record<string, { bg: string; text: string }> = {
 interface Props { condominioId: string }
 
 export default function GestionTickets({ condominioId }: Props) {
-  const { tickets, isLoading, actualizar } = useMantenimientos(condominioId)
+  const { tickets, isLoading, crear, actualizar } = useMantenimientos(condominioId)
   const { proveedores } = useProveedores(condominioId)
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [costo, setCosto] = useState('')
   const [notasRes, setNotasRes] = useState('')
+
+  // New ticket form
+  const [showNuevo, setShowNuevo] = useState(false)
+  const [nTitulo, setNTitulo] = useState('')
+  const [nDesc, setNDesc] = useState('')
+  const [nPrioridad, setNPrioridad] = useState('media')
+  const [nUnidadId, setNUnidadId] = useState('')
+  const [nAreaComun, setNAreaComun] = useState('')
+  const [nTipoUbicacion, setNTipoUbicacion] = useState<'unidad' | 'area'>('unidad')
+
+  const { data: unidades = [] } = useQuery({
+    queryKey: ['unidades-mtto', condominioId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('unidades').select('id, numero').eq('condominio_id', condominioId).eq('activa', true).order('numero')
+      if (error) throw error
+      return data as Array<{ id: string; numero: string }>
+    },
+    enabled: !!condominioId && showNuevo,
+  })
+
+  const handleCrearTicket = async () => {
+    if (!nTitulo || !nDesc) return
+    await crear.mutateAsync({
+      titulo: nTitulo,
+      descripcion: nDesc,
+      prioridad: nPrioridad,
+      unidad_id: nTipoUbicacion === 'unidad' ? nUnidadId || undefined : undefined,
+    })
+    setNTitulo(''); setNDesc(''); setNPrioridad('media'); setNUnidadId(''); setNAreaComun(''); setShowNuevo(false)
+  }
 
   const filtrados = filtroEstado === 'todos' ? tickets : tickets.filter(t => t.estado === filtroEstado)
 
@@ -45,7 +77,71 @@ export default function GestionTickets({ condominioId }: Props) {
           <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Tickets de Mantenimiento</h2>
           <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62', marginTop: '4px' }}>{tickets.length} ticket{tickets.length !== 1 ? 's' : ''}</p>
         </div>
+        <button onClick={() => setShowNuevo(!showNuevo)} style={{
+          padding: '10px 20px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px',
+          fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: 'pointer',
+        }}>{showNuevo ? 'Cancelar' : '+ Nuevo ticket'}</button>
       </div>
+
+      {/* Nuevo ticket form */}
+      {showNuevo && (
+        <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', padding: '24px', marginBottom: '16px' }}>
+          <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Nuevo Ticket</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Tipo ubicacion</label>
+              <select value={nTipoUbicacion} onChange={e => setNTipoUbicacion(e.target.value as 'unidad' | 'area')}
+                style={{ width: '100%', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '13px', fontFamily: "'Inter', sans-serif", backgroundColor: 'white' }}>
+                <option value="unidad">Unidad especifica</option>
+                <option value="area">Area comun</option>
+              </select>
+            </div>
+            <div>
+              {nTipoUbicacion === 'unidad' ? (
+                <>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Unidad</label>
+                  <select value={nUnidadId} onChange={e => setNUnidadId(e.target.value)}
+                    style={{ width: '100%', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '13px', fontFamily: "'Inter', sans-serif", backgroundColor: 'white' }}>
+                    <option value="">Seleccionar...</option>
+                    {unidades.map(u => <option key={u.id} value={u.id}>{u.numero}</option>)}
+                  </select>
+                </>
+              ) : (
+                <>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Area comun</label>
+                  <input value={nAreaComun} onChange={e => setNAreaComun(e.target.value)} placeholder="Ej: Lobby, Piscina"
+                    style={{ width: '100%', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '13px', fontFamily: "'Inter', sans-serif", boxSizing: 'border-box' }} />
+                </>
+              )}
+            </div>
+          </div>
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Titulo *</label>
+            <input value={nTitulo} onChange={e => setNTitulo(e.target.value)}
+              style={{ width: '100%', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '13px', fontFamily: "'Inter', sans-serif", boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Descripcion *</label>
+            <textarea value={nDesc} onChange={e => setNDesc(e.target.value)} rows={3}
+              style={{ width: '100%', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '13px', fontFamily: "'Inter', sans-serif", resize: 'vertical', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Prioridad</label>
+            <select value={nPrioridad} onChange={e => setNPrioridad(e.target.value)}
+              style={{ padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '13px', fontFamily: "'Inter', sans-serif", backgroundColor: 'white' }}>
+              <option value="baja">Baja</option>
+              <option value="media">Media</option>
+              <option value="alta">Alta</option>
+              <option value="urgente">Urgente</option>
+            </select>
+          </div>
+          <button onClick={handleCrearTicket} disabled={!nTitulo || !nDesc || crear.isPending} style={{
+            padding: '10px 24px', backgroundColor: (!nTitulo || !nDesc) ? '#C8D4CB' : '#1A7A4A', color: 'white', border: 'none',
+            borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif",
+            cursor: (!nTitulo || !nDesc) ? 'not-allowed' : 'pointer',
+          }}>{crear.isPending ? 'Guardando...' : 'Crear ticket'}</button>
+        </div>
+      )}
 
       {/* KPI Header */}
       <div style={{

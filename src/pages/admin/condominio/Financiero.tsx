@@ -6,7 +6,6 @@ import AdminLayout from '@/components/layout/AdminLayout'
 import { supabase } from '@/lib/supabase'
 import { exportarExcel } from '@/lib/exportarReporte'
 import ReporteJuntaPDF from '@/components/financiero/ReporteJuntaPDF'
-import ConfiguradorCuotas from './Financiero/ConfiguradorCuotas'
 import ListaRecibos from './Financiero/ListaRecibos'
 import PagosPendientes from './Financiero/PagosPendientes'
 import Morosos from './Financiero/Morosos'
@@ -262,11 +261,6 @@ export default function Financiero() {
           condominioDir={condoDir}
           condomionioCiudad={condoCiudad}
         />
-
-        <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
-
-        {/* Configurador Cuotas */}
-        <ConfiguradorCuotas condominioId={id} />
       </div>
     </AdminLayout>
   )
