@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { useHistorialUnidad, type Residente } from '@/hooks/useResidentes'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pdf } from '@react-pdf/renderer'
 import { supabase } from '@/lib/supabase'
 import EstadoCuentaPDF from '@/components/financiero/EstadoCuentaPDF'
+import CartaMoraPDF from '@/components/financiero/CartaMoraPDF'
 
 const ESTADO_STYLE: Record<string, { bg: string; text: string; label: string }> = {
   activo: { bg: '#E8F4F0', text: '#1A7A4A', label: 'Activo' },
@@ -17,8 +19,17 @@ interface Props {
 }
 
 export default function DetalleResidente({ residente, onBack, onEditar }: Props) {
+  const queryClient = useQueryClient()
   const { data: historial, isLoading: historialLoading } = useHistorialUnidad(residente.unidad_id)
   const estado = ESTADO_STYLE[residente.estado] || ESTADO_STYLE.activo
+
+  const [showPagoForm, setShowPagoForm] = useState(false)
+  const [pagoReciboId, setPagoReciboId] = useState('')
+  const [pagoMonto, setPagoMonto] = useState('')
+  const [pagoFecha, setPagoFecha] = useState(() => new Date().toISOString().split('T')[0])
+  const [pagoMetodo, setPagoMetodo] = useState('efectivo')
+  const [pagoNotas, setPagoNotas] = useState('')
+  const [pagoError, setPagoError] = useState('')
 
   // Payment history
   const { data: recibos = [] } = useQuery({
@@ -31,6 +42,11 @@ export default function DetalleResidente({ residente, onBack, onEditar }: Props)
       return data || []
     },
   })
+
+  // Pending recibos for the payment form
+  const recibosPendientes = (recibos as any[]).filter(
+    (r: any) => r.estado === 'emitido' || r.estado === 'vencido'
+  )
 
   // Maintenance history
   const { data: mantenimientos = [] } = useQuery({
@@ -65,14 +81,84 @@ export default function DetalleResidente({ residente, onBack, onEditar }: Props)
     },
   })
 
+  // Payment mutation
+  const registrarPago = useMutation({
+    mutationFn: async () => {
+      if (!pagoReciboId) throw new Error('Seleccione un recibo')
+      const monto = parseFloat(pagoMonto)
+      if (isNaN(monto) || monto <= 0) throw new Error('Monto invalido')
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+
+      // Insert pago
+      const { error: pagoErr } = await supabase.from('pagos').insert({
+        condominio_id: residente.condominio_id,
+        recibo_id: pagoReciboId,
+        residente_id: residente.id,
+        monto,
+        fecha_pago: pagoFecha,
+        metodo_pago: pagoMetodo,
+        confirmado_por: user?.id || null,
+        notas: pagoNotas || null,
+      })
+      if (pagoErr) throw pagoErr
+
+      // Update recibo to pagado
+      const { error: reciboErr } = await supabase.from('recibos')
+        .update({ estado: 'pagado' })
+        .eq('id', pagoReciboId)
+      if (reciboErr) throw reciboErr
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recibos-residente', residente.id] })
+      queryClient.invalidateQueries({ queryKey: ['recibos-lista'] })
+      setShowPagoForm(false)
+      setPagoReciboId('')
+      setPagoMonto('')
+      setPagoFecha(new Date().toISOString().split('T')[0])
+      setPagoMetodo('efectivo')
+      setPagoNotas('')
+      setPagoError('')
+    },
+    onError: (err: Error) => {
+      setPagoError(err.message)
+    },
+  })
+
+  const handleSelectRecibo = (reciboId: string) => {
+    setPagoReciboId(reciboId)
+    const recibo = recibosPendientes.find((r: any) => r.id === reciboId)
+    if (recibo) {
+      setPagoMonto(Number(recibo.monto_total).toFixed(2))
+    }
+  }
+
   const handleEstadoCuenta = async () => {
     if (!recibos.length || !condInfo) return
     const blob = await pdf(
       <EstadoCuentaPDF
         condominio={{ nombre: condInfo.nombre, direccion: condInfo.direccion || undefined, ciudad: condInfo.ciudad || undefined }}
         residente={{ nombre: residente.nombre, apellido: residente.apellido, ci: residente.ci || undefined }}
-        unidad={{ numero: residente.unidades?.numero || '—', tipo: residente.unidades?.tipo || '' }}
+        unidad={{ numero: residente.unidades?.numero || '\u2014', tipo: residente.unidades?.tipo || '' }}
         recibos={recibos as any[]}
+      />
+    ).toBlob()
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+  }
+
+  const handleCartaMora = async () => {
+    if (!condInfo) return
+    const deudas = recibosPendientes.map((r: any) => ({ periodo: r.periodo, monto: Number(r.monto_total) }))
+    const totalDeuda = deudas.reduce((s: number, d: { monto: number }) => s + d.monto, 0)
+    const blob = await pdf(
+      <CartaMoraPDF
+        condominio={{ nombre: condInfo.nombre, direccion: condInfo.direccion || undefined, ciudad: condInfo.ciudad || undefined }}
+        residente={{ nombre: residente.nombre, apellido: residente.apellido }}
+        unidad={residente.unidades?.numero || '—'}
+        deudas={deudas}
+        totalDeuda={totalDeuda}
       />
     ).toBlob()
     const url = URL.createObjectURL(blob)
@@ -101,6 +187,29 @@ export default function DetalleResidente({ residente, onBack, onEditar }: Props)
     cancelada: { bg: '#F0F0F0', text: '#5E6B62', label: 'Cancelada' },
   }
 
+  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '10px 14px',
+    border: '1px solid #C8D4CB',
+    borderRadius: '10px',
+    fontSize: '13px',
+    fontFamily: "'Inter', sans-serif",
+    color: '#0D1117',
+    outline: 'none',
+    boxSizing: 'border-box',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    fontFamily: "'Inter', sans-serif",
+    fontSize: '12px',
+    fontWeight: 600,
+    color: '#5E6B62',
+    marginBottom: '4px',
+    display: 'block',
+  }
+
   return (
     <div>
       {/* Back */}
@@ -125,7 +234,7 @@ export default function DetalleResidente({ residente, onBack, onEditar }: Props)
                 color: residente.tipo === 'propietario' ? '#0D4A8F' : '#7B1AC8',
                 fontFamily: "'Inter', sans-serif",
               }}>
-                {residente.tipo === 'propietario' ? '🏠 Propietario' : '📋 Inquilino'}
+                {residente.tipo === 'propietario' ? 'Propietario' : 'Inquilino'}
               </span>
               <span style={{
                 padding: '4px 10px',
@@ -140,11 +249,33 @@ export default function DetalleResidente({ residente, onBack, onEditar }: Props)
               </span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button onClick={handleEstadoCuenta} disabled={!recibos.length}
               style={{ padding: '8px 16px', backgroundColor: '#0D4A8F', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif", opacity: recibos.length ? 1 : 0.5 }}>
               Estado de cuenta PDF
             </button>
+            <button
+              onClick={() => { setShowPagoForm(prev => !prev); setPagoError('') }}
+              disabled={recibosPendientes.length === 0}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: recibosPendientes.length > 0 ? '#C07A2E' : '#ccc',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: recibosPendientes.length > 0 ? 'pointer' : 'default',
+                fontFamily: "'Inter', sans-serif",
+              }}>
+              Registrar pago
+            </button>
+            {recibosPendientes.length > 0 && (
+              <button onClick={handleCartaMora}
+                style={{ padding: '8px 16px', backgroundColor: '#B83232', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                Carta de mora
+              </button>
+            )}
             <button onClick={onEditar}
               style={{ padding: '8px 16px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
               Editar
@@ -155,13 +286,13 @@ export default function DetalleResidente({ residente, onBack, onEditar }: Props)
         {/* Info grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', marginTop: '24px' }}>
           {[
-            { label: 'Unidad', value: residente.unidades?.numero || '—' },
-            { label: 'CI', value: residente.ci || '—' },
-            { label: 'Email', value: residente.email || '—' },
-            { label: 'Teléfono', value: residente.telefono || '—' },
+            { label: 'Unidad', value: residente.unidades?.numero || '\u2014' },
+            { label: 'CI', value: residente.ci || '\u2014' },
+            { label: 'Email', value: residente.email || '\u2014' },
+            { label: 'Telefono', value: residente.telefono || '\u2014' },
             ...(residente.tipo === 'inquilino' ? [
-              { label: 'Inicio contrato', value: residente.fecha_inicio ? new Date(residente.fecha_inicio + 'T00:00:00').toLocaleDateString('es-BO') : '—' },
-              { label: 'Fin contrato', value: residente.fecha_fin ? new Date(residente.fecha_fin + 'T00:00:00').toLocaleDateString('es-BO') : '—' },
+              { label: 'Inicio contrato', value: residente.fecha_inicio ? new Date(residente.fecha_inicio + 'T00:00:00').toLocaleDateString('es-BO') : '\u2014' },
+              { label: 'Fin contrato', value: residente.fecha_fin ? new Date(residente.fecha_fin + 'T00:00:00').toLocaleDateString('es-BO') : '\u2014' },
             ] : []),
           ].map((item, i) => (
             <div key={i} style={{ backgroundColor: '#F4F7F5', borderRadius: '10px', padding: '12px' }}>
@@ -181,6 +312,125 @@ export default function DetalleResidente({ residente, onBack, onEditar }: Props)
           </div>
         )}
       </div>
+
+      {/* Inline payment form */}
+      {showPagoForm && (
+        <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', padding: '24px', marginBottom: '16px' }}>
+          <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>
+            Registrar Pago
+          </h3>
+
+          {pagoError && (
+            <div style={{ backgroundColor: '#FCEAEA', color: '#B83232', padding: '10px 14px', borderRadius: '10px', fontSize: '13px', fontFamily: "'Inter', sans-serif", marginBottom: '12px' }}>
+              {pagoError}
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={labelStyle}>Recibo a pagar</label>
+              <select
+                value={pagoReciboId}
+                onChange={e => handleSelectRecibo(e.target.value)}
+                style={{ ...inputStyle, backgroundColor: 'white' }}
+              >
+                <option value="">Seleccione un recibo...</option>
+                {recibosPendientes.map((r: any) => {
+                  const d = new Date(r.periodo + 'T00:00:00')
+                  const est = r.estado === 'vencido' ? ' (Vencido)' : ''
+                  return (
+                    <option key={r.id} value={r.id}>
+                      {meses[d.getMonth()]} {d.getFullYear()} - Bs. {Number(r.monto_total).toFixed(2)}{est}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Monto (Bs.)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={pagoMonto}
+                onChange={e => setPagoMonto(e.target.value)}
+                style={inputStyle}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Fecha del pago</label>
+              <input
+                type="date"
+                value={pagoFecha}
+                onChange={e => setPagoFecha(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Metodo de pago</label>
+              <select
+                value={pagoMetodo}
+                onChange={e => setPagoMetodo(e.target.value)}
+                style={{ ...inputStyle, backgroundColor: 'white' }}
+              >
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="deposito">Deposito</option>
+                <option value="qr">QR</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Notas (opcional)</label>
+              <textarea
+                value={pagoNotas}
+                onChange={e => setPagoNotas(e.target.value)}
+                style={{ ...inputStyle, minHeight: '40px', resize: 'vertical' }}
+                placeholder="Observaciones del pago..."
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
+            <button
+              onClick={() => { setShowPagoForm(false); setPagoError('') }}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#F4F7F5',
+                color: '#5E6B62',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: "'Inter', sans-serif",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => registrarPago.mutate()}
+              disabled={registrarPago.isPending || !pagoReciboId}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: registrarPago.isPending || !pagoReciboId ? '#ccc' : '#1A7A4A',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: registrarPago.isPending || !pagoReciboId ? 'default' : 'pointer',
+                fontFamily: "'Nunito', sans-serif",
+              }}
+            >
+              {registrarPago.isPending ? 'Guardando...' : 'Confirmar pago'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Historial unidad */}
       <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px' }}>
@@ -216,12 +466,12 @@ export default function DetalleResidente({ residente, onBack, onEditar }: Props)
                     <span style={{ marginLeft: '8px', fontSize: '11px', color: '#5E6B62' }}>
                       ({h.tipo})
                     </span>
-                    {esActual && <span style={{ marginLeft: '8px', fontSize: '10px', color: '#1A7A4A', fontWeight: 600 }}>← actual</span>}
+                    {esActual && <span style={{ marginLeft: '8px', fontSize: '10px', color: '#1A7A4A', fontWeight: 600 }}>actual</span>}
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <span style={{ fontSize: '11px', color: '#5E6B62' }}>
                       {h.fecha_inicio ? new Date(h.fecha_inicio + 'T00:00:00').toLocaleDateString('es-BO') : new Date(h.created_at).toLocaleDateString('es-BO')}
-                      {h.fecha_fin && ` — ${new Date(h.fecha_fin + 'T00:00:00').toLocaleDateString('es-BO')}`}
+                      {h.fecha_fin && ` \u2014 ${new Date(h.fecha_fin + 'T00:00:00').toLocaleDateString('es-BO')}`}
                     </span>
                     <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>
                       {est.label}
@@ -245,7 +495,6 @@ export default function DetalleResidente({ residente, onBack, onEditar }: Props)
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {(recibos as any[]).map(r => {
               const d = new Date(r.periodo + 'T00:00:00')
-              const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
               const est = RECIBO_EST[r.estado] || RECIBO_EST.emitido
               return (
                 <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#FAFBFA', borderRadius: '8px', fontFamily: "'Inter', sans-serif", fontSize: '13px' }}>
@@ -300,8 +549,8 @@ export default function DetalleResidente({ residente, onBack, onEditar }: Props)
               return (
                 <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#FAFBFA', borderRadius: '8px', fontFamily: "'Inter', sans-serif", fontSize: '13px' }}>
                   <div>
-                    <span style={{ fontWeight: 600, color: '#0D1117' }}>{r.areas_comunes?.nombre || '—'}</span>
-                    <span style={{ fontSize: '11px', color: '#5E6B62', marginLeft: '8px' }}>{r.fecha} · {r.hora_inicio?.slice(0, 5)} — {r.hora_fin?.slice(0, 5)}</span>
+                    <span style={{ fontWeight: 600, color: '#0D1117' }}>{r.areas_comunes?.nombre || '\u2014'}</span>
+                    <span style={{ fontSize: '11px', color: '#5E6B62', marginLeft: '8px' }}>{r.fecha} \u00B7 {r.hora_inicio?.slice(0, 5)} \u2014 {r.hora_fin?.slice(0, 5)}</span>
                   </div>
                   <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
                 </div>

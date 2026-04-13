@@ -72,10 +72,10 @@ export default function Residentes() {
               ← Volver
             </button>
             <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: '0 0 4px' }}>
-              Gestión de Residentes
+              Residentes · {condominio?.nombre || 'Condominio'}
             </h1>
             <p style={{ color: '#5E6B62', fontSize: '14px', marginBottom: '24px' }}>
-              Propietarios e inquilinos del condominio
+              {residentes.filter(r => r.tipo === 'propietario').length} propietarios · {residentes.filter(r => r.tipo === 'inquilino').length} inquilinos
             </p>
 
             {isLoading ? (
@@ -83,6 +83,7 @@ export default function Residentes() {
             ) : (
               <ListaResidentes
                 residentes={residentes}
+                condominioId={id}
                 onNuevo={() => setView('nuevo')}
                 onImportar={() => setView('importar')}
                 onDetalle={(rid) => { setSelectedId(rid); setView('detalle') }}

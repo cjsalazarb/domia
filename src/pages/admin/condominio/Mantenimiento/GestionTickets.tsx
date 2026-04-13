@@ -12,8 +12,8 @@ const ESTADOS = [
 
 const PRIORIDAD_STYLE: Record<string, { bg: string; text: string }> = {
   baja: { bg: '#E8F4F0', text: '#1A7A4A' },
-  media: { bg: '#FEF9EC', text: '#C07A2E' },
-  alta: { bg: '#FCEAEA', text: '#B83232' },
+  media: { bg: '#FEF9EC', text: '#C0A02E' },
+  alta: { bg: '#FEF3E6', text: '#C07A2E' },
   urgente: { bg: '#FCEAEA', text: '#B83232' },
 }
 
@@ -29,15 +29,36 @@ export default function GestionTickets({ condominioId }: Props) {
 
   const filtrados = filtroEstado === 'todos' ? tickets : tickets.filter(t => t.estado === filtroEstado)
 
+  // KPI counts for current month
+  const now = new Date()
+  const mesActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const pendientesCount = tickets.filter(t => t.estado === 'pendiente').length
+  const enProcesoCount = tickets.filter(t => t.estado === 'en_proceso' || t.estado === 'asignado').length
+  const resueltosEsteMes = tickets.filter(t => t.estado === 'resuelto' && t.fecha_resolucion && t.fecha_resolucion.startsWith(mesActual)).length
+
   if (isLoading) return <div style={{ textAlign: 'center', padding: '40px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>Cargando tickets...</div>
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Tickets de Mantenimiento</h2>
           <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62', marginTop: '4px' }}>{tickets.length} ticket{tickets.length !== 1 ? 's' : ''}</p>
         </div>
+      </div>
+
+      {/* KPI Header */}
+      <div style={{
+        display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '16px',
+        backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+        padding: '14px 20px', fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62',
+        alignItems: 'center',
+      }}>
+        <span><strong style={{ color: '#C07A2E', fontSize: '18px', fontFamily: "'Nunito', sans-serif" }}>{pendientesCount}</strong> pendiente{pendientesCount !== 1 ? 's' : ''}</span>
+        <span style={{ color: '#C8D4CB' }}>|</span>
+        <span><strong style={{ color: '#7B1AC8', fontSize: '18px', fontFamily: "'Nunito', sans-serif" }}>{enProcesoCount}</strong> en proceso</span>
+        <span style={{ color: '#C8D4CB' }}>|</span>
+        <span><strong style={{ color: '#1A7A4A', fontSize: '18px', fontFamily: "'Nunito', sans-serif" }}>{resueltosEsteMes}</strong> resuelto{resueltosEsteMes !== 1 ? 's' : ''} este mes</span>
       </div>
 
       {/* Filters */}

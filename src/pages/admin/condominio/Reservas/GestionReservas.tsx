@@ -61,9 +61,28 @@ export default function GestionReservas({ condominioId }: Props) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Gestion de Reservas</h2>
-          <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62', marginTop: '4px' }}>{reservas.filter(r => r.estado === 'pendiente').length} pendiente{reservas.filter(r => r.estado === 'pendiente').length !== 1 ? 's' : ''} de aprobacion</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div>
+            <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Gestion de Reservas</h2>
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62', marginTop: '4px' }}>{reservas.filter(r => r.estado === 'pendiente').length} pendiente{reservas.filter(r => r.estado === 'pendiente').length !== 1 ? 's' : ''} de aprobacion</p>
+          </div>
+          {reservas.filter(r => r.estado === 'pendiente').length > 0 && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              padding: '6px 14px', borderRadius: '20px',
+              backgroundColor: '#B83232', color: 'white',
+              fontSize: '12px', fontWeight: 700,
+              fontFamily: "'Inter', sans-serif",
+              animation: 'none',
+              whiteSpace: 'nowrap',
+            }}>
+              <span style={{
+                width: '8px', height: '8px', borderRadius: '50%',
+                backgroundColor: 'white', display: 'inline-block',
+              }} />
+              {reservas.filter(r => r.estado === 'pendiente').length} solicitud{reservas.filter(r => r.estado === 'pendiente').length !== 1 ? 'es' : ''} pendiente{reservas.filter(r => r.estado === 'pendiente').length !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '4px', backgroundColor: '#F0F0F0', borderRadius: '10px', padding: '3px' }}>
           <button onClick={() => setVista('lista')} style={{
@@ -245,12 +264,26 @@ export default function GestionReservas({ condominioId }: Props) {
 
                 {rechazandoId === r.id && (
                   <div style={{ marginTop: '12px', backgroundColor: '#FCEAEA', borderRadius: '10px', padding: '14px' }}>
-                    <input type="text" value={motivoRechazo} onChange={e => setMotivoRechazo(e.target.value)} placeholder="Motivo de rechazo..."
-                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #B83232', borderRadius: '8px', fontSize: '13px', fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box', marginBottom: '8px' }} />
-                    <button onClick={() => { rechazar.mutate({ id: r.id, motivo_rechazo: motivoRechazo }); setRechazandoId(null); setMotivoRechazo('') }}
-                      disabled={!motivoRechazo} style={{ padding: '6px 14px', backgroundColor: !motivoRechazo ? '#C8D4CB' : '#B83232', color: 'white', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: !motivoRechazo ? 'not-allowed' : 'pointer' }}>
-                      Confirmar rechazo
-                    </button>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#B83232', marginBottom: '6px', fontFamily: "'Inter', sans-serif" }}>
+                      Motivo de rechazo (obligatorio)
+                    </label>
+                    <textarea
+                      value={motivoRechazo}
+                      onChange={e => setMotivoRechazo(e.target.value)}
+                      placeholder="Explique el motivo del rechazo para informar al residente..."
+                      rows={3}
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #B83232', borderRadius: '8px', fontSize: '13px', fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box', marginBottom: '10px', resize: 'vertical', backgroundColor: 'white' }}
+                    />
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button onClick={() => { rechazar.mutate({ id: r.id, motivo_rechazo: motivoRechazo }); setRechazandoId(null); setMotivoRechazo('') }}
+                        disabled={!motivoRechazo.trim()} style={{ padding: '8px 16px', backgroundColor: !motivoRechazo.trim() ? '#C8D4CB' : '#B83232', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: !motivoRechazo.trim() ? 'not-allowed' : 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                        Confirmar rechazo
+                      </button>
+                      <button onClick={() => { setRechazandoId(null); setMotivoRechazo('') }}
+                        style={{ padding: '8px 16px', backgroundColor: 'transparent', color: '#5E6B62', border: '1px solid #C8D4CB', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                        Cancelar
+                      </button>
+                    </div>
                   </div>
                 )}
 

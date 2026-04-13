@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
 import { useGuardias, useTurnos } from '@/hooks/useGuardias'
 
 const TIPO_TURNO = [
@@ -22,6 +24,52 @@ export default function GestionTurnos({ condominioId }: Props) {
   const [guardiaId, setGuardiaId] = useState('')
   const [tipo, setTipo] = useState('manana')
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
+
+  // Weekly summary data
+  const semana = useMemo(() => {
+    const hoy = new Date()
+    const lunes = new Date(hoy)
+    lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7))
+    const dias: string[] = []
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(lunes)
+      d.setDate(lunes.getDate() + i)
+      dias.push(d.toISOString().split('T')[0])
+    }
+    return dias
+  }, [])
+
+  const turnosSemana = useMemo(() => {
+    const map = new Map<string, Map<string, string>>() // guardiaId -> fecha -> tipo
+    for (const t of turnos) {
+      if (semana.includes(t.fecha)) {
+        if (!map.has(t.guardia_id)) map.set(t.guardia_id, new Map())
+        map.get(t.guardia_id)!.set(t.fecha, t.tipo)
+      }
+    }
+    return map
+  }, [turnos, semana])
+
+  const guardiasActivos = guardias.filter(g => g.activo)
+
+  // Incidentes recientes
+  const { data: incidentes } = useQuery({
+    queryKey: ['incidentes-recientes', condominioId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('incidentes')
+        .select('*, guardias(nombre, apellido)')
+        .eq('condominio_id', condominioId)
+        .order('hora_incidente', { ascending: false })
+        .limit(10)
+      if (error) throw error
+      return data as Array<{
+        id: string; tipo: string; descripcion: string; hora_incidente: string; created_at: string;
+        guardias: { nombre: string; apellido: string } | null
+      }>
+    },
+    enabled: !!condominioId,
+  })
 
   const handleAsignar = async () => {
     if (!guardiaId || !fecha) return
@@ -56,6 +104,53 @@ export default function GestionTurnos({ condominioId }: Props) {
         </div>
       </div>
 
+      {/* Weekly summary */}
+      {guardiasActivos.length > 0 && (
+        <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '20px', marginBottom: '20px', overflow: 'auto' }}>
+          <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '14px', fontWeight: 700, color: '#0D1117', marginBottom: '12px' }}>Vista semanal</div>
+          <div style={{ minWidth: '600px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr repeat(7, 1fr)', gap: '1px', backgroundColor: '#F0F0F0', borderRadius: '10px', overflow: 'hidden' }}>
+              {/* Header */}
+              <div style={{ backgroundColor: '#F4F7F5', padding: '8px 12px', fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 600, color: '#5E6B62' }}>Guardia</div>
+              {semana.map(d => {
+                const date = new Date(d + 'T12:00')
+                const isToday = d === new Date().toISOString().split('T')[0]
+                return (
+                  <div key={d} style={{ backgroundColor: isToday ? '#E8F4F0' : '#F4F7F5', padding: '8px 4px', textAlign: 'center', fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, color: isToday ? '#1A7A4A' : '#5E6B62' }}>
+                    {date.toLocaleDateString('es-BO', { weekday: 'short' }).toUpperCase()}
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: isToday ? '#1A7A4A' : '#0D1117', marginTop: '2px' }}>{date.getDate()}</div>
+                  </div>
+                )
+              })}
+
+              {/* Rows */}
+              {guardiasActivos.map(g => (
+                <>
+                  <div key={`name-${g.id}`} style={{ backgroundColor: 'white', padding: '10px 12px', fontFamily: "'Nunito', sans-serif", fontSize: '13px', fontWeight: 700, color: '#0D1117', display: 'flex', alignItems: 'center' }}>
+                    {g.nombre} {g.apellido}
+                  </div>
+                  {semana.map(d => {
+                    const turnoTipo = turnosSemana.get(g.id)?.get(d)
+                    const tipoInfo = turnoTipo ? TIPO_TURNO.find(tt => tt.key === turnoTipo) : null
+                    return (
+                      <div key={`${g.id}-${d}`} style={{ backgroundColor: 'white', padding: '8px 4px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {tipoInfo ? (
+                          <span style={{ padding: '3px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, backgroundColor: tipoInfo.bg, color: tipoInfo.color, fontFamily: "'Inter', sans-serif" }}>
+                            {tipoInfo.label}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#C8D4CB', fontSize: '12px' }}>—</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Turnos list */}
       {turnos.length === 0 ? (
         <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '40px', textAlign: 'center', color: '#5E6B62', fontSize: '14px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>No hay turnos registrados</div>
@@ -82,6 +177,56 @@ export default function GestionTurnos({ condominioId }: Props) {
           })}
         </div>
       )}
+
+      {/* Incidentes Recientes */}
+      <div style={{ marginTop: '24px' }}>
+        <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 12px' }}>Incidentes Recientes</h3>
+        {!incidentes || incidentes.length === 0 ? (
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '30px', textAlign: 'center', color: '#5E6B62', fontSize: '14px', fontFamily: "'Inter', sans-serif" }}>
+            No hay incidentes registrados
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {incidentes.map(inc => {
+              const fechaInc = new Date(inc.hora_incidente)
+              return (
+                <div key={inc.id} style={{
+                  backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+                  padding: '14px 20px', fontFamily: "'Inter', sans-serif", borderLeft: '3px solid #B83232',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
+                    <div>
+                      <span style={{
+                        display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '10px',
+                        fontWeight: 600, backgroundColor: '#FCEAEA', color: '#B83232', marginBottom: '6px',
+                        textTransform: 'uppercase',
+                      }}>
+                        {inc.tipo}
+                      </span>
+                      <div style={{ fontSize: '13px', color: '#0D1117', lineHeight: 1.5 }}>
+                        {inc.descripcion}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#0D1117' }}>
+                        {fechaInc.toLocaleDateString('es-BO')}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#5E6B62' }}>
+                        {fechaInc.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#5E6B62', marginTop: '6px' }}>
+                    Reportado por: <span style={{ fontWeight: 600, color: '#0D1117' }}>
+                      {inc.guardias?.nombre} {inc.guardias?.apellido}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

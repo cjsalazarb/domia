@@ -11,6 +11,14 @@ interface Props {
 
 type Destinatario = 'todos' | 'propietarios' | 'inquilinos'
 
+const PLANTILLAS = [
+  { emoji: '\uD83D\uDCC5', titulo: 'Corte de agua programado', cuerpo: 'Estimados residentes, se informa que el dia [FECHA] se realizara un corte programado de agua de [HORA] a [HORA] por trabajos de mantenimiento. Les pedimos tomar las previsiones necesarias.' },
+  { emoji: '\uD83D\uDD27', titulo: 'Mantenimiento en areas comunes', cuerpo: 'Estimados residentes, les informamos que se realizaran trabajos de mantenimiento en [AREA] el dia [FECHA]. Pedimos disculpas por las molestias.' },
+  { emoji: '\uD83D\uDCCB', titulo: 'Convocatoria a asamblea', cuerpo: 'Estimados propietarios, se convoca a la Asamblea Ordinaria de Propietarios del condominio para el dia [FECHA] a horas [HORA] en [LUGAR]. Orden del dia: 1. Lectura del acta anterior 2. Informe financiero 3. Varios' },
+  { emoji: '\uD83D\uDCB0', titulo: 'Recordatorio de pago', cuerpo: 'Estimado(a) residente, le recordamos que su cuota de mantenimiento del mes actual se encuentra pendiente de pago. Le solicitamos regularizar su situacion a la brevedad.' },
+  { emoji: '\uD83C\uDF89', titulo: 'Comunicado general', cuerpo: '' },
+]
+
 export default function EnviarAviso({ condominioId, condominioNombre }: Props) {
   const { user } = useAuthStore()
   const queryClient = useQueryClient()
@@ -116,9 +124,43 @@ export default function EnviarAviso({ condominioId, condominioNombre }: Props) {
         <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 700, color: '#0D1117', margin: '0 0 4px' }}>
           Enviar Aviso
         </h2>
-        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62', marginBottom: '24px' }}>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62', marginBottom: '16px' }}>
           Notifica a los residentes del condominio
         </p>
+
+        {/* Plantillas */}
+        <div style={{ marginBottom: '24px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#0D1117', marginBottom: '8px', fontFamily: "'Inter', sans-serif" }}>
+            Plantillas rapidas
+          </label>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {PLANTILLAS.map((p, i) => (
+              <button
+                key={i}
+                onClick={() => { setTitulo(p.titulo); setCuerpo(p.cuerpo) }}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: titulo === p.titulo ? '2px solid #1A7A4A' : '1px solid #C8D4CB',
+                  backgroundColor: titulo === p.titulo ? '#E8F4F0' : 'white',
+                  cursor: 'pointer',
+                  fontFamily: "'Inter', sans-serif",
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: titulo === p.titulo ? '#1A7A4A' : '#0D1117',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>{p.emoji}</span>
+                {p.titulo}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Success */}
         {enviarMut.isSuccess && (
@@ -278,18 +320,39 @@ export default function EnviarAviso({ condominioId, condominioNombre }: Props) {
                 <p style={{ fontSize: '13px', color: '#5E6B62', marginTop: '4px', lineHeight: 1.5 }}>
                   {n.cuerpo.length > 120 ? n.cuerpo.slice(0, 120) + '...' : n.cuerpo}
                 </p>
-                <span style={{
-                  display: 'inline-block',
-                  marginTop: '6px',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontWeight: 500,
-                  backgroundColor: n.destinatario_id ? '#F5ECFF' : '#E8F4F0',
-                  color: n.destinatario_id ? '#7B1AC8' : '#1A7A4A',
-                }}>
-                  {n.destinatario_id ? 'Individual' : 'General'}
-                </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '10px',
+                    fontWeight: 500,
+                    backgroundColor: n.destinatario_id ? '#F5ECFF' : '#E8F4F0',
+                    color: n.destinatario_id ? '#7B1AC8' : '#1A7A4A',
+                  }}>
+                    {n.destinatario_id ? 'Individual' : 'General'}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setTitulo(n.titulo)
+                      setCuerpo(n.cuerpo)
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid #C8D4CB',
+                      backgroundColor: 'white',
+                      color: '#1A7A4A',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontFamily: "'Inter', sans-serif",
+                    }}
+                  >
+                    Reenviar
+                  </button>
+                </div>
               </div>
             ))}
           </div>

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
 import type { Residente } from '@/hooks/useResidentes'
 
 const ESTADO_STYLE: Record<string, { bg: string; text: string; label: string }> = {
@@ -12,24 +14,89 @@ const TIPO_STYLE: Record<string, { bg: string; text: string; label: string }> = 
   inquilino: { bg: '#F5ECFF', text: '#7B1AC8', label: 'Inquilino' },
 }
 
+const PAGO_STATUS: Record<string, { bg: string; text: string; label: string }> = {
+  pagado: { bg: '#E8F4F0', text: '#1A7A4A', label: 'Al dia' },
+  vencido: { bg: '#FCEAEA', text: '#B83232', label: 'Moroso' },
+  emitido: { bg: '#FEF9EC', text: '#C07A2E', label: 'Pendiente' },
+  sin_recibo: { bg: '#F0F0F0', text: '#5E6B62', label: 'Sin recibo' },
+}
+
+type FiltroPago = 'todos' | 'morosos' | 'al_dia'
+
 interface Props {
   residentes: Residente[]
+  condominioId: string
   onNuevo: () => void
   onImportar: () => void
   onDetalle: (id: string) => void
   onEditar: (id: string) => void
 }
 
-export default function ListaResidentes({ residentes, onNuevo, onImportar, onDetalle, onEditar }: Props) {
+export default function ListaResidentes({ residentes, condominioId, onNuevo, onImportar, onDetalle, onEditar }: Props) {
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<string>('todos')
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
+  const [filtroPago, setFiltroPago] = useState<FiltroPago>('todos')
+
+  // Fetch recibos for current period to determine payment status
+  const { data: recibosData = [] } = useQuery({
+    queryKey: ['recibos-lista', condominioId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('recibos')
+        .select('residente_id, estado')
+        .eq('condominio_id', condominioId)
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!condominioId,
+  })
+
+  // Build a map: residente_id -> payment status
+  const pagoStatusMap = new Map<string, string>()
+  for (const recibo of recibosData) {
+    const current = pagoStatusMap.get(recibo.residente_id)
+    // Priority: vencido > emitido > pagado
+    if (!current) {
+      pagoStatusMap.set(recibo.residente_id, recibo.estado)
+    } else if (recibo.estado === 'vencido') {
+      pagoStatusMap.set(recibo.residente_id, 'vencido')
+    } else if (recibo.estado === 'emitido' && current !== 'vencido') {
+      pagoStatusMap.set(recibo.residente_id, 'emitido')
+    }
+    // pagado doesn't override anything
+  }
+
+  const getPaymentStatus = (residenteId: string): string => {
+    return pagoStatusMap.get(residenteId) || 'sin_recibo'
+  }
 
   const filtrados = residentes.filter(r => {
-    const matchBusqueda = `${r.nombre} ${r.apellido} ${r.email || ''}`.toLowerCase().includes(busqueda.toLowerCase())
+    const matchBusqueda = `${r.nombre} ${r.apellido} ${r.email || ''} ${r.ci || ''} ${r.unidades?.numero || ''}`.toLowerCase().includes(busqueda.toLowerCase())
     const matchTipo = filtroTipo === 'todos' || r.tipo === filtroTipo
     const matchEstado = filtroEstado === 'todos' || r.estado === filtroEstado
-    return matchBusqueda && matchTipo && matchEstado
+
+    let matchPago = true
+    if (filtroPago === 'morosos') {
+      matchPago = getPaymentStatus(r.id) === 'vencido'
+    } else if (filtroPago === 'al_dia') {
+      matchPago = getPaymentStatus(r.id) === 'pagado'
+    }
+
+    return matchBusqueda && matchTipo && matchEstado && matchPago
+  })
+
+  const filterBtnStyle = (active: boolean): React.CSSProperties => ({
+    padding: '6px 14px',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '12px',
+    fontWeight: 600,
+    fontFamily: "'Inter', sans-serif",
+    cursor: 'pointer',
+    backgroundColor: active ? '#1A7A4A' : '#F4F7F5',
+    color: active ? 'white' : '#5E6B62',
+    transition: 'background-color 0.15s, color 0.15s',
   })
 
   return (
@@ -84,11 +151,30 @@ export default function ListaResidentes({ residentes, onNuevo, onImportar, onDet
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filter buttons row */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+        <button onClick={() => { setFiltroPago('todos'); setFiltroTipo('todos') }} style={filterBtnStyle(filtroPago === 'todos' && filtroTipo === 'todos')}>
+          Todos
+        </button>
+        <button onClick={() => { setFiltroPago('todos'); setFiltroTipo('propietario') }} style={filterBtnStyle(filtroTipo === 'propietario' && filtroPago === 'todos')}>
+          Propietarios
+        </button>
+        <button onClick={() => { setFiltroPago('todos'); setFiltroTipo('inquilino') }} style={filterBtnStyle(filtroTipo === 'inquilino' && filtroPago === 'todos')}>
+          Inquilinos
+        </button>
+        <button onClick={() => { setFiltroPago('morosos'); setFiltroTipo('todos') }} style={filterBtnStyle(filtroPago === 'morosos')}>
+          Morosos
+        </button>
+        <button onClick={() => { setFiltroPago('al_dia'); setFiltroTipo('todos') }} style={filterBtnStyle(filtroPago === 'al_dia')}>
+          Al dia
+        </button>
+      </div>
+
+      {/* Search + estado filter */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <input
           type="text"
-          placeholder="Buscar por nombre o email..."
+          placeholder="Buscar por nombre, CI, unidad o email..."
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
           style={{
@@ -106,15 +192,6 @@ export default function ListaResidentes({ residentes, onNuevo, onImportar, onDet
           onFocus={e => e.target.style.borderColor = '#1A7A4A'}
           onBlur={e => e.target.style.borderColor = '#C8D4CB'}
         />
-        <select
-          value={filtroTipo}
-          onChange={e => setFiltroTipo(e.target.value)}
-          style={{ padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '13px', fontFamily: "'Inter', sans-serif", color: '#0D1117', backgroundColor: 'white' }}
-        >
-          <option value="todos">Todos los tipos</option>
-          <option value="propietario">Propietarios</option>
-          <option value="inquilino">Inquilinos</option>
-        </select>
         <select
           value={filtroEstado}
           onChange={e => setFiltroEstado(e.target.value)}
@@ -137,7 +214,7 @@ export default function ListaResidentes({ residentes, onNuevo, onImportar, onDet
           {/* Header */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1.5fr 0.8fr 0.7fr 0.7fr 1.2fr 0.8fr',
+            gridTemplateColumns: '1.5fr 0.8fr 0.7fr 0.7fr 0.7fr 1fr 0.8fr',
             padding: '12px 20px',
             backgroundColor: '#F4F7F5',
             fontFamily: "'Inter', sans-serif",
@@ -151,6 +228,7 @@ export default function ListaResidentes({ residentes, onNuevo, onImportar, onDet
             <span>Tipo</span>
             <span>Unidad</span>
             <span>Estado</span>
+            <span>Pago</span>
             <span>Contacto</span>
             <span style={{ textAlign: 'center' }}>Acciones</span>
           </div>
@@ -158,12 +236,14 @@ export default function ListaResidentes({ residentes, onNuevo, onImportar, onDet
           {filtrados.map((r, i) => {
             const tipo = TIPO_STYLE[r.tipo] || TIPO_STYLE.propietario
             const estado = ESTADO_STYLE[r.estado] || ESTADO_STYLE.activo
+            const pagoStatus = getPaymentStatus(r.id)
+            const pago = PAGO_STATUS[pagoStatus] || PAGO_STATUS.sin_recibo
             return (
               <div
                 key={r.id}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1.5fr 0.8fr 0.7fr 0.7fr 1.2fr 0.8fr',
+                  gridTemplateColumns: '1.5fr 0.8fr 0.7fr 0.7fr 0.7fr 1fr 0.8fr',
                   padding: '14px 20px',
                   alignItems: 'center',
                   borderBottom: i < filtrados.length - 1 ? '1px solid #F0F0F0' : 'none',
@@ -183,11 +263,16 @@ export default function ListaResidentes({ residentes, onNuevo, onImportar, onDet
                   </span>
                 </span>
                 <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117' }}>
-                  {r.unidades?.numero || '—'}
+                  {r.unidades?.numero || '\u2014'}
                 </span>
                 <span>
                   <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, backgroundColor: estado.bg, color: estado.text }}>
                     {estado.label}
+                  </span>
+                </span>
+                <span>
+                  <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, backgroundColor: pago.bg, color: pago.text }}>
+                    {pago.label}
                   </span>
                 </span>
                 <span style={{ fontSize: '12px', color: '#5E6B62' }}>

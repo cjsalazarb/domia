@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { pdf } from '@react-pdf/renderer'
@@ -69,6 +69,37 @@ export default function Financiero() {
       const { data, error } = await supabase.from('condominios').select('nombre, direccion, ciudad').eq('id', id!).single()
       if (error) throw error
       return data as { nombre: string; direccion: string | null; ciudad: string | null }
+    },
+    enabled: !!id,
+  })
+
+  // KPI: month summary
+  const mesActual = useMemo(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  }, [])
+
+  const { data: kpiData } = useQuery({
+    queryKey: ['financiero-kpi', id, mesActual],
+    queryFn: async () => {
+      const { data: recibos } = await supabase
+        .from('recibos')
+        .select('id, monto_total, estado, residente_id')
+        .eq('condominio_id', id!)
+        .like('periodo', `${mesActual}%`)
+
+      const all = recibos || []
+      const totalRecibos = all.length
+      const pagados = all.filter(r => r.estado === 'pagado')
+      const pendientes = all.filter(r => r.estado !== 'pagado')
+      const vencidos = all.filter(r => r.estado === 'vencido')
+
+      const recaudado = pagados.reduce((s, r) => s + Number(r.monto_total), 0)
+      const pendiente = pendientes.reduce((s, r) => s + Number(r.monto_total), 0)
+      const pctCobranza = totalRecibos > 0 ? Math.round((pagados.length / totalRecibos) * 100) : 0
+      const morososCount = new Set(vencidos.map(r => r.residente_id)).size
+
+      return { recaudado, pendiente, pctCobranza, morososCount }
     },
     enabled: !!id,
   })
@@ -171,6 +202,39 @@ export default function Financiero() {
           </div>
         )}
 
+        {/* Pagos pendientes de confirmacion */}
+        <PagosPendientes condominioId={id} />
+
+        <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
+
+        {/* Resumen del Mes - KPIs */}
+        <div>
+          <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>
+            Resumen del Mes
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+            {[
+              { label: 'Recaudado', value: `Bs. ${(kpiData?.recaudado ?? 0).toFixed(2)}`, color: '#1A7A4A', bg: '#E8F4F0' },
+              { label: 'Pendiente', value: `Bs. ${(kpiData?.pendiente ?? 0).toFixed(2)}`, color: '#C07A2E', bg: '#FEF9EC' },
+              { label: '% Cobranza', value: `${kpiData?.pctCobranza ?? 0}%`, color: '#0D4A8F', bg: '#EBF4FF' },
+              { label: 'Morosos', value: `${kpiData?.morososCount ?? 0}`, color: '#B83232', bg: '#FCEAEA' },
+            ].map(kpi => (
+              <div key={kpi.label} style={{
+                backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+                padding: '20px', textAlign: 'center',
+              }}>
+                <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#5E6B62', marginBottom: '6px' }}>{kpi.label}</div>
+                <div style={{
+                  fontFamily: "'Nunito', sans-serif", fontSize: '22px', fontWeight: 700, color: kpi.color,
+                  backgroundColor: kpi.bg, borderRadius: '10px', padding: '6px 12px', display: 'inline-block',
+                }}>{kpi.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
+
         {/* Balance */}
         <Balance condominioId={id} />
 
@@ -191,16 +255,6 @@ export default function Financiero() {
 
         <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
 
-        {/* Cuotas */}
-        <ConfiguradorCuotas condominioId={id} />
-
-        <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
-
-        {/* Pagos pendientes */}
-        <PagosPendientes condominioId={id} />
-
-        <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
-
         {/* Recibos */}
         <ListaRecibos
           condominioId={id}
@@ -208,6 +262,11 @@ export default function Financiero() {
           condominioDir={condoDir}
           condomionioCiudad={condoCiudad}
         />
+
+        <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
+
+        {/* Configurador Cuotas */}
+        <ConfiguradorCuotas condominioId={id} />
       </div>
     </AdminLayout>
   )
