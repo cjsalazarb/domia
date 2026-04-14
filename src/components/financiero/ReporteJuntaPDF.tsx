@@ -37,11 +37,12 @@ interface Props {
   ingresos: IngresoRow[]
   egresos: EgresoRow[]
   morosos: MorosoRow[]
+  analisisIA?: string
 }
 
 function formatBs(n: number) { return `Bs. ${n.toFixed(2)}` }
 
-export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos, morosos }: Props) {
+export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos, morosos, analisisIA }: Props) {
   const totalIngresos = ingresos.filter(i => i.estado === 'pagado').reduce((s, i) => s + i.monto, 0)
   const totalEgresos = egresos.reduce((s, e) => s + e.monto, 0)
   const balance = totalIngresos - totalEgresos
@@ -214,6 +215,43 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
           <View style={s.footer} fixed>
             <Text style={s.footerText}>DOMIA - {condominio.nombre} - {periodo}</Text>
             <Text style={s.footerText}>Pag. 5</Text>
+          </View>
+        </Page>
+      )}
+      {/* Análisis IA */}
+      {analisisIA && (
+        <Page size="A4" style={s.page}>
+          <View style={{ backgroundColor: '#E8F4F0', borderRadius: 10, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 16, color: '#1A7A4A' }}>Análisis Inteligente DOMIA</Text>
+          </View>
+
+          {analisisIA.split('\n').map((line, i) => {
+            const trimmed = line.trim()
+            if (!trimmed) return <View key={i} style={{ height: 8 }} />
+            const isBold = trimmed.startsWith('**') || trimmed.startsWith('##') || trimmed.startsWith('#')
+            const cleanLine = trimmed.replace(/^#+\s*/, '').replace(/\*\*/g, '')
+            return (
+              <Text key={i} style={{
+                fontSize: isBold ? 11 : 10,
+                fontFamily: isBold ? 'Helvetica-Bold' : 'Helvetica',
+                color: isBold ? '#1A7A4A' : '#0D1117',
+                lineHeight: 1.6,
+                marginBottom: isBold ? 6 : 2,
+              }}>
+                {cleanLine}
+              </Text>
+            )
+          })}
+
+          <View style={{ marginTop: 20, borderTopWidth: 1, borderTopColor: '#C8D4CB', paddingTop: 10 }}>
+            <Text style={{ fontSize: 8, color: '#5E6B62', fontStyle: 'italic' }}>
+              Análisis generado por IA basado en datos reales del condominio — {new Date().toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' })} {new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
+
+          <View style={s.footer} fixed>
+            <Text style={s.footerText}>DOMIA - {condominio.nombre} - {periodo}</Text>
+            <Text style={s.footerText}>Análisis IA</Text>
           </View>
         </Page>
       )}

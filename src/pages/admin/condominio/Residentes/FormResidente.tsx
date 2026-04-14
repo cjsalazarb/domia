@@ -161,7 +161,7 @@ export default function FormResidente({ condominioId, residente, propietarios, o
         </div>
 
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={() => navigate(`/admin/condominios`)}
+          <button onClick={() => navigate(`/admin/condominio/${condominioId}/configurar`)}
             style={{ flex: 1, padding: '14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: 'pointer' }}>
             Configurar unidades →
           </button>
