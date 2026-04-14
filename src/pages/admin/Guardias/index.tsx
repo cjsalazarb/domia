@@ -1,7 +1,6 @@
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { useGuardias } from '@/hooks/useGuardias'
 import AdminLayout from '@/components/layout/AdminLayout'
 import RegistroGuardias from './RegistroGuardias'
 import GestionTurnos from './GestionTurnos'
@@ -25,8 +24,6 @@ export default function GuardiasAdmin() {
     },
     enabled: !!id,
   })
-
-  const { guardias } = useGuardias(id || '')
 
   // Turno activo ahora
   const { data: turnosActivos } = useQuery({

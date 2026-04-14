@@ -33,7 +33,7 @@ interface Props {
   onRegistrarPago?: (id: string) => void
 }
 
-export default function ListaResidentes({ residentes, condominioId, onNuevo, onImportar, onDetalle, onEditar, onRegistrarPago }: Props) {
+export default function ListaResidentes({ residentes, condominioId, onNuevo, onImportar, onDetalle, onEditar: _onEditar, onRegistrarPago }: Props) {
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<string>('todos')
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')

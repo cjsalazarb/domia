@@ -45,7 +45,7 @@ export default function EnviarAviso({ condominioId, condominioNombre }: Props) {
 
       const { data, error } = await query.order('nombre')
       if (error) throw error
-      return (data || []) as Array<{ id: string; nombre: string; apellido: string; tipo: string; user_id: string | null; unidades: { numero: string } | null }>
+      return (data || []).map((r: any) => ({ ...r, unidades: Array.isArray(r.unidades) ? r.unidades[0] || null : r.unidades })) as Array<{ id: string; nombre: string; apellido: string; tipo: string; user_id: string | null; unidades: { numero: string } | null }>
     },
     enabled: !!condominioId && destinatarios !== 'todos',
   })
