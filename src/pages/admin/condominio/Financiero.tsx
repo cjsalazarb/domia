@@ -93,12 +93,14 @@ export default function Financiero() {
       const vencidos = all.filter(r => r.estado === 'vencido')
       const totalEmitido = all.reduce((s, r) => s + Number(r.monto_total), 0)
 
-      // Recaudado real = SUM de pagos confirmados del mes
+      // Recaudado real = SUM de pagos confirmados del mes (flujo de caja)
       const pagosMes = pagos.filter(p => p.created_at?.startsWith(mesActual))
       const recaudado = pagosMes.reduce((s, p) => s + Number(p.monto), 0)
       const pendiente = pendientes.reduce((s, r) => s + Number(r.monto_total), 0)
-      const pctCobranza = totalEmitido > 0 ? Math.round((recaudado / totalEmitido) * 100) : 0
-      const morososCount = new Set(vencidos.map(r => r.residente_id)).size
+      // % Cobranza basado en recibos del mes (pagados / emitidos), cap 100%
+      const recaudadoRecibos = all.filter(r => r.estado === 'pagado').reduce((s, r) => s + Number(r.monto_total), 0)
+      const pctCobranza = totalEmitido > 0 ? Math.min(100, Math.round((recaudadoRecibos / totalEmitido) * 100)) : 0
+      const morososCount = new Set(vencidos.map(r => r.residente_id).filter(Boolean)).size
 
       return { recaudado, pendiente, pctCobranza, morososCount }
     },

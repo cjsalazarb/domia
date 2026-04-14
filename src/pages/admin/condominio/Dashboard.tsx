@@ -18,7 +18,7 @@ export default function CondominioDashboard() {
 
       const [condoRes, residentesRes, recibosRes, pagosConfirmados, pagosSinConfirmar, mttoRes, turnosRes, reservasRes, gastosRes, notifRes] = await Promise.all([
         supabase.from('condominios').select('nombre, direccion, ciudad').eq('id', id!).single(),
-        supabase.from('residentes').select('id, estado, tipo').eq('condominio_id', id!).eq('estado', 'activo'),
+        supabase.from('residentes').select('id, estado, tipo').eq('condominio_id', id!).in('estado', ['activo', 'moroso']),
         supabase.from('recibos').select('id, estado, monto_total, residente_id, periodo').eq('condominio_id', id!),
         supabase.from('pagos').select('id, monto, created_at, residente_id, recibo_id').eq('condominio_id', id!).not('confirmado_por', 'is', null),
         supabase.from('pagos').select('id').eq('condominio_id', id!).is('confirmado_por', null),
@@ -43,23 +43,32 @@ export default function CondominioDashboard() {
       const recibosMes = recibos.filter(r => r.periodo?.startsWith(mesActual))
       const totalEmitido = recibosMes.reduce((s, r) => s + Number(r.monto_total), 0)
 
-      // Ingresos reales = SUM de pagos confirmados del mes (no de recibos)
+      // Recaudado del mes = SUM de pagos confirmados del mes (flujo de caja real)
       const pagosMesActual = pagos.filter((p: any) => p.created_at?.startsWith(mesActual))
       const recaudadoMes = pagosMesActual.reduce((s: number, p: any) => s + Number(p.monto), 0)
-      const pctCobranza = totalEmitido > 0 ? Math.round((recaudadoMes / totalEmitido) * 100) : 0
 
-      // Residentes por estado de pago — categorías mutuamente excluyentes
-      // Moroso = tiene >= 1 recibo vencido (misma fuente que la alerta)
-      const residenteIdsMorosos = new Set(recibos.filter(r => r.estado === 'vencido').map(r => r.residente_id))
-      // Con pago este mes (y no moroso) = al día
-      const residenteIdsConPago = new Set(pagosMesActual.map((p: any) => p.residente_id))
+      // % Cobranza = basado en recibos del mes (pagados / total emitido), cap 100%
+      const recaudadoRecibos = recibosMes.filter(r => r.estado === 'pagado').reduce((s, r) => s + Number(r.monto_total), 0)
+      const pctCobranza = totalEmitido > 0 ? Math.min(100, Math.round((recaudadoRecibos / totalEmitido) * 100)) : 0
+
+      // Residentes por estado — categorías mutuamente excluyentes
+      // Moroso = tiene >= 1 recibo vencido O estado='moroso' en tabla residentes
+      const residenteIdsConReciboVencido = new Set(recibos.filter(r => r.estado === 'vencido').map(r => r.residente_id).filter(Boolean))
+      const residenteIdsMorosos = new Set([
+        ...residenteIdsConReciboVencido,
+        ...residentes.filter(r => r.estado === 'moroso').map(r => r.id),
+      ])
+      // Tiene algún recibo en el sistema
+      const residenteIdsConRecibo = new Set(recibos.map(r => r.residente_id).filter(Boolean))
+      // Con pago este mes
+      const residenteIdsConPago = new Set(pagosMesActual.map((p: any) => p.residente_id).filter(Boolean))
       // Pendiente = recibo emitido este mes, no moroso, no pagó
-      const residenteIdsPendientes = new Set(recibosMes.filter(r => r.estado === 'emitido').map(r => r.residente_id))
+      const residenteIdsPendientes = new Set(recibosMes.filter(r => r.estado === 'emitido').map(r => r.residente_id).filter(Boolean))
 
       const morosos = residentes.filter(r => residenteIdsMorosos.has(r.id)).length
-      const alDia = residentes.filter(r => residenteIdsConPago.has(r.id) && !residenteIdsMorosos.has(r.id)).length
-      const pendientes = residentes.filter(r => residenteIdsPendientes.has(r.id) && !residenteIdsMorosos.has(r.id) && !residenteIdsConPago.has(r.id)).length
-      const sinRecibo = residentes.length - morosos - alDia - pendientes
+      const alDia = residentes.filter(r => !residenteIdsMorosos.has(r.id) && residenteIdsConPago.has(r.id)).length
+      const pendientesCount = residentes.filter(r => !residenteIdsMorosos.has(r.id) && !residenteIdsConPago.has(r.id) && residenteIdsPendientes.has(r.id)).length
+      const sinRecibo = residentes.filter(r => !residenteIdsMorosos.has(r.id) && !residenteIdsConPago.has(r.id) && !residenteIdsPendientes.has(r.id) && !residenteIdsConRecibo.has(r.id)).length
 
       // Mantenimiento
       const ticketsAbiertos = mtto.filter(m => ['pendiente', 'asignado', 'en_proceso'].includes(m.estado)).length
@@ -151,7 +160,7 @@ export default function CondominioDashboard() {
         totalResidentes: residentes.length,
         alDia,
         morosos,
-        pendientes,
+        pendientes: pendientesCount,
         sinRecibo,
         ticketsAbiertos,
         ticketsUrgentes,
