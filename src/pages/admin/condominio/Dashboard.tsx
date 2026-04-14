@@ -42,12 +42,14 @@ export default function CondominioDashboard() {
       // KPIs del mes actual
       const recibosMes = recibos.filter(r => r.periodo?.startsWith(mesActual))
       const totalEmitido = recibosMes.reduce((s, r) => s + Number(r.monto_total), 0)
-      const pagadosMes = recibosMes.filter(r => r.estado === 'pagado')
-      const recaudadoMes = pagadosMes.reduce((s, r) => s + Number(r.monto_total), 0)
+
+      // Ingresos reales = SUM de pagos confirmados del mes (no de recibos)
+      const pagosMesActual = pagos.filter((p: any) => p.created_at?.startsWith(mesActual))
+      const recaudadoMes = pagosMesActual.reduce((s: number, p: any) => s + Number(p.monto), 0)
       const pctCobranza = totalEmitido > 0 ? Math.round((recaudadoMes / totalEmitido) * 100) : 0
 
       // Residentes por estado de pago
-      const residenteIdsConPago = new Set(pagadosMes.map(r => r.residente_id))
+      const residenteIdsConPago = new Set(pagosMesActual.map((p: any) => p.residente_id))
       const residenteIdsMorosos = new Set(recibos.filter(r => r.estado === 'vencido').map(r => r.residente_id))
       const residenteIdsPendientes = new Set(recibosMes.filter(r => r.estado === 'emitido').map(r => r.residente_id))
       const alDia = residentes.filter(r => residenteIdsConPago.has(r.id)).length
@@ -79,9 +81,11 @@ export default function CondominioDashboard() {
         const periodo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
         const mesLabel = d.toLocaleDateString('es-BO', { month: 'short' })
         const recMes = recibos.filter(r => r.periodo?.startsWith(periodo))
-        const pagadosMesChart = recMes.filter(r => r.estado === 'pagado').reduce((s, r) => s + Number(r.monto_total), 0)
+        // Recaudado real = SUM de pagos confirmados del mes
+        const pagosDelMes = pagos.filter((p: any) => p.created_at?.startsWith(periodo))
+        const recaudadoMesChart = pagosDelMes.reduce((s: number, p: any) => s + Number(p.monto), 0)
         const pendientesMesChart = recMes.filter(r => r.estado !== 'pagado').reduce((s, r) => s + Number(r.monto_total), 0)
-        chartData.push({ mes: mesLabel, recaudado: pagadosMesChart, pendiente: pendientesMesChart })
+        chartData.push({ mes: mesLabel, recaudado: recaudadoMesChart, pendiente: pendientesMesChart })
       }
 
       // Actividad reciente (últimos 10 eventos)

@@ -81,21 +81,23 @@ export default function Financiero() {
   const { data: kpiData } = useQuery({
     queryKey: ['financiero-kpi', id, mesActual],
     queryFn: async () => {
-      const { data: recibos } = await supabase
-        .from('recibos')
-        .select('id, monto_total, estado, residente_id')
-        .eq('condominio_id', id!)
-        .like('periodo', `${mesActual}%`)
+      // Fetch recibos del mes y pagos confirmados del mes
+      const [recibosRes, pagosRes] = await Promise.all([
+        supabase.from('recibos').select('id, monto_total, estado, residente_id').eq('condominio_id', id!).like('periodo', `${mesActual}%`),
+        supabase.from('pagos').select('id, monto, created_at').eq('condominio_id', id!).not('confirmado_por', 'is', null),
+      ])
 
-      const all = recibos || []
-      const totalRecibos = all.length
-      const pagados = all.filter(r => r.estado === 'pagado')
+      const all = recibosRes.data || []
+      const pagos = pagosRes.data || []
       const pendientes = all.filter(r => r.estado !== 'pagado')
       const vencidos = all.filter(r => r.estado === 'vencido')
+      const totalEmitido = all.reduce((s, r) => s + Number(r.monto_total), 0)
 
-      const recaudado = pagados.reduce((s, r) => s + Number(r.monto_total), 0)
+      // Recaudado real = SUM de pagos confirmados del mes
+      const pagosMes = pagos.filter(p => p.created_at?.startsWith(mesActual))
+      const recaudado = pagosMes.reduce((s, p) => s + Number(p.monto), 0)
       const pendiente = pendientes.reduce((s, r) => s + Number(r.monto_total), 0)
-      const pctCobranza = totalRecibos > 0 ? Math.round((pagados.length / totalRecibos) * 100) : 0
+      const pctCobranza = totalEmitido > 0 ? Math.round((recaudado / totalEmitido) * 100) : 0
       const morososCount = new Set(vencidos.map(r => r.residente_id)).size
 
       return { recaudado, pendiente, pctCobranza, morososCount }
