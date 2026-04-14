@@ -48,13 +48,18 @@ export default function CondominioDashboard() {
       const recaudadoMes = pagosMesActual.reduce((s: number, p: any) => s + Number(p.monto), 0)
       const pctCobranza = totalEmitido > 0 ? Math.round((recaudadoMes / totalEmitido) * 100) : 0
 
-      // Residentes por estado de pago
-      const residenteIdsConPago = new Set(pagosMesActual.map((p: any) => p.residente_id))
+      // Residentes por estado de pago — categorías mutuamente excluyentes
+      // Moroso = tiene >= 1 recibo vencido (misma fuente que la alerta)
       const residenteIdsMorosos = new Set(recibos.filter(r => r.estado === 'vencido').map(r => r.residente_id))
+      // Con pago este mes (y no moroso) = al día
+      const residenteIdsConPago = new Set(pagosMesActual.map((p: any) => p.residente_id))
+      // Pendiente = recibo emitido este mes, no moroso, no pagó
       const residenteIdsPendientes = new Set(recibosMes.filter(r => r.estado === 'emitido').map(r => r.residente_id))
-      const alDia = residentes.filter(r => residenteIdsConPago.has(r.id)).length
+
       const morosos = residentes.filter(r => residenteIdsMorosos.has(r.id)).length
-      const pendientes = residentes.filter(r => residenteIdsPendientes.has(r.id) && !residenteIdsConPago.has(r.id)).length
+      const alDia = residentes.filter(r => residenteIdsConPago.has(r.id) && !residenteIdsMorosos.has(r.id)).length
+      const pendientes = residentes.filter(r => residenteIdsPendientes.has(r.id) && !residenteIdsMorosos.has(r.id) && !residenteIdsConPago.has(r.id)).length
+      const sinRecibo = residentes.length - morosos - alDia - pendientes
 
       // Mantenimiento
       const ticketsAbiertos = mtto.filter(m => ['pendiente', 'asignado', 'en_proceso'].includes(m.estado)).length
@@ -147,6 +152,7 @@ export default function CondominioDashboard() {
         alDia,
         morosos,
         pendientes,
+        sinRecibo,
         ticketsAbiertos,
         ticketsUrgentes,
         ticketsSinAsignar,
@@ -230,7 +236,7 @@ export default function CondominioDashboard() {
               {data?.totalResidentes || 0}
             </div>
             <div style={{ fontSize: '11px', color: '#5E6B62', marginTop: '2px', fontFamily: "'Inter', sans-serif" }}>
-              {data?.alDia || 0} al día · {data?.morosos || 0} moroso{(data?.morosos || 0) !== 1 ? 's' : ''} · {data?.pendientes || 0} pendiente{(data?.pendientes || 0) !== 1 ? 's' : ''}
+              {data?.alDia || 0} al día · {data?.morosos || 0} moroso{(data?.morosos || 0) !== 1 ? 's' : ''} · {data?.pendientes || 0} pend.{(data?.sinRecibo || 0) > 0 ? ` · ${data!.sinRecibo} s/recibo` : ''}
             </div>
           </div>
 
