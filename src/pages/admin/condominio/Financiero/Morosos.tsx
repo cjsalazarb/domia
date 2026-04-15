@@ -31,7 +31,7 @@ export default function Morosos({ condominioId, condominioNombre, condominioDir,
         .from('recibos')
         .select('residente_id, periodo, monto_total, residentes(nombre, apellido), unidades(numero)')
         .eq('condominio_id', condominioId)
-        .in('estado', ['emitido', 'vencido'])
+        .eq('estado', 'vencido')
         .order('periodo', { ascending: true })
 
       if (error) throw error

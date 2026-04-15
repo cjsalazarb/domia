@@ -20,7 +20,7 @@ export default function CondominioDashboard() {
         supabase.from('condominios').select('nombre, direccion, ciudad').eq('id', id!).single(),
         supabase.from('residentes').select('id, estado, tipo').eq('condominio_id', id!).in('estado', ['activo', 'moroso']),
         supabase.from('recibos').select('id, estado, monto_total, residente_id, periodo').eq('condominio_id', id!),
-        supabase.from('pagos').select('id, monto, created_at, residente_id, recibo_id').eq('condominio_id', id!).not('confirmado_por', 'is', null),
+        supabase.from('pagos').select('id, monto, fecha_pago, residente_id, recibo_id').eq('condominio_id', id!).not('confirmado_por', 'is', null),
         supabase.from('pagos').select('id').eq('condominio_id', id!).is('confirmado_por', null),
         supabase.from('mantenimientos').select('id, estado, prioridad, titulo, created_at').eq('condominio_id', id!),
         supabase.from('turnos').select('id, estado, tipo, hora_programada_inicio, guardias(nombre, apellido)').eq('condominio_id', id!).eq('fecha', hoy.toISOString().split('T')[0]),
@@ -44,7 +44,7 @@ export default function CondominioDashboard() {
       const totalEmitido = recibosMes.reduce((s, r) => s + Number(r.monto_total), 0)
 
       // Recaudado del mes = SUM de pagos confirmados del mes (flujo de caja real)
-      const pagosMesActual = pagos.filter((p: any) => p.created_at?.startsWith(mesActual))
+      const pagosMesActual = pagos.filter((p: any) => p.fecha_pago?.startsWith(mesActual))
       const recaudadoMes = pagosMesActual.reduce((s: number, p: any) => s + Number(p.monto), 0)
 
       // % Cobranza = basado en recibos del mes (pagados / total emitido), cap 100%
@@ -72,8 +72,8 @@ export default function CondominioDashboard() {
 
       // Mantenimiento
       const ticketsAbiertos = mtto.filter(m => ['pendiente', 'asignado', 'en_proceso'].includes(m.estado)).length
-      const ticketsUrgentes = mtto.filter(m => m.prioridad === 'urgente' && m.estado === 'pendiente').length
-      const ticketsSinAsignar = mtto.filter(m => m.prioridad === 'urgente' && m.estado === 'pendiente').length
+      const ticketsUrgentes = mtto.filter(m => m.prioridad === 'urgente' && ['pendiente', 'asignado', 'en_proceso'].includes(m.estado)).length
+      const ticketsSinAsignar = mtto.filter(m => m.estado === 'pendiente').length
 
       // Guardias
       const enTurno = turnos.filter((t: any) => t.estado === 'activo')
@@ -96,7 +96,7 @@ export default function CondominioDashboard() {
         const mesLabel = d.toLocaleDateString('es-BO', { month: 'short' })
         const recMes = recibos.filter(r => r.periodo?.startsWith(periodo))
         // Recaudado real = SUM de pagos confirmados del mes
-        const pagosDelMes = pagos.filter((p: any) => p.created_at?.startsWith(periodo))
+        const pagosDelMes = pagos.filter((p: any) => p.fecha_pago?.startsWith(periodo))
         const recaudadoMesChart = pagosDelMes.reduce((s: number, p: any) => s + Number(p.monto), 0)
         const pendientesMesChart = recMes.filter(r => r.estado !== 'pagado').reduce((s, r) => s + Number(r.monto_total), 0)
         chartData.push({ mes: mesLabel, recaudado: recaudadoMesChart, pendiente: pendientesMesChart })
@@ -111,8 +111,8 @@ export default function CondominioDashboard() {
           icon: '💰',
           desc: `Pago confirmado — Bs. ${Number(p.monto).toFixed(0)}`,
           quien: '',
-          tiempo: timeAgo(new Date(p.created_at)),
-          ts: new Date(p.created_at).getTime(),
+          tiempo: timeAgo(new Date(p.fecha_pago)),
+          ts: new Date(p.fecha_pago).getTime(),
         })
       }
 

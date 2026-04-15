@@ -22,7 +22,7 @@ export default function Financiero() {
       const [recibosRes, gastosRes, morososRes] = await Promise.all([
         supabase.from('recibos').select('periodo, monto_total, estado, unidades(numero), residentes(nombre, apellido)').eq('condominio_id', id!),
         supabase.from('gastos').select('fecha, categoria, descripcion, monto, proveedor_nombre').eq('condominio_id', id!),
-        supabase.from('recibos').select('residente_id, periodo, monto_total, residentes(nombre, apellido), unidades(numero)').eq('condominio_id', id!).in('estado', ['emitido', 'vencido']),
+        supabase.from('recibos').select('residente_id, periodo, monto_total, residentes(nombre, apellido), unidades(numero)').eq('condominio_id', id!).eq('estado', 'vencido'),
       ])
 
       const ingresos = (recibosRes.data || []).map((r: any) => ({
@@ -84,7 +84,7 @@ export default function Financiero() {
       // Fetch recibos del mes y pagos confirmados del mes
       const [recibosRes, pagosRes] = await Promise.all([
         supabase.from('recibos').select('id, monto_total, estado, residente_id').eq('condominio_id', id!).like('periodo', `${mesActual}%`),
-        supabase.from('pagos').select('id, monto, created_at').eq('condominio_id', id!).not('confirmado_por', 'is', null),
+        supabase.from('pagos').select('id, monto, fecha_pago').eq('condominio_id', id!).not('confirmado_por', 'is', null),
       ])
 
       const all = recibosRes.data || []
@@ -94,7 +94,7 @@ export default function Financiero() {
       const totalEmitido = all.reduce((s, r) => s + Number(r.monto_total), 0)
 
       // Recaudado real = SUM de pagos confirmados del mes (flujo de caja)
-      const pagosMes = pagos.filter(p => p.created_at?.startsWith(mesActual))
+      const pagosMes = pagos.filter(p => p.fecha_pago?.startsWith(mesActual))
       const recaudado = pagosMes.reduce((s, p) => s + Number(p.monto), 0)
       const pendiente = pendientes.reduce((s, r) => s + Number(r.monto_total), 0)
       // % Cobranza basado en recibos del mes (pagados / emitidos), cap 100%
