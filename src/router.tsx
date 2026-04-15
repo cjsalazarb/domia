@@ -15,6 +15,7 @@ import Reservas from '@/pages/admin/condominio/Reservas'
 import Comunicaciones from '@/pages/admin/condominio/Comunicaciones'
 import GuardiasAdmin from '@/pages/admin/Guardias'
 import Configurar from '@/pages/admin/condominio/Configurar'
+import CRM from '@/pages/admin/CRM'
 
 import PortalDashboard from '@/pages/portal/PortalDashboard'
 import PortalRecibos from '@/pages/portal/PortalRecibos'
@@ -48,6 +49,16 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute rolesPermitidos={['super_admin']}>
         <Condominios />
+      </ProtectedRoute>
+    ),
+  },
+
+  // CRM — solo super_admin
+  {
+    path: '/admin/crm',
+    element: (
+      <ProtectedRoute rolesPermitidos={['super_admin']}>
+        <CRM />
       </ProtectedRoute>
     ),
   },

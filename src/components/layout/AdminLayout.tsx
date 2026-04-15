@@ -112,6 +112,22 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
                 })}
               </>
             )}
+            {isSuper && (
+              <>
+                <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.08)', margin: '8px 4px' }} />
+                {(() => {
+                  const active = isActive('/admin/crm')
+                  return (
+                    <a href="/admin/crm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', borderRadius: '10px', textDecoration: 'none',
+                        backgroundColor: active ? 'rgba(13,158,110,0.15)' : 'transparent', color: active ? '#0D9E6E' : 'rgba(255,255,255,0.5)',
+                        cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: active ? 600 : 400, width: '100%', transition: 'all 0.15s' }}>
+                      <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>💼</span>CRM / Pre-venta
+                    </a>
+                  )
+                })()}
+              </>
+            )}
           </nav>
 
           {/* User */}
