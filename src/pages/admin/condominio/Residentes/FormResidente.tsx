@@ -57,6 +57,20 @@ export default function FormResidente({ condominioId, residente, propietarios, o
     },
   })
 
+  const { data: unidadesConInquilino = [] } = useQuery({
+    queryKey: ['unidades-con-inquilino', condominioId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('residentes')
+        .select('unidad_id')
+        .eq('condominio_id', condominioId)
+        .eq('tipo', 'inquilino')
+        .eq('estado', 'activo')
+      if (error) throw error
+      return (data || []).map(r => r.unidad_id)
+    },
+  })
+
   const unidadesFiltradas = (unidades || []).filter(u => {
     // In edit mode, always show the current unit
     if (residente && u.id === residente.unidad_id) return true
@@ -64,8 +78,8 @@ export default function FormResidente({ condominioId, residente, propietarios, o
       // Show only units WITHOUT an active owner
       return !unidadesConPropietario.includes(u.id)
     } else {
-      // Inquilino: show only units WITH an active owner
-      return unidadesConPropietario.includes(u.id)
+      // Inquilino: show only units WITH an active owner AND without an active inquilino
+      return unidadesConPropietario.includes(u.id) && !unidadesConInquilino.includes(u.id)
     }
   })
 
