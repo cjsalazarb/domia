@@ -252,7 +252,7 @@ export default function CRM() {
                   <div style={{ fontSize: '11px', color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: "'Inter', sans-serif", marginBottom: '4px' }}>{k.label}</div>
                   <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 800, color: k.color, backgroundColor: k.bg, borderRadius: '8px', padding: '4px 8px', display: 'inline-block' }}>{k.value}</div>
                   {k.monto !== null && (
-                    <div style={{ fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", marginTop: '4px' }}>Bs. {k.monto.toLocaleString('es-BO')}</div>
+                    <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '15px', fontWeight: 700, color: k.color, marginTop: '4px' }}>Bs. {k.monto.toLocaleString('es-BO')}</div>
                   )}
                 </div>
               ))}
