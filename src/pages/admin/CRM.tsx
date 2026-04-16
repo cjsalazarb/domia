@@ -11,6 +11,7 @@ type Estado = 'borrador' | 'enviada' | 'en_negociacion' | 'aprobada' | 'rechazad
 
 interface Propuesta {
   id: string
+  numero_propuesta: string | null
   nombre_prospecto: string
   telefono: string | null
   email: string | null
@@ -57,6 +58,8 @@ export default function CRM() {
 
   const [vista, setVista] = useState<'lista' | 'form'>('lista')
   const [editando, setEditando] = useState<Propuesta | null>(null)
+  const [filtroEstado, setFiltroEstado] = useState<Estado | 'todos'>('todos')
+  const [busqueda, setBusqueda] = useState('')
 
   // Form state
   const [nombreProspecto, setNombreProspecto] = useState('')
@@ -196,8 +199,24 @@ export default function CRM() {
   const pendientes = propuestas.filter(p => ['enviada', 'en_negociacion'].includes(p.estado)).length
   const rechazadas = propuestas.filter(p => p.estado === 'rechazada').length
   const montoAprobado = propuestas.filter(p => p.estado === 'aprobada').reduce((s, p) => s + Number(p.precio_final), 0)
+  const montoPendientes = propuestas.filter(p => ['enviada', 'en_negociacion'].includes(p.estado)).reduce((s, p) => s + Number(p.precio_final), 0)
+  const montoRechazadas = propuestas.filter(p => p.estado === 'rechazada').reduce((s, p) => s + Number(p.precio_final), 0)
   const pipeline = propuestas.filter(p => ['enviada', 'en_negociacion', 'borrador'].includes(p.estado)).reduce((s, p) => s + Number(p.precio_final), 0)
   const tasaConversion = total > 0 ? Math.round((aprobadas / total) * 100) : 0
+
+  const propuestasFiltradas = propuestas.filter(p => {
+    if (filtroEstado !== 'todos' && p.estado !== filtroEstado) return false
+    if (busqueda) {
+      const q = busqueda.toLowerCase()
+      return (
+        p.nombre_prospecto.toLowerCase().includes(q) ||
+        p.nombre_condominio.toLowerCase().includes(q) ||
+        (p.numero_propuesta && p.numero_propuesta.toLowerCase().includes(q)) ||
+        (p.ciudad && p.ciudad.toLowerCase().includes(q))
+      )
+    }
+    return true
+  })
 
   const inputStyle = { width: '100%', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '14px', color: '#0D1117', fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const }
   const labelStyle = { display: 'block' as const, fontSize: '13px', fontWeight: 500 as const, color: '#0D1117', marginBottom: '6px', fontFamily: "'Inter', sans-serif" }
@@ -221,25 +240,60 @@ export default function CRM() {
             {/* KPIs */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px', marginBottom: '24px' }}>
               {[
-                { label: 'Total', value: total, color: '#0D1117', bg: 'white' },
-                { label: 'Aprobadas', value: aprobadas, color: '#1A7A4A', bg: '#E8F4F0' },
-                { label: 'Pendientes', value: pendientes, color: '#C07A2E', bg: '#FEF9EC' },
-                { label: 'Rechazadas', value: rechazadas, color: '#B83232', bg: '#FCEAEA' },
-                { label: 'Conversion', value: `${tasaConversion}%`, color: '#0D4A8F', bg: '#EBF4FF' },
-                { label: 'Aprobado/mes', value: `Bs. ${montoAprobado.toFixed(0)}`, color: '#1A7A4A', bg: '#E8F4F0' },
-                { label: 'Pipeline', value: `Bs. ${pipeline.toFixed(0)}`, color: '#C07A2E', bg: '#FEF9EC' },
+                { label: 'Total', value: total, color: '#0D1117', bg: 'white', monto: null },
+                { label: 'Aprobadas', value: aprobadas, color: '#1A7A4A', bg: '#E8F4F0', monto: montoAprobado },
+                { label: 'Pendientes', value: pendientes, color: '#C07A2E', bg: '#FEF9EC', monto: montoPendientes },
+                { label: 'Rechazadas', value: rechazadas, color: '#B83232', bg: '#FCEAEA', monto: montoRechazadas },
+                { label: 'Conversion', value: `${tasaConversion}%`, color: '#0D4A8F', bg: '#EBF4FF', monto: null },
+                { label: 'Aprobado/mes', value: `Bs. ${montoAprobado.toFixed(0)}`, color: '#1A7A4A', bg: '#E8F4F0', monto: null },
+                { label: 'Pipeline', value: `Bs. ${pipeline.toFixed(0)}`, color: '#C07A2E', bg: '#FEF9EC', monto: null },
               ].map(k => (
                 <div key={k.label} style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '16px', textAlign: 'center' }}>
                   <div style={{ fontSize: '11px', color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: "'Inter', sans-serif", marginBottom: '4px' }}>{k.label}</div>
                   <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 800, color: k.color, backgroundColor: k.bg, borderRadius: '8px', padding: '4px 8px', display: 'inline-block' }}>{k.value}</div>
+                  {k.monto !== null && (
+                    <div style={{ fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", marginTop: '4px' }}>Bs. {k.monto.toLocaleString('es-BO')}</div>
+                  )}
                 </div>
               ))}
+            </div>
+
+            {/* Filtros y búsqueda */}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder="Buscar por nombre, condominio, numero..."
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                style={{ flex: 1, minWidth: '200px', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '13px', color: '#0D1117', fontFamily: "'Inter', sans-serif", outline: 'none' }}
+              />
+              <select
+                value={filtroEstado}
+                onChange={e => setFiltroEstado(e.target.value as Estado | 'todos')}
+                style={{ padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '13px', color: '#0D1117', fontFamily: "'Inter', sans-serif", outline: 'none', backgroundColor: 'white', cursor: 'pointer' }}
+              >
+                <option value="todos">Todos los estados</option>
+                {ESTADOS.map(e => (
+                  <option key={e.value} value={e.value}>{e.label}</option>
+                ))}
+              </select>
+              {(filtroEstado !== 'todos' || busqueda) && (
+                <button
+                  onClick={() => { setFiltroEstado('todos'); setBusqueda('') }}
+                  style={{ padding: '10px 14px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
+                >
+                  Limpiar filtros
+                </button>
+              )}
+              <span style={{ fontSize: '12px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>
+                {propuestasFiltradas.length} de {propuestas.length}
+              </span>
             </div>
 
             {/* Lista */}
             {isLoading ? (
               <div style={{ textAlign: 'center', padding: '40px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>Cargando...</div>
-            ) : propuestas.length === 0 ? (
+            ) : propuestasFiltradas.length === 0 ? (
               <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '40px', textAlign: 'center' }}>
                 <div style={{ fontSize: '32px', marginBottom: '12px' }}>📋</div>
                 <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', marginBottom: '8px' }}>Sin propuestas</div>
@@ -247,13 +301,18 @@ export default function CRM() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {propuestas.map(p => {
+                {propuestasFiltradas.map(p => {
                   const est = getEstadoStyle(p.estado)
                   return (
                     <div key={p.id} style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '20px', fontFamily: "'Inter', sans-serif" }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
                         <div>
-                          <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117' }}>{p.nombre_condominio}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {p.numero_propuesta && (
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#0D4A8F', backgroundColor: '#EBF4FF', padding: '2px 8px', borderRadius: '4px', fontFamily: "'Inter', sans-serif" }}>{p.numero_propuesta}</span>
+                            )}
+                            <span style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117' }}>{p.nombre_condominio}</span>
+                          </div>
                           <div style={{ fontSize: '12px', color: '#5E6B62', marginTop: '2px' }}>
                             {p.nombre_prospecto}{p.ciudad ? ` · ${p.ciudad}` : ''} · {p.num_pisos} pisos · {p.num_departamentos} dptos
                           </div>
