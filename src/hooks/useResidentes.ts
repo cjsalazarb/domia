@@ -67,7 +67,9 @@ export function useResidentes(condominioId: string) {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        throw new Error(error.message || 'Error al crear residente')
+      }
       return data
     },
     onSuccess: () => {
@@ -84,7 +86,9 @@ export function useResidentes(condominioId: string) {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        throw new Error(error.message || 'Error al actualizar residente')
+      }
       return data
     },
     onSuccess: () => {
