@@ -33,6 +33,7 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
     { path: `/admin/condominio/${condominioId}/reservas`, label: 'Reservas', icon: '📅' },
     { path: `/admin/condominio/${condominioId}/comunicaciones`, label: 'Comunicaciones', icon: '📢' },
     { path: `/admin/condominio/${condominioId}/guardias`, label: 'Guardias', icon: '🛡️' },
+    { path: `/admin/condominio/${condominioId}/contabilidad`, label: 'Contabilidad', icon: '📒' },
   ] : []
 
   const configItems: NavItem[] = condominioId ? [
