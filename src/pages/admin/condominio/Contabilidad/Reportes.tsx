@@ -1,5 +1,8 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
 import { useSaldosCuentas } from '@/hooks/useContabilidad'
+import { exportarReporteContablePDF } from '@/lib/exportarReporteContable'
 
 type Reporte = 'balance' | 'resultados' | 'sumas' | 'mayor' | 'flujo'
 
@@ -19,7 +22,17 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
   const hoy = new Date().toISOString().slice(0, 10)
   const [hasta, setHasta] = useState(hoy)
   const [reporte, setReporte] = useState<Reporte>('balance')
+  const [exportando, setExportando] = useState(false)
   const { saldos, isLoading } = useSaldosCuentas(condominioId, hasta)
+
+  const { data: condominioNombre } = useQuery({
+    queryKey: ['condo-nombre-reporte', condominioId],
+    queryFn: async () => {
+      const { data } = await supabase.from('condominios').select('nombre').eq('id', condominioId).single()
+      return data?.nombre || 'Condominio'
+    },
+    enabled: !!condominioId,
+  })
 
   const inputStyle = { padding: '8px 12px', border: '1px solid #D4D4D4', borderRadius: '8px', fontSize: '13px', fontFamily: "'Inter', sans-serif" } as const
 
@@ -47,6 +60,42 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
   const todosConMov = saldos.filter(s => s.nivel >= 2 && (s.debe > 0 || s.haber > 0))
   const totalDebeSumas = todosConMov.reduce((a, s) => a + s.debe, 0)
   const totalHaberSumas = todosConMov.reduce((a, s) => a + s.haber, 0)
+
+  // Flujo de caja pre-calculado (para PDF y render)
+  const caja = saldos.find(s => s.codigo === '1.1.1')
+  const banco = saldos.find(s => s.codigo === '1.1.2')
+  const entradasCaja = caja?.debe || 0
+  const entradasBanco = banco?.debe || 0
+  const salidasCaja = caja?.haber || 0
+  const salidasBanco = banco?.haber || 0
+  const egresosGastos = gastos.filter(s => isLeaf(s.codigo)).reduce((a, s) => a + s.debe, 0)
+  const totalEntradas = entradasCaja + entradasBanco
+  const totalSalidasCalc = salidasCaja + salidasBanco + egresosGastos
+  const saldoDisponible = (caja?.saldo || 0) + (banco?.saldo || 0)
+  const gastosDetalle = gastos.filter(s => isLeaf(s.codigo) && s.debe > 0)
+
+  async function handleExportPDF() {
+    setExportando(true)
+    try {
+      await exportarReporteContablePDF({
+        condominioNombre: condominioNombre || 'Condominio',
+        hasta,
+        saldos,
+        isLeaf,
+        resultado,
+        totalActivos, totalPasivos, totalPatrimonio,
+        totalIngresos, totalGastos,
+        todosConMov, totalDebeSumas, totalHaberSumas,
+        entradasCaja, entradasBanco, salidasCaja, salidasBanco,
+        egresosGastos, totalEntradas, totalSalidas: totalSalidasCalc,
+        saldoDisponible, gastosDetalle,
+      })
+    } catch (e) {
+      console.error('Error exportando PDF:', e)
+    } finally {
+      setExportando(false)
+    }
+  }
 
   function renderTabla(titulo: string, items: typeof saldos, totalLabel: string, total: number, colorTotal: string) {
     return (
@@ -86,6 +135,14 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <label style={{ fontSize: '12px', color: '#5E6B62' }}>Corte al</label>
           <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} style={inputStyle} />
+          <button onClick={handleExportPDF} disabled={exportando || isLoading || saldos.length === 0}
+            style={{
+              padding: '8px 16px', backgroundColor: exportando ? '#ccc' : '#1D9E75', color: 'white',
+              border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+              cursor: exportando ? 'not-allowed' : 'pointer', fontFamily: "'Inter', sans-serif",
+            }}>
+            {exportando ? 'Generando PDF...' : '\u2B07 Exportar PDF'}
+          </button>
         </div>
       </div>
 
@@ -208,93 +265,80 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
           )}
 
           {/* Flujo de Caja */}
-          {reporte === 'flujo' && (() => {
-            const caja = saldos.find(s => s.codigo === '1.1.1')
-            const banco = saldos.find(s => s.codigo === '1.1.2')
-            const entradasCaja = caja?.debe || 0
-            const entradasBanco = banco?.debe || 0
-            const salidasCaja = caja?.haber || 0
-            const salidasBanco = banco?.haber || 0
-            // Egresos comprometidos: gastos registrados contra CxP (débito de cuentas 5.x)
-            const egresosGastos = gastos.filter(s => isLeaf(s.codigo)).reduce((a, s) => a + s.debe, 0)
-            const totalEntradas = entradasCaja + entradasBanco
-            const totalSalidas = salidasCaja + salidasBanco + egresosGastos
-            const saldoDisponible = (caja?.saldo || 0) + (banco?.saldo || 0)
-            return (
-              <div>
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                  {[
-                    { label: 'Total Ingresos', valor: totalEntradas, color: '#0D9E6E' },
-                    { label: 'Total Egresos', valor: totalSalidas, color: '#D62828' },
-                    { label: 'Saldo Disponible', valor: saldoDisponible, color: '#0D1117' },
-                  ].map(k => (
-                    <div key={k.label} style={{ flex: 1, minWidth: '150px', backgroundColor: 'white', borderRadius: '12px', padding: '16px', border: '1px solid #E8F4F0' }}>
-                      <div style={{ fontSize: '11px', color: '#5E6B62', textTransform: 'uppercase', fontWeight: 600, marginBottom: '4px' }}>{k.label}</div>
-                      <div style={{ fontSize: '20px', fontWeight: 700, color: k.color }}>Bs. {formatBs(k.valor)}</div>
-                    </div>
-                  ))}
-                </div>
-                <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0D1117', marginBottom: '8px', fontFamily: "'Nunito', sans-serif" }}>Detalle de Ingresos</h3>
-                <div style={{ backgroundColor: 'white', borderRadius: '10px', border: '1px solid #E8F4F0', overflow: 'hidden', marginBottom: '16px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
-                        <td style={{ padding: '10px 16px' }}>Cobros en efectivo (Caja)</td>
-                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#0D9E6E', fontWeight: 600 }}>Bs. {formatBs(entradasCaja)}</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
-                        <td style={{ padding: '10px 16px' }}>Cobros por transferencia/QR (Banco)</td>
-                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#0D9E6E', fontWeight: 600 }}>Bs. {formatBs(entradasBanco)}</td>
-                      </tr>
-                    </tbody>
-                    <tfoot>
-                      <tr style={{ backgroundColor: '#F4F7F5', fontWeight: 700 }}>
-                        <td style={{ padding: '10px 16px' }}>TOTAL INGRESOS</td>
-                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#0D9E6E', fontSize: '15px' }}>Bs. {formatBs(totalEntradas)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-
-                <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0D1117', marginBottom: '8px', fontFamily: "'Nunito', sans-serif" }}>Detalle de Egresos</h3>
-                <div style={{ backgroundColor: 'white', borderRadius: '10px', border: '1px solid #E8F4F0', overflow: 'hidden', marginBottom: '16px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                    <tbody>
-                      {salidasCaja > 0 && (
-                        <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
-                          <td style={{ padding: '10px 16px' }}>Pagos en efectivo (Caja)</td>
-                          <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontWeight: 600 }}>Bs. {formatBs(salidasCaja)}</td>
-                        </tr>
-                      )}
-                      {salidasBanco > 0 && (
-                        <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
-                          <td style={{ padding: '10px 16px' }}>Pagos bancarios</td>
-                          <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontWeight: 600 }}>Bs. {formatBs(salidasBanco)}</td>
-                        </tr>
-                      )}
-                      {gastos.filter(s => isLeaf(s.codigo) && s.debe > 0).map(s => (
-                        <tr key={s.id} style={{ borderBottom: '1px solid #F4F7F5' }}>
-                          <td style={{ padding: '10px 16px' }}>{s.nombre}</td>
-                          <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontWeight: 600 }}>Bs. {formatBs(s.debe)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr style={{ backgroundColor: '#F4F7F5', fontWeight: 700 }}>
-                        <td style={{ padding: '10px 16px' }}>TOTAL EGRESOS</td>
-                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontSize: '15px' }}>Bs. {formatBs(totalSalidas)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-
-                <div style={{ backgroundColor: '#0D1117', borderRadius: '10px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: 'white', fontWeight: 700, fontSize: '14px' }}>SALDO DISPONIBLE (Caja + Banco)</span>
-                  <span style={{ color: '#0D9E6E', fontWeight: 700, fontSize: '18px' }}>Bs. {formatBs(saldoDisponible)}</span>
-                </div>
+          {reporte === 'flujo' && (
+            <div>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Total Ingresos', valor: totalEntradas, color: '#0D9E6E' },
+                  { label: 'Total Egresos', valor: totalSalidasCalc, color: '#D62828' },
+                  { label: 'Saldo Disponible', valor: saldoDisponible, color: '#0D1117' },
+                ].map(k => (
+                  <div key={k.label} style={{ flex: 1, minWidth: '150px', backgroundColor: 'white', borderRadius: '12px', padding: '16px', border: '1px solid #E8F4F0' }}>
+                    <div style={{ fontSize: '11px', color: '#5E6B62', textTransform: 'uppercase', fontWeight: 600, marginBottom: '4px' }}>{k.label}</div>
+                    <div style={{ fontSize: '20px', fontWeight: 700, color: k.color }}>Bs. {formatBs(k.valor)}</div>
+                  </div>
+                ))}
               </div>
-            )
-          })()}
+              <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0D1117', marginBottom: '8px', fontFamily: "'Nunito', sans-serif" }}>Detalle de Ingresos</h3>
+              <div style={{ backgroundColor: 'white', borderRadius: '10px', border: '1px solid #E8F4F0', overflow: 'hidden', marginBottom: '16px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <tbody>
+                    <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
+                      <td style={{ padding: '10px 16px' }}>Cobros en efectivo (Caja)</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', color: '#0D9E6E', fontWeight: 600 }}>Bs. {formatBs(entradasCaja)}</td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
+                      <td style={{ padding: '10px 16px' }}>Cobros por transferencia/QR (Banco)</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', color: '#0D9E6E', fontWeight: 600 }}>Bs. {formatBs(entradasBanco)}</td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ backgroundColor: '#F4F7F5', fontWeight: 700 }}>
+                      <td style={{ padding: '10px 16px' }}>TOTAL INGRESOS</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', color: '#0D9E6E', fontSize: '15px' }}>Bs. {formatBs(totalEntradas)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0D1117', marginBottom: '8px', fontFamily: "'Nunito', sans-serif" }}>Detalle de Egresos</h3>
+              <div style={{ backgroundColor: 'white', borderRadius: '10px', border: '1px solid #E8F4F0', overflow: 'hidden', marginBottom: '16px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <tbody>
+                    {salidasCaja > 0 && (
+                      <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
+                        <td style={{ padding: '10px 16px' }}>Pagos en efectivo (Caja)</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontWeight: 600 }}>Bs. {formatBs(salidasCaja)}</td>
+                      </tr>
+                    )}
+                    {salidasBanco > 0 && (
+                      <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
+                        <td style={{ padding: '10px 16px' }}>Pagos bancarios</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontWeight: 600 }}>Bs. {formatBs(salidasBanco)}</td>
+                      </tr>
+                    )}
+                    {gastosDetalle.map(s => (
+                      <tr key={s.id} style={{ borderBottom: '1px solid #F4F7F5' }}>
+                        <td style={{ padding: '10px 16px' }}>{s.nombre}</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontWeight: 600 }}>Bs. {formatBs(s.debe)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ backgroundColor: '#F4F7F5', fontWeight: 700 }}>
+                      <td style={{ padding: '10px 16px' }}>TOTAL EGRESOS</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontSize: '15px' }}>Bs. {formatBs(totalSalidasCalc)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <div style={{ backgroundColor: '#0D1117', borderRadius: '10px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'white', fontWeight: 700, fontSize: '14px' }}>SALDO DISPONIBLE (Caja + Banco)</span>
+                <span style={{ color: '#0D9E6E', fontWeight: 700, fontSize: '18px' }}>Bs. {formatBs(saldoDisponible)}</span>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
