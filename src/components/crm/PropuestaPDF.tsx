@@ -1,6 +1,5 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer'
 import altrionLogo from '@/assets/altrion-logo.jpg'
-import fotoDecorative from '@/assets/foto-administradora.jpg'
 
 /* ─── colores ALTRION ─── */
 const C = {
@@ -14,13 +13,12 @@ const C = {
 
 const s = StyleSheet.create({
   /* ── Portada ── */
-  coverPage: { backgroundColor: C.navy, position: 'relative' },
+  coverPage: { backgroundColor: '#0D1B2E', position: 'relative' },
   coverTop: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 60 },
   coverLogo: { width: 180, marginBottom: 30 },
   coverLine: { width: 60, height: 2, backgroundColor: C.gold, marginBottom: 24 },
   coverTitle: { fontFamily: 'Helvetica-Bold', fontSize: 28, color: C.white, textAlign: 'center', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 },
   coverSubtitle: { fontFamily: 'Helvetica', fontSize: 14, color: C.gold, textAlign: 'center', letterSpacing: 1 },
-  coverDecorative: { width: '100%', height: 160, objectFit: 'cover', opacity: 0.25 },
   coverBottom: { paddingHorizontal: 60, paddingBottom: 50 },
   coverInfoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   coverLabel: { fontFamily: 'Helvetica', fontSize: 9, color: C.gold, textTransform: 'uppercase', letterSpacing: 1 },
@@ -166,7 +164,6 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           <Text style={s.coverTitle}>Propuesta Comercial</Text>
           <Text style={s.coverSubtitle}>Administracion Integral de Condominios</Text>
         </View>
-        <Image src={fotoDecorative} style={s.coverDecorative} />
         <View style={s.coverBottom}>
           <View style={s.coverDivider} />
           <View style={s.coverInfoRow}>
@@ -236,14 +233,14 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         <Text style={s.pageTitle}>Mision, Vision y Valores</Text>
         <Text style={s.pageSubtitle}>Los pilares que guian nuestro trabajo diario</Text>
 
-        <View style={s.mvvCard}>
+        <View style={s.mvvCard} wrap={false}>
           <Text style={s.mvvTitle}>Mision</Text>
           <Text style={s.mvvText}>
             Brindar servicios de administracion de condominios con excelencia, transparencia y compromiso, utilizando tecnologia innovadora para optimizar la gestion y mejorar la calidad de vida de los copropietarios en Bolivia.
           </Text>
         </View>
 
-        <View style={s.mvvCard}>
+        <View style={s.mvvCard} wrap={false}>
           <Text style={s.mvvTitle}>Vision</Text>
           <Text style={s.mvvText}>
             Ser la empresa lider en administracion de condominios en Bolivia, reconocida por la confianza, profesionalismo y soluciones tecnologicas que generamos para nuestras comunidades.
@@ -251,35 +248,35 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         </View>
 
         <Text style={{ ...s.sectionTitle, marginTop: 20 }}>Nuestros Valores</Text>
-        <View style={s.valorItem}>
+        <View style={s.valorItem} wrap={false}>
           <Text style={s.valorNumber}>1</Text>
           <View style={s.valorContent}>
             <Text style={s.valorName}>Transparencia</Text>
             <Text style={s.valorDesc}>Rendicion de cuentas clara y accesible en todo momento a traves de nuestra plataforma digital.</Text>
           </View>
         </View>
-        <View style={s.valorItem}>
+        <View style={s.valorItem} wrap={false}>
           <Text style={s.valorNumber}>2</Text>
           <View style={s.valorContent}>
             <Text style={s.valorName}>Compromiso</Text>
             <Text style={s.valorDesc}>Dedicacion total al bienestar de cada comunidad que administramos, con atencion personalizada.</Text>
           </View>
         </View>
-        <View style={s.valorItem}>
+        <View style={s.valorItem} wrap={false}>
           <Text style={s.valorNumber}>3</Text>
           <View style={s.valorContent}>
             <Text style={s.valorName}>Innovacion</Text>
             <Text style={s.valorDesc}>Implementacion de tecnologia de punta para simplificar y mejorar la gestion condominial.</Text>
           </View>
         </View>
-        <View style={s.valorItem}>
+        <View style={s.valorItem} wrap={false}>
           <Text style={s.valorNumber}>4</Text>
           <View style={s.valorContent}>
             <Text style={s.valorName}>Responsabilidad</Text>
             <Text style={s.valorDesc}>Cumplimiento estricto de normativas legales y manejo responsable de los recursos del condominio.</Text>
           </View>
         </View>
-        <View style={s.valorItem}>
+        <View style={s.valorItem} wrap={false}>
           <Text style={s.valorNumber}>5</Text>
           <View style={s.valorContent}>
             <Text style={s.valorName}>Cercania</Text>
@@ -296,7 +293,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         <Text style={s.pageTitle}>Objetivo General</Text>
         <Text style={s.pageSubtitle}>Propuesta para {p.nombre_condominio}</Text>
 
-        <View style={{ ...s.mvvCard, borderLeftColor: C.navy }}>
+        <View style={{ ...s.mvvCard, borderLeftColor: C.navy }} wrap={false}>
           <Text style={{ ...s.mvvText, fontSize: 11, lineHeight: 1.8 }}>
             Proveer al condominio {p.nombre_condominio} un servicio de administracion integral que garantice el correcto funcionamiento de todas las areas comunes, la transparencia en el manejo de recursos financieros, el cumplimiento de la normativa vigente y la satisfaccion de todos los copropietarios, apoyados en nuestra plataforma tecnologica DOMIA.
           </Text>
@@ -304,31 +301,31 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
 
         <Text style={{ ...s.sectionTitle, marginTop: 24 }}>Objetivos Especificos</Text>
 
-        <View style={s.bulletRow}>
+        <View style={s.bulletRow} wrap={false}>
           <View style={s.bulletDot} />
           <Text style={s.bulletText}>Establecer un sistema de cobro eficiente de expensas con seguimiento automatizado de morosidad.</Text>
         </View>
-        <View style={s.bulletRow}>
+        <View style={s.bulletRow} wrap={false}>
           <View style={s.bulletDot} />
           <Text style={s.bulletText}>Implementar un programa de mantenimiento preventivo para preservar el valor del inmueble.</Text>
         </View>
-        <View style={s.bulletRow}>
+        <View style={s.bulletRow} wrap={false}>
           <View style={s.bulletDot} />
           <Text style={s.bulletText}>Garantizar la transparencia financiera mediante reportes mensuales accesibles en linea.</Text>
         </View>
-        <View style={s.bulletRow}>
+        <View style={s.bulletRow} wrap={false}>
           <View style={s.bulletDot} />
           <Text style={s.bulletText}>Supervisar y coordinar al personal de seguridad, limpieza y mantenimiento del edificio.</Text>
         </View>
-        <View style={s.bulletRow}>
+        <View style={s.bulletRow} wrap={false}>
           <View style={s.bulletDot} />
           <Text style={s.bulletText}>Facilitar la comunicacion entre la administracion y los copropietarios a traves de canales digitales.</Text>
         </View>
-        <View style={s.bulletRow}>
+        <View style={s.bulletRow} wrap={false}>
           <View style={s.bulletDot} />
           <Text style={s.bulletText}>Asegurar el cumplimiento de la Ley de Propiedad Horizontal y normativas municipales aplicables.</Text>
         </View>
-        <View style={s.bulletRow}>
+        <View style={s.bulletRow} wrap={false}>
           <View style={s.bulletDot} />
           <Text style={s.bulletText}>Convocar y gestionar asambleas ordinarias y extraordinarias segun estatuto del condominio.</Text>
         </View>
@@ -342,7 +339,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         <Text style={s.pageTitle}>Alcance del Servicio</Text>
         <Text style={s.pageSubtitle}>Las cinco areas de gestion integral que cubrimos</Text>
 
-        <View style={s.alcanceCard}>
+        <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>01</Text>
           <Text style={s.alcanceTitle}>Gestion Administrativa y Financiera</Text>
           <Text style={s.alcanceDesc}>
@@ -350,7 +347,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           </Text>
         </View>
 
-        <View style={s.alcanceCard}>
+        <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>02</Text>
           <Text style={s.alcanceTitle}>Mantenimiento de Areas Comunes</Text>
           <Text style={s.alcanceDesc}>
@@ -358,7 +355,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           </Text>
         </View>
 
-        <View style={s.alcanceCard}>
+        <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>03</Text>
           <Text style={s.alcanceTitle}>Supervision de Personal</Text>
           <Text style={s.alcanceDesc}>
@@ -366,7 +363,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           </Text>
         </View>
 
-        <View style={s.alcanceCard}>
+        <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>04</Text>
           <Text style={s.alcanceTitle}>Atencion a Copropietarios</Text>
           <Text style={s.alcanceDesc}>
@@ -374,7 +371,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           </Text>
         </View>
 
-        <View style={s.alcanceCard}>
+        <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>05</Text>
           <Text style={s.alcanceTitle}>Cumplimiento Legal y Normativo</Text>
           <Text style={s.alcanceDesc}>
@@ -391,7 +388,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         <Text style={s.pageTitle}>Tareas Periodicas</Text>
         <Text style={s.pageSubtitle}>Cronograma de actividades para {p.nombre_condominio}</Text>
 
-        <View style={s.highlightBox}>
+        <View style={s.highlightBox} wrap={false}>
           <Text style={s.highlightBold}>Frecuencia de visitas presenciales</Text>
           <Text style={s.highlightText}>
             {p.visitas_semanales} visita{p.visitas_semanales > 1 ? 's' : ''} por semana — {horasVisita} hora{horasVisita > 1 ? 's' : ''} por visita ({p.visitas_semanales * horasVisita} horas semanales en sitio)
@@ -445,25 +442,25 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         <Text style={s.pageTitle}>Atencion Fuera de Horario</Text>
         <Text style={s.pageSubtitle}>Disponibilidad para emergencias y situaciones criticas</Text>
 
-        <View style={s.mvvCard}>
+        <View style={s.mvvCard} wrap={false}>
           <Text style={s.mvvText}>
             ALTRION ofrece una linea de atencion para emergencias disponible fuera del horario de visitas. En caso de situaciones criticas como fallas en el suministro de agua, problemas electricos graves, emergencias de seguridad o cualquier evento que requiera intervencion inmediata, los copropietarios pueden comunicarse directamente con la administradora.
           </Text>
         </View>
 
-        <View style={s.bulletRow}>
+        <View style={s.bulletRow} wrap={false}>
           <View style={s.bulletDot} />
           <Text style={s.bulletText}>Linea directa de emergencias disponible 24/7 para situaciones criticas.</Text>
         </View>
-        <View style={s.bulletRow}>
+        <View style={s.bulletRow} wrap={false}>
           <View style={s.bulletDot} />
           <Text style={s.bulletText}>Coordinacion inmediata con proveedores de emergencia (plomeria, electricidad, cerrajeria).</Text>
         </View>
-        <View style={s.bulletRow}>
+        <View style={s.bulletRow} wrap={false}>
           <View style={s.bulletDot} />
           <Text style={s.bulletText}>Comunicacion por WhatsApp para consultas no urgentes fuera de horario.</Text>
         </View>
-        <View style={s.bulletRow}>
+        <View style={s.bulletRow} wrap={false}>
           <View style={s.bulletDot} />
           <Text style={s.bulletText}>Respuesta garantizada en un maximo de 2 horas para emergencias.</Text>
         </View>
@@ -471,35 +468,35 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         <Text style={{ ...s.pageTitle, marginTop: 24, fontSize: 16 }}>Beneficios</Text>
         <Text style={{ ...s.pageSubtitle, marginBottom: 14 }}>Por que elegir ALTRION para su condominio</Text>
 
-        <View style={s.beneficioCard}>
+        <View style={s.beneficioCard} wrap={false}>
           <View style={s.beneficioIcon}><Text style={s.beneficioIconText}>$</Text></View>
           <View style={s.beneficioContent}>
             <Text style={s.beneficioTitle}>Transparencia Financiera Total</Text>
             <Text style={s.beneficioDesc}>Acceso en tiempo real a estados de cuenta, ingresos, egresos y presupuestos a traves de la plataforma DOMIA.</Text>
           </View>
         </View>
-        <View style={s.beneficioCard}>
+        <View style={s.beneficioCard} wrap={false}>
           <View style={s.beneficioIcon}><Text style={s.beneficioIconText}>T</Text></View>
           <View style={s.beneficioContent}>
             <Text style={s.beneficioTitle}>Tecnologia de Punta</Text>
             <Text style={s.beneficioDesc}>Sistema DOMIA con panel para copropietarios: consultas, pagos, reportes de incidencias y reservas desde cualquier dispositivo.</Text>
           </View>
         </View>
-        <View style={s.beneficioCard}>
+        <View style={s.beneficioCard} wrap={false}>
           <View style={s.beneficioIcon}><Text style={s.beneficioIconText}>P</Text></View>
           <View style={s.beneficioContent}>
             <Text style={s.beneficioTitle}>Personal Capacitado</Text>
             <Text style={s.beneficioDesc}>Equipo profesional con experiencia en administracion inmobiliaria y atencion al cliente.</Text>
           </View>
         </View>
-        <View style={s.beneficioCard}>
+        <View style={s.beneficioCard} wrap={false}>
           <View style={s.beneficioIcon}><Text style={s.beneficioIconText}>R</Text></View>
           <View style={s.beneficioContent}>
             <Text style={s.beneficioTitle}>Reduccion de Morosidad</Text>
             <Text style={s.beneficioDesc}>Sistema automatizado de cobranza con recordatorios, seguimiento y reportes de estado por copropietario.</Text>
           </View>
         </View>
-        <View style={s.beneficioCard}>
+        <View style={s.beneficioCard} wrap={false}>
           <View style={s.beneficioIcon}><Text style={s.beneficioIconText}>V</Text></View>
           <View style={s.beneficioContent}>
             <Text style={s.beneficioTitle}>Valorizacion del Inmueble</Text>
@@ -520,7 +517,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           Todos nuestros condominios administrados cuentan con acceso a DOMIA, nuestra plataforma web desarrollada internamente que centraliza toda la gestion del condominio en un solo lugar.
         </Text>
 
-        <View style={s.capturaGrid}>
+        <View style={s.capturaGrid} wrap={false}>
           <View style={{ ...s.capturaCard, flex: 1 }}>
             <Text style={s.capturaTitle}>Dashboard Principal</Text>
             <Text style={s.capturaDesc}>Vista general con indicadores clave: cobranza del mes, morosidad, gastos vs presupuesto, y alertas pendientes.</Text>
@@ -531,7 +528,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           </View>
         </View>
 
-        <View style={s.capturaGrid}>
+        <View style={s.capturaGrid} wrap={false}>
           <View style={{ ...s.capturaCard, flex: 1 }}>
             <Text style={s.capturaTitle}>Cobranza y Expensas</Text>
             <Text style={s.capturaDesc}>Generacion automatica de boletas, seguimiento de pagos, recordatorios por WhatsApp y reportes de morosidad.</Text>
@@ -542,7 +539,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           </View>
         </View>
 
-        <View style={s.capturaGrid}>
+        <View style={s.capturaGrid} wrap={false}>
           <View style={{ ...s.capturaCard, flex: 1 }}>
             <Text style={s.capturaTitle}>Mantenimiento</Text>
             <Text style={s.capturaDesc}>Solicitudes de mantenimiento con seguimiento de estado, asignacion de proveedores y historial completo.</Text>
@@ -553,7 +550,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           </View>
         </View>
 
-        <View style={s.highlightBox}>
+        <View style={s.highlightBox} wrap={false}>
           <Text style={s.highlightBold}>Acceso incluido sin costo adicional</Text>
           <Text style={s.highlightText}>
             La plataforma DOMIA esta incluida en el costo mensual del servicio de administracion. No genera cargos adicionales por licencias, usuarios ni actualizaciones.
@@ -571,7 +568,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
 
         {/* Datos del condominio */}
         <Text style={s.sectionTitle}>Datos del Condominio</Text>
-        <View style={s.infoRow}>
+        <View style={s.infoRow} wrap={false}>
           <View style={s.infoBlock}>
             <Text style={s.infoLabel}>Condominio</Text>
             <Text style={s.infoValue}>{p.nombre_condominio}</Text>
@@ -581,7 +578,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
             <Text style={s.infoValue}>{p.nombre_prospecto}</Text>
           </View>
         </View>
-        <View style={s.infoRow}>
+        <View style={s.infoRow} wrap={false}>
           <View style={s.infoBlock}>
             <Text style={s.infoLabel}>Ubicacion</Text>
             <Text style={s.infoValue}>{[p.direccion, p.ciudad].filter(Boolean).join(', ') || '—'}</Text>
@@ -594,7 +591,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
 
         {/* Parametros */}
         <Text style={s.sectionTitle}>Parametros del Servicio</Text>
-        <View style={s.infoRow}>
+        <View style={s.infoRow} wrap={false}>
           <View style={s.infoBlock}>
             <Text style={s.infoLabel}>Pisos</Text>
             <Text style={s.infoValue}>{p.num_pisos}</Text>
@@ -646,7 +643,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
 
         {/* Notas */}
         {p.notas && (
-          <View style={s.notesBox}>
+          <View style={s.notesBox} wrap={false}>
             <Text style={{ ...s.infoLabel, marginBottom: 4 }}>Observaciones</Text>
             <Text style={{ fontSize: 10, color: C.darkText, lineHeight: 1.5 }}>{p.notas}</Text>
           </View>
