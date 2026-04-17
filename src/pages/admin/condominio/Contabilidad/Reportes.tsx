@@ -23,18 +23,26 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
 
   const inputStyle = { padding: '8px 12px', border: '1px solid #D4D4D4', borderRadius: '8px', fontSize: '13px', fontFamily: "'Inter', sans-serif" } as const
 
+  // Detectar cuentas hoja: una cuenta es hoja si ninguna otra cuenta empieza con su codigo + '.'
+  const codigos = saldos.map(s => s.codigo)
+  const isLeaf = (codigo: string) => !codigos.some(c => c.startsWith(codigo + '.'))
+
   const activos = saldos.filter(s => s.tipo === 'activo' && s.nivel >= 2)
   const pasivos = saldos.filter(s => s.tipo === 'pasivo' && s.nivel >= 2)
   const patrimonio = saldos.filter(s => s.tipo === 'patrimonio' && s.nivel >= 2)
   const ingresos = saldos.filter(s => s.tipo === 'ingreso' && s.nivel >= 2)
   const gastos = saldos.filter(s => s.tipo === 'gasto' && s.nivel >= 2)
 
-  const totalActivos = activos.filter(s => s.nivel === 3).reduce((a, s) => a + s.saldo, 0)
-  const totalPasivos = pasivos.filter(s => s.nivel === 3).reduce((a, s) => a + s.saldo, 0)
-  const totalPatrimonio = patrimonio.filter(s => s.nivel === 3).reduce((a, s) => a + s.saldo, 0)
-  const totalIngresos = ingresos.filter(s => s.nivel === 3).reduce((a, s) => a + s.saldo, 0)
-  const totalGastos = gastos.filter(s => s.nivel === 3).reduce((a, s) => a + s.saldo, 0)
+  const totalActivos = activos.filter(s => isLeaf(s.codigo)).reduce((a, s) => a + s.saldo, 0)
+  const totalPasivos = pasivos.filter(s => isLeaf(s.codigo)).reduce((a, s) => a + s.saldo, 0)
+  const totalIngresos = ingresos.filter(s => isLeaf(s.codigo)).reduce((a, s) => a + s.saldo, 0)
+  const totalGastos = gastos.filter(s => isLeaf(s.codigo)).reduce((a, s) => a + s.saldo, 0)
   const resultado = totalIngresos - totalGastos
+
+  // Patrimonio: la cuenta 3.2 (Superávit/Déficit) se calcula dinámicamente
+  const totalPatrimonio = patrimonio
+    .filter(s => isLeaf(s.codigo))
+    .reduce((a, s) => a + (s.codigo === '3.2' ? resultado : s.saldo), 0)
 
   const todosConMov = saldos.filter(s => s.nivel >= 2 && (s.debe > 0 || s.haber > 0))
   const totalDebeSumas = todosConMov.reduce((a, s) => a + s.debe, 0)
@@ -47,15 +55,19 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
         <div style={{ backgroundColor: 'white', borderRadius: '10px', border: '1px solid #E8F4F0', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <tbody>
-              {items.map(s => (
-                <tr key={s.id} style={{ borderBottom: '1px solid #F4F7F5' }}>
-                  <td style={{ padding: '8px 16px', fontFamily: 'monospace', color: '#5E6B62', width: '60px' }}>{s.codigo}</td>
-                  <td style={{ padding: '8px 16px', paddingLeft: s.nivel === 3 ? '32px' : '16px', fontWeight: s.nivel === 2 ? 700 : 400 }}>{s.nombre}</td>
-                  <td style={{ padding: '8px 16px', textAlign: 'right', fontWeight: s.nivel === 2 ? 700 : 400, width: '140px' }}>
-                    {s.nivel === 3 ? `Bs. ${formatBs(s.saldo)}` : ''}
-                  </td>
-                </tr>
-              ))}
+              {items.map(s => {
+                const leaf = isLeaf(s.codigo)
+                const displaySaldo = s.codigo === '3.2' ? resultado : s.saldo
+                return (
+                  <tr key={s.id} style={{ borderBottom: '1px solid #F4F7F5' }}>
+                    <td style={{ padding: '8px 16px', fontFamily: 'monospace', color: '#5E6B62', width: '60px' }}>{s.codigo}</td>
+                    <td style={{ padding: '8px 16px', paddingLeft: leaf ? '32px' : '16px', fontWeight: leaf ? 400 : 700 }}>{s.nombre}</td>
+                    <td style={{ padding: '8px 16px', textAlign: 'right', fontWeight: leaf ? 400 : 700, width: '140px' }}>
+                      {leaf ? `Bs. ${formatBs(displaySaldo)}` : ''}
+                    </td>
+                  </tr>
+                )
+              })}
               <tr style={{ backgroundColor: '#F4F7F5', fontWeight: 700 }}>
                 <td colSpan={2} style={{ padding: '10px 16px', color: colorTotal }}>{totalLabel}</td>
                 <td style={{ padding: '10px 16px', textAlign: 'right', color: colorTotal, fontSize: '15px' }}>Bs. {formatBs(total)}</td>
@@ -199,14 +211,22 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
           {reporte === 'flujo' && (() => {
             const caja = saldos.find(s => s.codigo === '1.1.1')
             const banco = saldos.find(s => s.codigo === '1.1.2')
-            const totalEfectivo = (caja?.saldo || 0) + (banco?.saldo || 0)
+            const entradasCaja = caja?.debe || 0
+            const entradasBanco = banco?.debe || 0
+            const salidasCaja = caja?.haber || 0
+            const salidasBanco = banco?.haber || 0
+            // Egresos comprometidos: gastos registrados contra CxP (débito de cuentas 5.x)
+            const egresosGastos = gastos.filter(s => isLeaf(s.codigo)).reduce((a, s) => a + s.debe, 0)
+            const totalEntradas = entradasCaja + entradasBanco
+            const totalSalidas = salidasCaja + salidasBanco + egresosGastos
+            const saldoDisponible = (caja?.saldo || 0) + (banco?.saldo || 0)
             return (
               <div>
                 <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
                   {[
-                    { label: 'Caja', valor: caja?.saldo || 0, color: '#0D9E6E' },
-                    { label: 'Banco', valor: banco?.saldo || 0, color: '#0D4A8F' },
-                    { label: 'Total Efectivo', valor: totalEfectivo, color: '#0D1117' },
+                    { label: 'Total Ingresos', valor: totalEntradas, color: '#0D9E6E' },
+                    { label: 'Total Egresos', valor: totalSalidas, color: '#D62828' },
+                    { label: 'Saldo Disponible', valor: saldoDisponible, color: '#0D1117' },
                   ].map(k => (
                     <div key={k.label} style={{ flex: 1, minWidth: '150px', backgroundColor: 'white', borderRadius: '12px', padding: '16px', border: '1px solid #E8F4F0' }}>
                       <div style={{ fontSize: '11px', color: '#5E6B62', textTransform: 'uppercase', fontWeight: 600, marginBottom: '4px' }}>{k.label}</div>
@@ -214,34 +234,63 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
                     </div>
                   ))}
                 </div>
-                <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0D1117', marginBottom: '8px', fontFamily: "'Nunito', sans-serif" }}>Detalle</h3>
-                <div style={{ backgroundColor: 'white', borderRadius: '10px', border: '1px solid #E8F4F0', overflow: 'hidden' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0D1117', marginBottom: '8px', fontFamily: "'Nunito', sans-serif" }}>Detalle de Ingresos</h3>
+                <div style={{ backgroundColor: 'white', borderRadius: '10px', border: '1px solid #E8F4F0', overflow: 'hidden', marginBottom: '16px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <tbody>
                       <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
-                        <td style={{ padding: '10px 16px' }}>Entradas de efectivo (Caja)</td>
-                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#0D9E6E', fontWeight: 600 }}>Bs. {formatBs(caja?.debe || 0)}</td>
+                        <td style={{ padding: '10px 16px' }}>Cobros en efectivo (Caja)</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#0D9E6E', fontWeight: 600 }}>Bs. {formatBs(entradasCaja)}</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
-                        <td style={{ padding: '10px 16px' }}>Salidas de efectivo (Caja)</td>
-                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontWeight: 600 }}>Bs. {formatBs(caja?.haber || 0)}</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
-                        <td style={{ padding: '10px 16px' }}>Entradas bancarias</td>
-                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#0D9E6E', fontWeight: 600 }}>Bs. {formatBs(banco?.debe || 0)}</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
-                        <td style={{ padding: '10px 16px' }}>Salidas bancarias</td>
-                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontWeight: 600 }}>Bs. {formatBs(banco?.haber || 0)}</td>
+                        <td style={{ padding: '10px 16px' }}>Cobros por transferencia/QR (Banco)</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#0D9E6E', fontWeight: 600 }}>Bs. {formatBs(entradasBanco)}</td>
                       </tr>
                     </tbody>
                     <tfoot>
-                      <tr style={{ backgroundColor: '#0D1117' }}>
-                        <td style={{ padding: '10px 16px', color: 'white', fontWeight: 700 }}>SALDO DISPONIBLE</td>
-                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#0D9E6E', fontWeight: 700, fontSize: '16px' }}>Bs. {formatBs(totalEfectivo)}</td>
+                      <tr style={{ backgroundColor: '#F4F7F5', fontWeight: 700 }}>
+                        <td style={{ padding: '10px 16px' }}>TOTAL INGRESOS</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#0D9E6E', fontSize: '15px' }}>Bs. {formatBs(totalEntradas)}</td>
                       </tr>
                     </tfoot>
                   </table>
+                </div>
+
+                <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0D1117', marginBottom: '8px', fontFamily: "'Nunito', sans-serif" }}>Detalle de Egresos</h3>
+                <div style={{ backgroundColor: 'white', borderRadius: '10px', border: '1px solid #E8F4F0', overflow: 'hidden', marginBottom: '16px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <tbody>
+                      {salidasCaja > 0 && (
+                        <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
+                          <td style={{ padding: '10px 16px' }}>Pagos en efectivo (Caja)</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontWeight: 600 }}>Bs. {formatBs(salidasCaja)}</td>
+                        </tr>
+                      )}
+                      {salidasBanco > 0 && (
+                        <tr style={{ borderBottom: '1px solid #F4F7F5' }}>
+                          <td style={{ padding: '10px 16px' }}>Pagos bancarios</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontWeight: 600 }}>Bs. {formatBs(salidasBanco)}</td>
+                        </tr>
+                      )}
+                      {gastos.filter(s => isLeaf(s.codigo) && s.debe > 0).map(s => (
+                        <tr key={s.id} style={{ borderBottom: '1px solid #F4F7F5' }}>
+                          <td style={{ padding: '10px 16px' }}>{s.nombre}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontWeight: 600 }}>Bs. {formatBs(s.debe)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ backgroundColor: '#F4F7F5', fontWeight: 700 }}>
+                        <td style={{ padding: '10px 16px' }}>TOTAL EGRESOS</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right', color: '#D62828', fontSize: '15px' }}>Bs. {formatBs(totalSalidas)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <div style={{ backgroundColor: '#0D1117', borderRadius: '10px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: 'white', fontWeight: 700, fontSize: '14px' }}>SALDO DISPONIBLE (Caja + Banco)</span>
+                  <span style={{ color: '#0D9E6E', fontWeight: 700, fontSize: '18px' }}>Bs. {formatBs(saldoDisponible)}</span>
                 </div>
               </div>
             )
