@@ -21,7 +21,7 @@ export default function MisCondominios() {
     queryKey: ['mis-condominios-stats'],
     queryFn: async () => {
       const [condosRes, residentesRes, recibosRes, mttoRes, unidadesRes] = await Promise.all([
-        supabase.from('condominios').select('id, nombre, direccion, ciudad, estado, archivado_en').in('estado', ['activo', 'archivado']).order('nombre'),
+        supabase.from('condominios').select('*').in('estado', ['activo', 'archivado', 'en_configuracion']).order('nombre'),
         supabase.from('residentes').select('id, condominio_id, estado'),
         supabase.from('recibos').select('id, condominio_id, estado'),
         supabase.from('mantenimientos').select('id, condominio_id, estado').in('estado', ['pendiente', 'asignado', 'en_proceso']),
@@ -48,7 +48,7 @@ export default function MisCondominios() {
     },
   })
 
-  const activos = (condoStats || []).filter(c => c.estado === 'activo')
+  const activos = (condoStats || []).filter(c => c.estado === 'activo' || c.estado === 'en_configuracion')
   const archivados = (condoStats || []).filter(c => c.estado === 'archivado')
 
   function diasRestantes(archivadoEn: string | null): number {
