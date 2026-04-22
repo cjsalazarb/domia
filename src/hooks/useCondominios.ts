@@ -6,6 +6,8 @@ export interface Condominio {
   nit: string | null; telefono: string | null; email_contacto: string | null; logo_url: string | null;
   estado: string; admin_id: string | null; recargo_mora_porcentaje: number; notas: string | null;
   tiene_personeria_juridica: boolean;
+  archivado_en: string | null; archivado_por: string | null;
+  eliminado_en: string | null; eliminado_por: string | null;
   created_at: string;
 }
 
@@ -58,7 +60,50 @@ export function useCondominios() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['condominios'] }),
   })
 
-  return { condominios: query.data || [], isLoading: query.isLoading, crear, actualizar }
+  const archivar = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('condominios').update({
+        estado: 'archivado',
+        archivado_en: new Date().toISOString(),
+      }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['condominios'] })
+      qc.invalidateQueries({ queryKey: ['mis-condominios-stats'] })
+    },
+  })
+
+  const restaurar = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('condominios').update({
+        estado: 'activo',
+        archivado_en: null,
+        archivado_por: null,
+      }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['condominios'] })
+      qc.invalidateQueries({ queryKey: ['mis-condominios-stats'] })
+    },
+  })
+
+  const eliminarPermanentemente = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('condominios').update({
+        estado: 'eliminado',
+        eliminado_en: new Date().toISOString(),
+      }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['condominios'] })
+      qc.invalidateQueries({ queryKey: ['mis-condominios-stats'] })
+    },
+  })
+
+  return { condominios: query.data || [], isLoading: query.isLoading, crear, actualizar, archivar, restaurar, eliminarPermanentemente }
 }
 
 export function useEdificios(condominioId: string) {

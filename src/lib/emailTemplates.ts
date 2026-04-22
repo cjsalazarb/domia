@@ -229,3 +229,46 @@ export function templateBienvenidaResidente(
 </td></tr></table>
 </body></html>`
 }
+
+// 11. Condominio archivado
+export function templateCondominioArchivado(
+  condominio: string, fecha: string, linkRestaurar: string
+): string {
+  return wrap(condominio, `
+    <h2 style="font-family:'Nunito',sans-serif;color:#C07A2E;margin:0 0 8px;font-size:18px">Condominio archivado</h2>
+    <p style="color:#5E6B62;font-size:14px;margin:0 0 16px">El condominio <strong>${condominio}</strong> fue archivado el ${fecha}.</p>
+    <p style="color:#5E6B62;font-size:13px;margin:0 0 16px">Los datos se conservan. Tienes 30 dias para restaurarlo.</p>
+    ${btn('Restaurar ahora →', linkRestaurar)}
+  `)
+}
+
+// 12. Recordatorio antes de eliminación
+export function templateRecordatorioEliminacion(
+  condominio: string, diasRestantes: number, linkRestaurar: string
+): string {
+  const urgencia = diasRestantes <= 3 ? '#B83232' : '#C07A2E'
+  return wrap(condominio, `
+    <h2 style="font-family:'Nunito',sans-serif;color:${urgencia};margin:0 0 8px;font-size:18px">
+      ${diasRestantes <= 1 ? 'Ultimo aviso' : `Quedan ${diasRestantes} dias`}
+    </h2>
+    <p style="color:#5E6B62;font-size:14px;margin:0 0 16px">
+      ${diasRestantes <= 1
+        ? `Mañana se eliminara permanentemente el condominio <strong>${condominio}</strong>.`
+        : `El condominio <strong>${condominio}</strong> sera eliminado en ${diasRestantes} dias.`
+      }
+    </p>
+    <p style="color:#5E6B62;font-size:13px;margin:0 0 16px">Si deseas conservarlo, restauralo ahora.</p>
+    ${btn('Restaurar condominio →', linkRestaurar)}
+  `)
+}
+
+// 13. Condominio eliminado definitivamente
+export function templateCondominioEliminado(
+  condominio: string, fecha: string
+): string {
+  return wrap(condominio, `
+    <h2 style="font-family:'Nunito',sans-serif;color:#B83232;margin:0 0 8px;font-size:18px">Condominio eliminado</h2>
+    <p style="color:#5E6B62;font-size:14px;margin:0 0 16px">El condominio <strong>${condominio}</strong> fue eliminado definitivamente el ${fecha}.</p>
+    <p style="color:#5E6B62;font-size:13px;margin:0 0 0">Los datos ya no son accesibles desde el portal.</p>
+  `)
+}
