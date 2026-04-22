@@ -35,7 +35,18 @@ export default function Login() {
       } else if (profile?.rol === 'admin_condominio') {
         window.location.href = `/admin/condominio/${profile.condominio_id}/residentes`
       } else if (profile?.rol === 'guardia') {
-        window.location.href = '/guardia'
+        // Check if must change password
+        const { data: gAuthData } = await supabase
+          .from('residentes_auth')
+          .select('debe_cambiar_password')
+          .eq('user_id', user.id)
+          .single()
+
+        if (gAuthData?.debe_cambiar_password) {
+          window.location.href = '/cambiar-password'
+        } else {
+          window.location.href = '/guardia'
+        }
       } else {
         // Propietario/Inquilino — check if must change password
         const { data: authData } = await supabase

@@ -2,13 +2,18 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 
+function getRedirectUrl(rol: string | undefined): string {
+  if (rol === 'guardia') return '/guardia'
+  return '/portal'
+}
+
 export default function CambiarPassword() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const { user } = useAuthStore()
+  const { user, profile } = useAuthStore()
 
   const passwordValido = password.length >= 8 && /\d/.test(password)
   const passwordsCoinciden = password === confirmPassword
@@ -36,8 +41,8 @@ export default function CambiarPassword() {
         console.error('Error actualizando residentes_auth:', raError.message)
       }
 
-      // Redirect to portal
-      window.location.href = '/portal'
+      // Redirect based on role
+      window.location.href = getRedirectUrl(profile?.rol)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cambiar contraseña')
       setLoading(false)

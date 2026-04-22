@@ -4,10 +4,11 @@ interface CrearUsuarioParams {
   email: string
   nombre: string
   apellido: string
-  tipo: 'propietario' | 'inquilino'
+  tipo: 'propietario' | 'inquilino' | 'guardia'
   condominio_id: string
   condominio_nombre: string
-  residente_id: string
+  residente_id?: string
+  guardia_id?: string
 }
 
 interface CrearUsuarioResult {

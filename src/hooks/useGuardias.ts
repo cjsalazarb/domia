@@ -75,8 +75,9 @@ export function useGuardias(condominioId: string) {
 
   const crear = useMutation({
     mutationFn: async (input: Partial<Guardia>) => {
-      const { error } = await supabase.from('guardias').insert({ ...input, condominio_id: condominioId, activo: true })
+      const { data, error } = await supabase.from('guardias').insert({ ...input, condominio_id: condominioId, activo: true }).select().single()
       if (error) throw error
+      return data as Guardia
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['guardias', condominioId] }),
   })

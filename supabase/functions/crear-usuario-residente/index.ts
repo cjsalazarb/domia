@@ -95,12 +95,14 @@ serve(async (req) => {
 
   try {
     const {
-      email, nombre, apellido, tipo, condominio_id, condominio_nombre, residente_id,
+      email, nombre, apellido, tipo, condominio_id, condominio_nombre,
+      residente_id, guardia_id,
     } = await req.json()
 
-    if (!email || !nombre || !apellido || !tipo || !condominio_id || !residente_id) {
+    const entityId = residente_id || guardia_id
+    if (!email || !nombre || !apellido || !tipo || !condominio_id || !entityId) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Campos requeridos: email, nombre, apellido, tipo, condominio_id, residente_id' }),
+        JSON.stringify({ success: false, error: 'Campos requeridos: email, nombre, apellido, tipo, condominio_id, residente_id o guardia_id' }),
         { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       )
     }
@@ -156,25 +158,29 @@ serve(async (req) => {
       )
     }
 
-    // 5. Create residentes_auth record
+    // 5. Create residentes_auth record (works for both residentes and guardias)
+    const authRecord: Record<string, unknown> = {
+      user_id: userId,
+      debe_cambiar_password: true,
+    }
+    if (residente_id) authRecord.residente_id = residente_id
+    if (guardia_id) authRecord.guardia_id = guardia_id
+
     const { error: raError } = await supabase
       .from('residentes_auth')
-      .insert({
-        residente_id: residente_id,
-        user_id: userId,
-        debe_cambiar_password: true,
-      })
+      .insert(authRecord)
 
     if (raError) {
       console.error('Error creando residentes_auth:', raError.message)
-      // Non-fatal: user can still login, just won't be forced to change password
     }
 
-    // 6. Update residentes.user_id
-    await supabase
-      .from('residentes')
-      .update({ user_id: userId })
-      .eq('id', residente_id)
+    // 6. Update entity user_id
+    if (residente_id) {
+      await supabase.from('residentes').update({ user_id: userId }).eq('id', residente_id)
+    }
+    if (guardia_id) {
+      await supabase.from('guardias').update({ user_id: userId }).eq('id', guardia_id)
+    }
 
     // 7. Send welcome email via Resend
     let emailSent = false

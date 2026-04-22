@@ -16,11 +16,11 @@ export function ProtectedRoute({ children, rolesPermitidos }: Props) {
   const [checkingPassword, setCheckingPassword] = useState(false)
   const [debeCambiar, setDebeCambiar] = useState<boolean | null>(null)
 
-  const esResidente = profile?.rol === 'propietario' || profile?.rol === 'inquilino'
+  const necesitaCheckPassword = profile?.rol === 'propietario' || profile?.rol === 'inquilino' || profile?.rol === 'guardia'
   const enCambiarPassword = location.pathname === '/cambiar-password'
 
   useEffect(() => {
-    if (!user || !esResidente || loading) return
+    if (!user || !necesitaCheckPassword || loading) return
 
     setCheckingPassword(true)
     ;(async () => {
@@ -32,7 +32,7 @@ export function ProtectedRoute({ children, rolesPermitidos }: Props) {
       setDebeCambiar(data?.debe_cambiar_password ?? false)
       setCheckingPassword(false)
     })()
-  }, [user?.id, esResidente, loading])
+  }, [user?.id, necesitaCheckPassword, loading])
 
   if (loading || checkingPassword) {
     return (
@@ -61,8 +61,8 @@ export function ProtectedRoute({ children, rolesPermitidos }: Props) {
     return <Navigate to="/sin-acceso" replace />
   }
 
-  // Guard: force password change for residents
-  if (esResidente && debeCambiar && !enCambiarPassword) {
+  // Guard: force password change for residents and guardias
+  if (necesitaCheckPassword && debeCambiar && !enCambiarPassword) {
     return <Navigate to="/cambiar-password" replace />
   }
 

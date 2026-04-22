@@ -36,7 +36,7 @@ export const router = createBrowserRouter([
   {
     path: '/cambiar-password',
     element: (
-      <ProtectedRoute rolesPermitidos={['propietario', 'inquilino']}>
+      <ProtectedRoute rolesPermitidos={['propietario', 'inquilino', 'guardia']}>
         <CambiarPassword />
       </ProtectedRoute>
     ),
