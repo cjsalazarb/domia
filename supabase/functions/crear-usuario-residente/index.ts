@@ -93,6 +93,9 @@ serve(async (req) => {
     })
   }
 
+  const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+  const fail = (error: string) => new Response(JSON.stringify({ success: false, error }), { headers })
+
   try {
     const {
       email, nombre, apellido, tipo, condominio_id, condominio_nombre,
@@ -101,23 +104,14 @@ serve(async (req) => {
 
     const entityId = residente_id || guardia_id
     if (!email || !nombre || !apellido || !tipo || !condominio_id || !entityId) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Campos requeridos: email, nombre, apellido, tipo, condominio_id, residente_id o guardia_id' }),
-        { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-      )
+      return fail('Campos requeridos: email, nombre, apellido, tipo, condominio_id, residente_id o guardia_id')
     }
 
-    // 1. Check if email already exists in profiles (fast DB lookup instead of listing all auth users)
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle()
-    if (existingProfile) {
-      return new Response(
-        JSON.stringify({ success: false, error: `El email ${email} ya tiene una cuenta registrada` }),
-        { status: 409, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-      )
+    // 1. Check if email already exists in auth
+    const { data: { users: existingUsers } } = await supabase.auth.admin.listUsers()
+    const emailExists = existingUsers?.some(u => u.email === email)
+    if (emailExists) {
+      return fail(`El email ${email} ya tiene una cuenta registrada`)
     }
 
     // 2. Generate temporary password
@@ -131,10 +125,7 @@ serve(async (req) => {
     })
 
     if (authError || !authData.user) {
-      return new Response(
-        JSON.stringify({ success: false, error: authError?.message || 'Error creando usuario en auth' }),
-        { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-      )
+      return fail(authError?.message || 'Error creando usuario en auth')
     }
 
     const userId = authData.user.id
@@ -144,7 +135,7 @@ serve(async (req) => {
       .from('profiles')
       .insert({
         id: userId,
-        rol: tipo, // 'propietario' or 'inquilino'
+        rol: tipo,
         nombre,
         apellido,
         email,
@@ -153,15 +144,11 @@ serve(async (req) => {
       })
 
     if (profileError) {
-      // Rollback: delete auth user
       await supabase.auth.admin.deleteUser(userId)
-      return new Response(
-        JSON.stringify({ success: false, error: `Error creando perfil: ${profileError.message}` }),
-        { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-      )
+      return fail(`Error creando perfil: ${profileError.message}`)
     }
 
-    // 5. Create residentes_auth record (works for both residentes and guardias)
+    // 5. Create residentes_auth record
     const authRecord: Record<string, unknown> = {
       user_id: userId,
       debe_cambiar_password: true,
@@ -203,17 +190,10 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        user_id: userId,
-        email_sent: emailSent,
-      }),
-      { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      JSON.stringify({ success: true, user_id: userId, email_sent: emailSent }),
+      { headers }
     )
   } catch (err) {
-    return new Response(
-      JSON.stringify({ success: false, error: (err as Error).message }),
-      { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-    )
+    return fail((err as Error).message || 'Error inesperado en la función')
   }
 })
