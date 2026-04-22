@@ -19,20 +19,32 @@ interface CrearUsuarioResult {
 }
 
 export async function crearUsuarioResidente(params: CrearUsuarioParams): Promise<CrearUsuarioResult> {
-  const { data: { session } } = await supabase.auth.getSession()
+  try {
+    const response = await supabase.functions.invoke('crear-usuario-residente', {
+      body: params,
+    })
 
-  const response = await supabase.functions.invoke('crear-usuario-residente', {
-    body: params,
-    headers: {
-      Authorization: `Bearer ${session?.access_token}`,
-    },
-  })
+    if (response.error) {
+      // Extract actual error message from the edge function response body
+      let errorMsg = 'Error al crear usuario'
+      try {
+        const context = (response.error as any).context
+        if (context && typeof context.json === 'function') {
+          const body = await context.json()
+          if (body?.error) errorMsg = body.error
+        } else if (response.error.message) {
+          errorMsg = response.error.message
+        }
+      } catch {
+        if (response.error.message) errorMsg = response.error.message
+      }
+      return { success: false, error: errorMsg }
+    }
 
-  if (response.error) {
-    return { success: false, error: response.error.message }
+    return response.data as CrearUsuarioResult
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Error de conexión al crear usuario' }
   }
-
-  return response.data as CrearUsuarioResult
 }
 
 export async function crearUsuariosEnLote(

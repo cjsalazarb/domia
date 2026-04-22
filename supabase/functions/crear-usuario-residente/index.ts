@@ -107,10 +107,13 @@ serve(async (req) => {
       )
     }
 
-    // 1. Check if email already exists in auth
-    const { data: existingUsers } = await supabase.auth.admin.listUsers()
-    const existingUser = existingUsers?.users?.find(u => u.email === email)
-    if (existingUser) {
+    // 1. Check if email already exists in profiles (fast DB lookup instead of listing all auth users)
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle()
+    if (existingProfile) {
       return new Response(
         JSON.stringify({ success: false, error: `El email ${email} ya tiene una cuenta registrada` }),
         { status: 409, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }

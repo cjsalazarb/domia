@@ -30,11 +30,15 @@ export default function RegistroGuardias({ condominioId }: Props) {
   })
 
   const handleSave = async () => {
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('El email no tiene un formato válido')
+      return
+    }
     setSaving(true)
     setError('')
     setResultado(null)
     try {
-      const guardia = await crear.mutateAsync({ nombre, apellido, ci, telefono: telefono || undefined, email: email || undefined, empresa: empresa || undefined, habilitacion_dgsc: habilitacion || undefined } as any)
+      const guardia = await crear.mutateAsync({ nombre, apellido, ci, telefono: telefono || undefined, empresa: empresa || undefined, habilitacion_dgsc: habilitacion || undefined } as any)
 
       // If email provided, create user account
       if (email && guardia?.id) {
@@ -42,28 +46,28 @@ export default function RegistroGuardias({ condominioId }: Props) {
           email,
           nombre,
           apellido,
-          tipo: 'guardia' as any,
+          tipo: 'guardia',
           condominio_id: condominioId,
           condominio_nombre: condominio?.nombre || '',
-          residente_id: '', // not a residente
           guardia_id: guardia.id,
-        } as any)
+        })
 
         if (result.success) {
           setResultado({ email, emailSent: result.email_sent || false })
         } else {
           setError(`Guardia creado, pero no se pudo crear usuario: ${result.error}`)
-          setSaving(false)
           return
         }
       }
 
       setNombre(''); setApellido(''); setCi(''); setTelefono(''); setEmail(''); setEmpresa(''); setHabilitacion('')
       setShowForm(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear guardia')
+    } catch (err: any) {
+      const msg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err))
+      setError(msg)
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   const inputStyle = { width: '100%', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '14px', color: '#0D1117', fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const }
