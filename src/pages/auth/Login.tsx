@@ -35,7 +35,7 @@ export default function Login() {
       } else if (profile?.rol === 'admin_condominio') {
         window.location.href = `/admin/condominio/${profile.condominio_id}/residentes`
       } else if (profile?.rol === 'guardia') {
-        window.location.href = '/turno'
+        window.location.href = '/guardia'
       } else {
         // Propietario/Inquilino — check if must change password
         const { data: authData } = await supabase

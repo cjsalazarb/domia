@@ -38,7 +38,7 @@ export function RoleRedirect() {
     case 'inquilino':
       return <Navigate to="/portal" replace />
     case 'guardia':
-      return <Navigate to="/turno" replace />
+      return <Navigate to="/guardia" replace />
     default:
       return <Navigate to="/login" replace />
   }

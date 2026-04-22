@@ -27,7 +27,7 @@ import ReservarArea from '@/pages/portal/ReservarArea'
 import Comunicados from '@/pages/portal/Comunicados'
 import MisDatos from '@/pages/portal/MisDatos'
 
-import TurnoDashboard from '@/pages/guardia/TurnoDashboard'
+import GuardiaDashboard from '@/pages/guardia/GuardiaDashboard'
 
 export const router = createBrowserRouter([
   // Públicas
@@ -207,10 +207,19 @@ export const router = createBrowserRouter([
 
   // Guardia
   {
+    path: '/guardia',
+    element: (
+      <ProtectedRoute rolesPermitidos={['guardia']}>
+        <GuardiaDashboard />
+      </ProtectedRoute>
+    ),
+  },
+  // Backward compat
+  {
     path: '/turno',
     element: (
       <ProtectedRoute rolesPermitidos={['guardia']}>
-        <TurnoDashboard />
+        <GuardiaDashboard />
       </ProtectedRoute>
     ),
   },
