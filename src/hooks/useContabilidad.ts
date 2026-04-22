@@ -63,6 +63,8 @@ export interface ArqueoDenom {
 
 /* ─── Plan de cuentas ─── */
 export function usePlanCuentas(condominioId: string) {
+  const qc = useQueryClient()
+
   const query = useQuery({
     queryKey: ['plan-cuentas', condominioId],
     queryFn: async () => {
@@ -76,7 +78,53 @@ export function usePlanCuentas(condominioId: string) {
     },
     enabled: !!condominioId,
   })
-  return { cuentas: query.data || [], isLoading: query.isLoading }
+
+  const crearCuenta = useMutation({
+    mutationFn: async (input: { codigo: string; nombre: string; tipo: Cuenta['tipo']; nivel: number }) => {
+      // Derivar grupo del tipo + nivel
+      const grupoMap: Record<string, string> = { activo: 'Activo', pasivo: 'Pasivo', patrimonio: 'Patrimonio', ingreso: 'Ingresos', gasto: 'Gastos' }
+      const grupo = grupoMap[input.tipo] || input.tipo
+      const { error } = await supabase.from('plan_cuentas').insert({
+        condominio_id: condominioId,
+        codigo: input.codigo,
+        nombre: input.nombre,
+        tipo: input.tipo,
+        grupo,
+        nivel: input.nivel,
+        is_custom: true,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['plan-cuentas', condominioId] }),
+  })
+
+  const editarCuenta = useMutation({
+    mutationFn: async (input: { id: string; nombre: string }) => {
+      const { error } = await supabase.from('plan_cuentas')
+        .update({ nombre: input.nombre, updated_at: new Date().toISOString() })
+        .eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['plan-cuentas', condominioId] })
+      qc.invalidateQueries({ queryKey: ['saldos-cuentas', condominioId] })
+    },
+  })
+
+  const desactivarCuenta = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('plan_cuentas')
+        .update({ activa: false, updated_at: new Date().toISOString() })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['plan-cuentas', condominioId] })
+      qc.invalidateQueries({ queryKey: ['saldos-cuentas', condominioId] })
+    },
+  })
+
+  return { cuentas: query.data || [], isLoading: query.isLoading, crearCuenta, editarCuenta, desactivarCuenta }
 }
 
 /* ─── Libro Diario (asientos con detalles) ─── */

@@ -1,13 +1,14 @@
 import { useState, useRef } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { useEdificios, useUnidades, useDocumentos } from '@/hooks/useCondominios'
+import { useEdificios, useUnidades, useDocumentos, useCondominios } from '@/hooks/useCondominios'
 import { useAreasComunes } from '@/hooks/useReservas'
 import { useCuotas } from '@/hooks/useCuotas'
 import { useProveedores } from '@/hooks/useMantenimientos'
+import { useSaldosCuentas, usePlanCuentas } from '@/hooks/useContabilidad'
 import ImportarResidentes from '@/pages/admin/condominio/Residentes/ImportarResidentes'
 
-type Tab = 'edificios' | 'unidades' | 'areas' | 'documentos' | 'config' | 'proveedores'
+type Tab = 'edificios' | 'unidades' | 'areas' | 'documentos' | 'config' | 'proveedores' | 'datos'
 
 interface Props { condominioId: string; onBack: () => void }
 
@@ -366,9 +367,126 @@ function TabProveedores({ condominioId }: { condominioId: string }) {
   )
 }
 
+function TabDatos({ condominioId }: { condominioId: string }) {
+  const qc = useQueryClient()
+  const { actualizar } = useCondominios()
+  const { saldos } = useSaldosCuentas(condominioId)
+  const { cuentas } = usePlanCuentas(condominioId)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const { data: condo } = useQuery({
+    queryKey: ['condo-datos', condominioId],
+    queryFn: async () => {
+      const { data } = await supabase.from('condominios').select('*').eq('id', condominioId).single()
+      return data
+    },
+    enabled: !!condominioId,
+  })
+
+  const tienePersoneria = condo?.tiene_personeria_juridica || false
+
+  // Códigos de cuentas tributarias (Plan B)
+  const codigosTributarios = ['1.1.7', '2.1.4', '2.1.5', '2.1.6', '2.1.7', '3.4', '4.5', '5.9', '5.10']
+
+  async function handleCambiarPersoneria(nuevoValor: boolean) {
+    setError('')
+    setSuccess('')
+    setSaving(true)
+    try {
+      if (nuevoValor && !tienePersoneria) {
+        // Sin → Con: agregar cuentas tributarias
+        const { error: rpcErr } = await supabase.rpc('agregar_cuentas_personeria', { p_condominio_id: condominioId })
+        if (rpcErr) throw rpcErr
+      } else if (!nuevoValor && tienePersoneria) {
+        // Con → Sin: verificar saldos de cuentas tributarias
+        const cuentasTrib = saldos.filter((s: any) => codigosTributarios.includes(s.codigo))
+        const conSaldo = cuentasTrib.filter((s: any) => Math.abs(s.saldo) >= 0.01)
+        if (conSaldo.length > 0) {
+          const detalle = conSaldo.map((s: any) => `${s.codigo} (Bs. ${Number(s.saldo).toFixed(2)})`).join(', ')
+          throw new Error(`No se puede quitar la personeria: las siguientes cuentas tributarias tienen saldo: ${detalle}`)
+        }
+        // Desactivar cuentas tributarias
+        const cuentasDesactivar = cuentas.filter(c => codigosTributarios.includes(c.codigo) && c.activa !== false)
+        for (const c of cuentasDesactivar) {
+          const { error: updErr } = await supabase.from('plan_cuentas')
+            .update({ activa: false, updated_at: new Date().toISOString() })
+            .eq('id', c.id)
+          if (updErr) throw updErr
+        }
+      }
+
+      // Actualizar campo en condominios
+      await actualizar.mutateAsync({ id: condominioId, updates: { tiene_personeria_juridica: nuevoValor } as any })
+      qc.invalidateQueries({ queryKey: ['condo-datos', condominioId] })
+      qc.invalidateQueries({ queryKey: ['plan-cuentas', condominioId] })
+      qc.invalidateQueries({ queryKey: ['saldos-cuentas', condominioId] })
+      setSuccess(nuevoValor ? 'Personeria juridica activada — cuentas tributarias agregadas' : 'Personeria juridica desactivada — cuentas tributarias desactivadas')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cambiar personeria')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!condo) return <div style={{ color: '#5E6B62', fontSize: '13px', padding: '20px', textAlign: 'center' }}>Cargando...</div>
+
+  return (
+    <div>
+      <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Datos del Condominio</h3>
+
+      {error && (
+        <div style={{ backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#B83232', marginBottom: '12px', fontFamily: "'Inter', sans-serif" }}>
+          {error}
+        </div>
+      )}
+      {success && (
+        <div style={{ backgroundColor: '#E8F4F0', borderLeft: '3px solid #1A7A4A', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#1A7A4A', marginBottom: '12px', fontFamily: "'Inter', sans-serif" }}>
+          {success}
+        </div>
+      )}
+
+      <div style={{ padding: '20px', backgroundColor: '#F4F7F5', borderRadius: '12px' }}>
+        <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Personeria Juridica</label>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#5E6B62', margin: '0 0 14px' }}>
+          Determina si el plan de cuentas incluye cuentas tributarias (IT, RC-IVA, IVA, IUE).
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#0D1117', opacity: saving ? 0.6 : 1 }}>
+            <input type="radio" name="personeria-edit" checked={!tienePersoneria} onChange={() => handleCambiarPersoneria(false)} disabled={saving} style={{ marginTop: '2px' }} />
+            <div>
+              <div style={{ fontWeight: 600 }}>Sin personeria juridica</div>
+              <div style={{ fontSize: '11px', color: '#5E6B62' }}>Junta de vecinos — sin obligaciones tributarias</div>
+            </div>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#0D1117', opacity: saving ? 0.6 : 1 }}>
+            <input type="radio" name="personeria-edit" checked={tienePersoneria} onChange={() => handleCambiarPersoneria(true)} disabled={saving} style={{ marginTop: '2px' }} />
+            <div>
+              <div style={{ fontWeight: 600 }}>Con personeria juridica</div>
+              <div style={{ fontSize: '11px', color: '#5E6B62' }}>SRL o Asociacion registrada con NIT — incluye cuentas de IT, RC-IVA, IVA, IUE</div>
+            </div>
+          </label>
+        </div>
+        {saving && <p style={{ fontSize: '12px', color: '#5E6B62', margin: '12px 0 0', fontFamily: "'Inter', sans-serif" }}>Actualizando plan de cuentas...</p>}
+      </div>
+
+      <div style={{ marginTop: '20px', padding: '16px', backgroundColor: '#FAFBFA', borderRadius: '12px', border: '1px solid #E8F4F0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px', fontFamily: "'Inter', sans-serif" }}>
+          <div><span style={{ color: '#5E6B62' }}>Nombre:</span> <strong>{condo.nombre}</strong></div>
+          <div><span style={{ color: '#5E6B62' }}>Ciudad:</span> <strong>{condo.ciudad}</strong></div>
+          <div><span style={{ color: '#5E6B62' }}>Direccion:</span> <strong>{condo.direccion}</strong></div>
+          <div><span style={{ color: '#5E6B62' }}>NIT:</span> <strong>{condo.nit || '—'}</strong></div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ConfigurarCondominio({ condominioId, onBack }: Props) {
   const [tab, setTab] = useState<Tab>('edificios')
   const tabs: { key: Tab; label: string; icon: string }[] = [
+    { key: 'datos', label: 'Datos', icon: '📋' },
     { key: 'edificios', label: 'Edificios', icon: '🏢' },
     { key: 'unidades', label: 'Unidades', icon: '🏠' },
     { key: 'areas', label: 'Areas Comunes', icon: '📅' },
@@ -395,6 +513,7 @@ export default function ConfigurarCondominio({ condominioId, onBack }: Props) {
 
       {/* Content */}
       <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px' }}>
+        {tab === 'datos' && <TabDatos condominioId={condominioId} />}
         {tab === 'edificios' && <TabEdificios condominioId={condominioId} />}
         {tab === 'unidades' && <TabUnidades condominioId={condominioId} />}
         {tab === 'areas' && <TabAreas condominioId={condominioId} />}

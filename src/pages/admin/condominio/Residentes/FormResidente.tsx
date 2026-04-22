@@ -11,10 +11,11 @@ interface Props {
   onSave: (input: CreateResidenteInput) => void
   onCancel: () => void
   saving: boolean
+  savingLabel?: string
   error?: string
 }
 
-export default function FormResidente({ condominioId, residente, propietarios, onSave, onCancel, saving, error }: Props) {
+export default function FormResidente({ condominioId, residente, propietarios, onSave, onCancel, saving, savingLabel, error }: Props) {
   const navigate = useNavigate()
   const [tipo, setTipo] = useState<'propietario' | 'inquilino'>(residente?.tipo || 'propietario')
   const [nombre, setNombre] = useState(residente?.nombre || '')
@@ -262,9 +263,14 @@ export default function FormResidente({ condominioId, residente, propietarios, o
         <div style={{ marginBottom: '16px' }}>
           <label style={labelStyle}>Email</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle}
-            placeholder="Se creará cuenta de acceso al portal"
+            placeholder="correo@ejemplo.com"
             onFocus={e => e.target.style.borderColor = '#1A7A4A'}
             onBlur={e => e.target.style.borderColor = '#C8D4CB'} />
+          {!residente && (
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#5E6B62', margin: '4px 0 0', lineHeight: '1.4' }}>
+              Si ingresa un email, se creará automáticamente una cuenta de acceso al portal y se enviarán las credenciales por correo.
+            </p>
+          )}
         </div>
 
         {/* Unidad */}
@@ -339,7 +345,7 @@ export default function FormResidente({ condominioId, residente, propietarios, o
               cursor: saving ? 'not-allowed' : 'pointer',
             }}
           >
-            {saving ? 'Guardando...' : residente ? 'Guardar cambios' : 'Crear residente'}
+            {saving ? (savingLabel || 'Guardando...') : residente ? 'Guardar cambios' : 'Crear residente'}
           </button>
           <button
             type="button"

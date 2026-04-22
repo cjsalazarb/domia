@@ -41,7 +41,7 @@ export default function LibroDiario({ condominioId }: { condominioId: string }) 
 
   const { crear } = useAsientoManual(condominioId)
 
-  const cuentasNivel3 = cuentas.filter(c => c.nivel === 3)
+  const cuentasNivel3 = cuentas.filter(c => c.nivel === 3 && c.activa !== false)
 
   const totalDebe = formLineas.reduce((s, l) => s + l.debe, 0)
   const totalHaber = formLineas.reduce((s, l) => s + l.haber, 0)

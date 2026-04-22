@@ -1,6 +1,7 @@
 -- CRM Pre-venta: tabla de propuestas comerciales
-CREATE TABLE propuestas_crm (
+CREATE TABLE IF NOT EXISTS propuestas_crm (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  numero_propuesta TEXT UNIQUE,
   -- Prospecto
   nombre_prospecto TEXT NOT NULL,
   telefono TEXT,
@@ -32,3 +33,25 @@ ALTER TABLE propuestas_crm ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "propuestas_crm_all" ON propuestas_crm FOR ALL
   USING (es_super_admin())
   WITH CHECK (es_super_admin());
+
+-- Secuencia para numeracion
+CREATE SEQUENCE IF NOT EXISTS propuestas_crm_seq START 1;
+
+-- Funcion trigger: auto-genera PROP-YYYY-NNN
+CREATE OR REPLACE FUNCTION generar_numero_propuesta()
+RETURNS TRIGGER AS $$
+DECLARE
+  seq_val INTEGER;
+BEGIN
+  seq_val := nextval('propuestas_crm_seq');
+  NEW.numero_propuesta := 'PROP-' || EXTRACT(YEAR FROM NOW())::TEXT || '-' || LPAD(seq_val::TEXT, 3, '0');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger
+DROP TRIGGER IF EXISTS trg_numero_propuesta ON propuestas_crm;
+CREATE TRIGGER trg_numero_propuesta
+  BEFORE INSERT ON propuestas_crm
+  FOR EACH ROW
+  EXECUTE FUNCTION generar_numero_propuesta();

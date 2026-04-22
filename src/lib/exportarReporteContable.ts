@@ -84,12 +84,12 @@ const MR = 18  // margin right
 const CW = PW - ML - MR // content width
 
 function addHeader(doc: jsPDF, logo: HTMLImageElement, sectionName: string) {
-  doc.addImage(logo, 'JPEG', ML, 12, 22, 22 * (logo.height / logo.width))
+  doc.addImage(logo, 'JPEG', ML, 10, 22, 22 * (logo.height / logo.width))
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9)
   setColor(doc, C.grisLabel)
   doc.text(sectionName.toUpperCase(), PW - MR, 20, { align: 'right' })
-  drawLine(doc, ML, 28, PW - MR, 28, C.dorado, 1)
+  drawLine(doc, ML, 34, PW - MR, 34, C.dorado, 1)
 }
 
 function addFooter(doc: jsPDF, referencia: string, pagina: number) {
@@ -165,7 +165,7 @@ export async function exportarReporteContablePDF(data: ExportData) {
   addHeader(doc, logo, 'Balance General')
   addFooter(doc, referencia, 2)
 
-  let y = 36
+  let y = 42
   const activos = data.saldos.filter(s => s.tipo === 'activo' && s.nivel >= 2)
   const pasivos = data.saldos.filter(s => s.tipo === 'pasivo' && s.nivel >= 2)
   const patrimonio = data.saldos.filter(s => s.tipo === 'patrimonio' && s.nivel >= 2)
@@ -226,7 +226,7 @@ export async function exportarReporteContablePDF(data: ExportData) {
   addHeader(doc, logo, 'Estado de Resultados')
   addFooter(doc, referencia, 3)
 
-  y = 36
+  y = 42
   const ingresos = data.saldos.filter(s => s.tipo === 'ingreso' && s.nivel >= 2)
   const gastosCuentas = data.saldos.filter(s => s.tipo === 'gasto' && s.nivel >= 2)
 
@@ -247,7 +247,7 @@ export async function exportarReporteContablePDF(data: ExportData) {
   addHeader(doc, logo, 'Balance de Sumas y Saldos')
   addFooter(doc, referencia, 4)
 
-  y = 36
+  y = 42
   // Column headers
   fillRect(doc, ML, y, CW, 8, C.encabezadoTabla)
   doc.setFont('helvetica', 'bold')
@@ -266,7 +266,7 @@ export async function exportarReporteContablePDF(data: ExportData) {
       doc.addPage()
       addHeader(doc, logo, 'Balance de Sumas y Saldos (cont.)')
       addFooter(doc, referencia, 4)
-      y = 36
+      y = 42
     }
     if (i % 2 === 0) fillRect(doc, ML, y, CW, 6.5, C.filasPares)
 
@@ -316,7 +316,7 @@ export async function exportarReporteContablePDF(data: ExportData) {
   addHeader(doc, logo, 'Flujo de Caja')
   addFooter(doc, referencia, 5)
 
-  y = 36
+  y = 42
   // 3 summary cards
   const cards = [
     { label: 'TOTAL INGRESOS', valor: data.totalEntradas, color: C.verde },

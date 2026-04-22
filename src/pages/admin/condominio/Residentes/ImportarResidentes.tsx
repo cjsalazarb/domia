@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { generarTemplateCondominio, parsearExcel, type FilaExcel } from '@/lib/generarTemplateExcel'
+import { crearUsuarioResidente } from '@/lib/crearUsuarioResidente'
 
 type EstadoFila = 'ok' | 'advertencia' | 'error'
 
@@ -14,6 +15,8 @@ interface FilaValidada extends FilaExcel {
 interface ResultadoImport {
   exitosos: number
   fallidos: number
+  usuariosCreados: number
+  emailsEnviados: number
   errores: { fila: number; unidad: string; error: string }[]
 }
 
@@ -151,7 +154,10 @@ export default function ImportarResidentes({ condominioId, condominioNombre, onB
     if (validas.length === 0) return
 
     setImporting(true)
-    const result: ResultadoImport = { exitosos: 0, fallidos: 0, errores: [] }
+    const result: ResultadoImport = { exitosos: 0, fallidos: 0, usuariosCreados: 0, emailsEnviados: 0, errores: [] }
+
+    // Collect residents that need user accounts
+    const pendientesUsuario: { email: string; nombre: string; apellido: string; tipo: 'propietario' | 'inquilino'; residente_id: string }[] = []
 
     for (let i = 0; i < validas.length; i++) {
       const fila = validas[i]
@@ -179,11 +185,22 @@ export default function ImportarResidentes({ condominioId, condominioNombre, onB
           if (propErr) throw new Error(propErr.message)
           propietarioDbId = prop.id
           result.exitosos++
+
+          // Queue user creation if has email
+          if (fila.email) {
+            pendientesUsuario.push({
+              email: fila.email,
+              nombre: fila.nombre_propietario,
+              apellido: fila.apellido_propietario,
+              tipo: 'propietario',
+              residente_id: prop.id,
+            })
+          }
         }
 
         // Insert inquilino if data present
         if (fila.nombre_inquilino && fila.apellido_inquilino) {
-          const { error: inqErr } = await supabase
+          const { data: inq, error: inqErr } = await supabase
             .from('residentes')
             .insert({
               condominio_id: condominioId,
@@ -197,9 +214,22 @@ export default function ImportarResidentes({ condominioId, condominioNombre, onB
               propietario_id: propietarioDbId,
               estado: 'activo',
             })
+            .select('id')
+            .single()
 
           if (inqErr) throw new Error(inqErr.message)
           result.exitosos++
+
+          // Queue user creation if has email
+          if (fila.email_inquilino && inq) {
+            pendientesUsuario.push({
+              email: fila.email_inquilino,
+              nombre: fila.nombre_inquilino,
+              apellido: fila.apellido_inquilino,
+              tipo: 'inquilino',
+              residente_id: inq.id,
+            })
+          }
         }
 
         // Update pagador_cuota on unidad if specified
@@ -216,6 +246,37 @@ export default function ImportarResidentes({ condominioId, condominioNombre, onB
           unidad: fila.numero_unidad,
           error: err instanceof Error ? err.message : 'Error desconocido',
         })
+      }
+    }
+
+    // Create user accounts in batches of 10 with 1s delay
+    if (pendientesUsuario.length > 0) {
+      const BATCH_SIZE = 10
+      for (let i = 0; i < pendientesUsuario.length; i += BATCH_SIZE) {
+        const batch = pendientesUsuario.slice(i, i + BATCH_SIZE)
+
+        const promises = batch.map(async (p) => {
+          try {
+            const res = await crearUsuarioResidente({
+              ...p,
+              condominio_id: condominioId,
+              condominio_nombre: condominioNombre,
+            })
+            if (res.success) {
+              result.usuariosCreados++
+              if (res.email_sent) result.emailsEnviados++
+            }
+          } catch {
+            // User creation failure is non-fatal for import
+          }
+        })
+
+        await Promise.all(promises)
+
+        // Delay between batches (except last)
+        if (i + BATCH_SIZE < pendientesUsuario.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
       }
     }
 
@@ -275,8 +336,14 @@ export default function ImportarResidentes({ condominioId, condominioNombre, onB
           <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0D1117', margin: '0 0 12px' }}>
             Importaci\u00f3n completada
           </h3>
-          <div style={{ display: 'flex', gap: '24px', fontFamily: "'Inter', sans-serif", fontSize: '14px' }}>
+          <div style={{ display: 'flex', gap: '24px', fontFamily: "'Inter', sans-serif", fontSize: '14px', flexWrap: 'wrap' }}>
             <span style={{ color: '#1A7A4A', fontWeight: 600 }}>{resultado.exitosos} importados</span>
+            {resultado.usuariosCreados > 0 && (
+              <span style={{ color: '#0D4A8F', fontWeight: 600 }}>{resultado.usuariosCreados} usuarios creados</span>
+            )}
+            {resultado.emailsEnviados > 0 && (
+              <span style={{ color: '#0D4A8F', fontWeight: 600 }}>{resultado.emailsEnviados} emails enviados</span>
+            )}
             {resultado.fallidos > 0 && (
               <span style={{ color: '#B83232', fontWeight: 600 }}>{resultado.fallidos} fallidos</span>
             )}

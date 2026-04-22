@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useGastos } from '@/hooks/useGastos'
 import { useAuthStore } from '@/stores/authStore'
 import { supabase } from '@/lib/supabase'
 import { useProveedores } from '@/hooks/useMantenimientos'
-import { useRef } from 'react'
 
 const CATEGORIAS = [
   { key: 'agua', label: 'Agua', icon: '💧' },
@@ -27,7 +26,7 @@ export default function Gastos({ condominioId }: Props) {
   const { user } = useAuthStore()
   const hoy = new Date()
   const [mesFilter, setMesFilter] = useState(`${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`)
-  const { gastos, isLoading, crear, totalMes } = useGastos(condominioId, mesFilter)
+  const { gastos, isLoading, crear, pagarGasto, totalMes } = useGastos(condominioId, mesFilter)
   const { proveedores } = useProveedores(condominioId)
   const [catFilter, setCatFilter] = useState('todas')
   const [showForm, setShowForm] = useState(false)
@@ -38,6 +37,13 @@ export default function Gastos({ condominioId }: Props) {
   const [recurrente, setRecurrente] = useState(false); const [notas, setNotas] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Modal pago proveedor
+  const [pagoGasto, setPagoGasto] = useState<{ id: string; descripcion: string; proveedor: string; pendiente: number } | null>(null)
+  const [pagoMonto, setPagoMonto] = useState('')
+  const [pagoFecha, setPagoFecha] = useState(hoy.toISOString().split('T')[0])
+  const [pagoMetodo, setPagoMetodo] = useState<'efectivo' | 'transferencia' | 'cheque'>('transferencia')
+  const [pagoError, setPagoError] = useState('')
 
   const filtrados = catFilter === 'todas' ? gastos : gastos.filter(g => g.categoria === catFilter)
 
@@ -51,6 +57,34 @@ export default function Gastos({ condominioId }: Props) {
     }
     await crear.mutateAsync({ descripcion: desc, categoria: cat, monto: parseFloat(monto), fecha, proveedor_nombre: provNombre || undefined, factura_url, recurrente, notas: notas || undefined, registrado_por: user?.id })
     setDesc(''); setMonto(''); setProvNombre(''); setNotas(''); setFile(null); setRecurrente(false); setShowForm(false)
+  }
+
+  function abrirModalPago(g: typeof gastos[0]) {
+    const pendiente = Number(g.monto) - Number(g.monto_pagado || 0)
+    setPagoGasto({ id: g.id, descripcion: g.descripcion, proveedor: g.proveedor_nombre || 'Sin proveedor', pendiente })
+    setPagoMonto(pendiente.toFixed(2))
+    setPagoFecha(hoy.toISOString().split('T')[0])
+    setPagoMetodo('transferencia')
+    setPagoError('')
+  }
+
+  async function handlePagar() {
+    if (!pagoGasto) return
+    const montoNum = parseFloat(pagoMonto)
+    if (!montoNum || montoNum <= 0) { setPagoError('El monto debe ser mayor a 0'); return }
+    if (montoNum > pagoGasto.pendiente + 0.01) { setPagoError(`El monto no puede superar el pendiente (Bs. ${pagoGasto.pendiente.toFixed(2)})`); return }
+    setPagoError('')
+    pagarGasto.mutate({
+      gastoId: pagoGasto.id,
+      monto: montoNum,
+      metodo: pagoMetodo,
+      fecha: pagoFecha,
+      descripcionGasto: pagoGasto.descripcion,
+      proveedorNombre: pagoGasto.proveedor,
+    }, {
+      onSuccess: () => setPagoGasto(null),
+      onError: (e) => setPagoError(e instanceof Error ? e.message : 'Error al registrar pago'),
+    })
   }
 
   const iS = { width: '100%', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '14px', color: '#0D1117', fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const }
@@ -124,18 +158,81 @@ export default function Gastos({ condominioId }: Props) {
         </select>
       </div>
 
+      {/* Modal pago proveedor */}
+      {pagoGasto && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '28px', width: '420px', maxWidth: '95vw', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+            <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 4px' }}>Pagar a Proveedor</h3>
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#5E6B62', margin: '0 0 16px' }}>
+              {pagoGasto.proveedor} — {pagoGasto.descripcion}
+            </p>
+
+            {pagoError && (
+              <div style={{ backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#B83232', marginBottom: '12px', fontFamily: "'Inter', sans-serif" }}>
+                {pagoError}
+              </div>
+            )}
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>
+                Monto a pagar (pendiente: Bs. {pagoGasto.pendiente.toFixed(2)})
+              </label>
+              <input type="number" step="0.01" min="0.01" max={pagoGasto.pendiente} value={pagoMonto} onChange={e => setPagoMonto(e.target.value)}
+                style={{ ...iS, fontSize: '16px', fontWeight: 700, fontFamily: "'Nunito', sans-serif" }} />
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Fecha de pago</label>
+              <input type="date" value={pagoFecha} onChange={e => setPagoFecha(e.target.value)} style={iS} />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '8px', fontFamily: "'Inter', sans-serif" }}>Metodo de pago</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {([
+                  { value: 'efectivo' as const, label: 'Efectivo', sub: 'Cuenta 1.1.1 Caja' },
+                  { value: 'transferencia' as const, label: 'Transferencia / QR', sub: 'Cuenta 1.1.2 Banco' },
+                  { value: 'cheque' as const, label: 'Cheque', sub: 'Cuenta 1.1.2 Banco' },
+                ]).map(m => (
+                  <label key={m.value} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#0D1117', padding: '6px 10px', borderRadius: '8px', backgroundColor: pagoMetodo === m.value ? '#E8F4F0' : 'transparent' }}>
+                    <input type="radio" name="metodo-pago" checked={pagoMetodo === m.value} onChange={() => setPagoMetodo(m.value)} />
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{m.label}</div>
+                      <div style={{ fontSize: '10px', color: '#5E6B62' }}>{m.sub}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setPagoGasto(null)}
+                style={{ padding: '8px 16px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                Cancelar
+              </button>
+              <button onClick={handlePagar} disabled={pagarGasto.isPending}
+                style={{ padding: '8px 16px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                {pagarGasto.isPending ? 'Procesando...' : 'Confirmar Pago'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       {filtrados.length === 0 ? (
         <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '40px', textAlign: 'center', color: '#5E6B62', fontSize: '14px' }}>No hay gastos registrados para este período</div>
       ) : (
         <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.5fr 0.8fr 0.8fr 1fr 0.6fr', padding: '12px 20px', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 600, color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            <span>Fecha</span><span>Descripción</span><span>Categoría</span><span style={{ textAlign: 'right' }}>Monto</span><span>Proveedor</span><span style={{ textAlign: 'center' }}>Factura</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 1.3fr 0.7fr 0.7fr 0.9fr 0.6fr 0.7fr', padding: '12px 20px', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 600, color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <span>Fecha</span><span>Descripción</span><span>Categoría</span><span style={{ textAlign: 'right' }}>Monto</span><span>Proveedor</span><span style={{ textAlign: 'center' }}>Estado</span><span style={{ textAlign: 'center' }}>Accion</span>
           </div>
           {filtrados.map((g, i) => {
             const catInfo = CAT_MAP[g.categoria] || { label: g.categoria, icon: '📦' }
+            const pendiente = Number(g.monto) - Number(g.monto_pagado || 0)
+            const pagado = pendiente < 0.01
             return (
-              <div key={g.id} style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.5fr 0.8fr 0.8fr 1fr 0.6fr', padding: '12px 20px', alignItems: 'center', borderBottom: i < filtrados.length - 1 ? '1px solid #F0F0F0' : 'none', fontFamily: "'Inter', sans-serif", fontSize: '13px' }}>
+              <div key={g.id} style={{ display: 'grid', gridTemplateColumns: '0.7fr 1.3fr 0.7fr 0.7fr 0.9fr 0.6fr 0.7fr', padding: '12px 20px', alignItems: 'center', borderBottom: i < filtrados.length - 1 ? '1px solid #F0F0F0' : 'none', fontFamily: "'Inter', sans-serif", fontSize: '13px' }}>
                 <span style={{ color: '#5E6B62', fontSize: '12px' }}>{new Date(g.fecha + 'T00:00:00').toLocaleDateString('es-BO')}</span>
                 <span style={{ color: '#0D1117' }}>
                   {g.descripcion}
@@ -145,16 +242,30 @@ export default function Gastos({ condominioId }: Props) {
                 <span style={{ textAlign: 'right', fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#B83232' }}>Bs. {Number(g.monto).toFixed(2)}</span>
                 <span style={{ color: '#5E6B62', fontSize: '12px' }}>{g.proveedor_nombre || '—'}</span>
                 <span style={{ textAlign: 'center' }}>
-                  {g.factura_url ? <a href={g.factura_url} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#1A7A4A', textDecoration: 'none', fontWeight: 600 }}>Ver</a> : <span style={{ color: '#C8D4CB' }}>—</span>}
+                  <span style={{
+                    display: 'inline-block', padding: '2px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 600,
+                    backgroundColor: pagado ? '#E8F4F0' : '#FEF9EC',
+                    color: pagado ? '#1A7A4A' : '#C07A2E',
+                  }}>
+                    {pagado ? 'Pagado' : 'Pendiente'}
+                  </span>
+                </span>
+                <span style={{ textAlign: 'center' }}>
+                  {!pagado && (
+                    <button onClick={() => abrirModalPago(g)}
+                      style={{ padding: '4px 10px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                      Pagar
+                    </button>
+                  )}
                 </span>
               </div>
             )
           })}
           {/* Total row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.5fr 0.8fr 0.8fr 1fr 0.6fr', padding: '14px 20px', backgroundColor: '#FCEAEA', fontFamily: "'Inter', sans-serif" }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 1.3fr 0.7fr 0.7fr 0.9fr 0.6fr 0.7fr', padding: '14px 20px', backgroundColor: '#FCEAEA', fontFamily: "'Inter', sans-serif" }}>
             <span /><span /><span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#B83232', fontSize: '13px' }}>TOTAL</span>
             <span style={{ textAlign: 'right', fontFamily: "'Nunito', sans-serif", fontWeight: 800, color: '#B83232', fontSize: '15px' }}>Bs. {totalMes.toFixed(2)}</span>
-            <span /><span />
+            <span /><span /><span />
           </div>
         </div>
       )}

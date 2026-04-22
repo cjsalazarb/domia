@@ -5,6 +5,7 @@ export interface Condominio {
   id: string; nombre: string; direccion: string; ciudad: string; departamento: string;
   nit: string | null; telefono: string | null; email_contacto: string | null; logo_url: string | null;
   estado: string; admin_id: string | null; recargo_mora_porcentaje: number; notas: string | null;
+  tiene_personeria_juridica: boolean;
   created_at: string;
 }
 
@@ -35,8 +36,15 @@ export function useCondominios() {
 
   const crear = useMutation({
     mutationFn: async (input: Partial<Condominio>) => {
+      const conPersoneria = input.tiene_personeria_juridica || false
       const { data, error } = await supabase.from('condominios').insert({ ...input, estado: 'activo' }).select().single()
       if (error) throw error
+      // Poblar plan de cuentas según tipo de personería
+      const { error: rpcErr } = await supabase.rpc('poblar_plan_cuentas', {
+        p_condominio_id: data.id,
+        p_con_personeria: conPersoneria,
+      })
+      if (rpcErr) console.error('Error poblando plan de cuentas:', rpcErr)
       return data
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['condominios'] }),

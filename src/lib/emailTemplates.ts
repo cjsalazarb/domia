@@ -160,3 +160,72 @@ export function templateConvocatoriaAsamblea(
     <p style="color:#5E6B62;font-size:13px;margin:16px 0 0">Su asistencia es importante. Gracias.</p>
   `)
 }
+
+// 10. Bienvenida residente — credenciales de acceso (branding ALTRION azul #1A4A7A)
+export function templateBienvenidaResidente(
+  nombre: string,
+  apellido: string,
+  email: string,
+  passwordTemporal: string,
+  condominioNombre: string,
+  portalUrl: string
+): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F5F5F5;font-family:'Inter',Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F5F5;padding:24px">
+<tr><td align="center">
+<table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%">
+  <tr><td style="background:#1A4A7A;padding:24px 28px;border-radius:12px 12px 0 0">
+    <span style="font-family:'Nunito',sans-serif;font-size:22px;font-weight:800;color:white;letter-spacing:0.5px">ALTRION</span>
+    <span style="font-size:12px;color:rgba(255,255,255,0.7);margin-left:8px">Administración de Condominios</span>
+  </td></tr>
+  <tr><td style="background:white;padding:32px 28px;border:1px solid #E0E0E0;border-top:none">
+    <h2 style="font-family:'Nunito',sans-serif;color:#0D1117;margin:0 0 8px;font-size:20px">
+      Estimado/a ${nombre} ${apellido},
+    </h2>
+    <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 20px">
+      Le damos la bienvenida al portal de residentes de
+      <strong>${condominioNombre}</strong>, administrado por ALTRION.
+    </p>
+
+    <div style="background:#F8F9FA;border:1px solid #E0E0E0;border-radius:10px;padding:20px;margin-bottom:20px">
+      <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;font-weight:600">
+        Sus credenciales de acceso
+      </div>
+      <table cellpadding="0" cellspacing="0" style="width:100%">
+        <tr>
+          <td style="font-size:13px;color:#555;padding:4px 0;width:100px">Usuario:</td>
+          <td style="font-size:14px;color:#0D1117;font-weight:600;padding:4px 0">${email}</td>
+        </tr>
+        <tr>
+          <td style="font-size:13px;color:#555;padding:4px 0">Contraseña:</td>
+          <td style="font-family:'Courier New',monospace;font-size:16px;color:#1A4A7A;font-weight:700;padding:4px 0;letter-spacing:1px">${passwordTemporal}</td>
+        </tr>
+      </table>
+    </div>
+
+    <a href="${portalUrl}" style="display:block;text-align:center;background:#1A4A7A;color:white;padding:14px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;font-family:'Nunito',sans-serif">
+      Ingresar al portal →
+    </a>
+
+    <div style="background:#FFF8E1;border-left:3px solid #C07A2E;border-radius:0 8px 8px 0;padding:12px 14px;margin-top:20px">
+      <p style="font-size:13px;color:#555;margin:0;line-height:1.5">
+        <strong style="color:#C07A2E">IMPORTANTE:</strong> Al ingresar por primera vez, el sistema le pedirá crear una contraseña personal por seguridad.
+      </p>
+    </div>
+
+    <div style="border-top:1px solid #E0E0E0;margin-top:24px;padding-top:20px">
+      <p style="font-size:13px;color:#555;margin:0;line-height:1.5">
+        Atentamente,<br/>
+        <strong style="color:#0D1117">María del Carmen Salcedo Feeney</strong><br/>
+        <span style="color:#888;font-size:12px">Administradora — ALTRION</span>
+      </p>
+    </div>
+  </td></tr>
+  <tr><td style="padding:16px 0;text-align:center;font-size:11px;color:#999">
+    ${condominioNombre} · ALTRION Administración de Condominios · Bolivia
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`
+}

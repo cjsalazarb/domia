@@ -16,18 +16,20 @@ export default function FormCondominio({ condominio, onSave, onCancel, saving }:
   const [ciudad, setCiudad] = useState('Santa Cruz de la Sierra'); const [departamento, setDepartamento] = useState('Santa Cruz')
   const [nit, setNit] = useState(''); const [telefono, setTelefono] = useState(''); const [email, setEmail] = useState('')
   const [recargo, setRecargo] = useState('2'); const [notas, setNotas] = useState('')
+  const [tienePersoneria, setTienePersoneria] = useState(false)
 
   useEffect(() => {
     if (condominio) {
       setNombre(condominio.nombre); setDireccion(condominio.direccion); setCiudad(condominio.ciudad)
       setDepartamento(condominio.departamento); setNit(condominio.nit || ''); setTelefono(condominio.telefono || '')
       setEmail(condominio.email_contacto || ''); setRecargo(String(condominio.recargo_mora_porcentaje)); setNotas(condominio.notas || '')
+      setTienePersoneria(condominio.tiene_personeria_juridica || false)
     }
   }, [condominio])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSave({ nombre, direccion, ciudad, departamento, nit: nit || undefined, telefono: telefono || undefined, email_contacto: email || undefined, recargo_mora_porcentaje: parseFloat(recargo) || 2, notas: notas || undefined } as Partial<Condominio>)
+    onSave({ nombre, direccion, ciudad, departamento, nit: nit || undefined, telefono: telefono || undefined, email_contacto: email || undefined, recargo_mora_porcentaje: parseFloat(recargo) || 2, notas: notas || undefined, tiene_personeria_juridica: tienePersoneria } as Partial<Condominio>)
   }
 
   const iS = { width: '100%', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '14px', color: '#0D1117', fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const }
@@ -52,6 +54,29 @@ export default function FormCondominio({ condominio, onSave, onCancel, saving }:
           <div><label style={lS}>Teléfono</label><input value={telefono} onChange={e => setTelefono(e.target.value)} style={iS} /></div>
           <div><label style={lS}>Email contacto</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} style={iS} /></div>
         </div>
+
+        {!condominio && (
+          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: '#F4F7F5', borderRadius: '12px' }}>
+            <label style={{ ...lS, marginBottom: '10px', fontSize: '14px' }}>Personeria Juridica del Condominio</label>
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#5E6B62', margin: '0 0 12px' }}>Esto determina el plan de cuentas contable inicial (cuentas tributarias).</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#0D1117' }}>
+                <input type="radio" name="personeria" checked={!tienePersoneria} onChange={() => setTienePersoneria(false)} style={{ marginTop: '2px' }} />
+                <div>
+                  <div style={{ fontWeight: 600 }}>Sin personeria juridica</div>
+                  <div style={{ fontSize: '11px', color: '#5E6B62' }}>Junta de vecinos — mas comun, sin obligaciones tributarias</div>
+                </div>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#0D1117' }}>
+                <input type="radio" name="personeria" checked={tienePersoneria} onChange={() => setTienePersoneria(true)} style={{ marginTop: '2px' }} />
+                <div>
+                  <div style={{ fontWeight: 600 }}>Con personeria juridica</div>
+                  <div style={{ fontSize: '11px', color: '#5E6B62' }}>SRL o Asociacion registrada con NIT — incluye cuentas de IT, RC-IVA, IVA, IUE</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
 
         <div style={{ marginBottom: '16px' }}><label style={lS}>Recargo por mora (%)</label><input type="number" value={recargo} onChange={e => setRecargo(e.target.value)} step="0.5" min="0" max="20" style={{ ...iS, maxWidth: '120px' }} /></div>
         <div style={{ marginBottom: '24px' }}><label style={lS}>Notas</label><textarea value={notas} onChange={e => setNotas(e.target.value)} rows={2} style={{ ...iS, resize: 'vertical' }} /></div>

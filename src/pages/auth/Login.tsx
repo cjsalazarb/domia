@@ -30,10 +30,26 @@ export default function Login() {
         .eq('id', user.id)
         .single()
 
-      if (profile?.rol === 'super_admin') window.location.href = '/admin'
-      else if (profile?.rol === 'admin_condominio') window.location.href = `/admin/condominio/${profile.condominio_id}/residentes`
-      else if (profile?.rol === 'guardia') window.location.href = '/turno'
-      else window.location.href = '/portal'
+      if (profile?.rol === 'super_admin') {
+        window.location.href = '/admin'
+      } else if (profile?.rol === 'admin_condominio') {
+        window.location.href = `/admin/condominio/${profile.condominio_id}/residentes`
+      } else if (profile?.rol === 'guardia') {
+        window.location.href = '/turno'
+      } else {
+        // Propietario/Inquilino — check if must change password
+        const { data: authData } = await supabase
+          .from('residentes_auth')
+          .select('debe_cambiar_password')
+          .eq('user_id', user.id)
+          .single()
+
+        if (authData?.debe_cambiar_password) {
+          window.location.href = '/cambiar-password'
+        } else {
+          window.location.href = '/portal'
+        }
+      }
     }
   }
 

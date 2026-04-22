@@ -4,6 +4,7 @@ import { RoleRedirect } from '@/components/RoleRedirect'
 
 import Login from '@/pages/auth/Login'
 import SinAcceso from '@/pages/auth/SinAcceso'
+import CambiarPassword from '@/pages/auth/CambiarPassword'
 
 import MisCondominios from '@/pages/admin/MisCondominios'
 import Condominios from '@/pages/admin/Condominios'
@@ -32,6 +33,14 @@ export const router = createBrowserRouter([
   // Públicas
   { path: '/login', element: <Login /> },
   { path: '/sin-acceso', element: <SinAcceso /> },
+  {
+    path: '/cambiar-password',
+    element: (
+      <ProtectedRoute rolesPermitidos={['propietario', 'inquilino']}>
+        <CambiarPassword />
+      </ProtectedRoute>
+    ),
+  },
 
   // Raíz — redirige según rol
   { path: '/', element: <RoleRedirect /> },
