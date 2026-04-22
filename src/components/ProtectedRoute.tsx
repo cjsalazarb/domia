@@ -23,19 +23,15 @@ export function ProtectedRoute({ children, rolesPermitidos }: Props) {
     if (!user || !esResidente || loading) return
 
     setCheckingPassword(true)
-    supabase
-      .from('residentes_auth')
-      .select('debe_cambiar_password')
-      .eq('user_id', user.id)
-      .single()
-      .then(({ data }) => {
-        setDebeCambiar(data?.debe_cambiar_password ?? false)
-        setCheckingPassword(false)
-      })
-      .catch(() => {
-        setDebeCambiar(false)
-        setCheckingPassword(false)
-      })
+    ;(async () => {
+      const { data } = await supabase
+        .from('residentes_auth')
+        .select('debe_cambiar_password')
+        .eq('user_id', user.id)
+        .single()
+      setDebeCambiar(data?.debe_cambiar_password ?? false)
+      setCheckingPassword(false)
+    })()
   }, [user?.id, esResidente, loading])
 
   if (loading || checkingPassword) {
