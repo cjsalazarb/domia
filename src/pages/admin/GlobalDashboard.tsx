@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
@@ -10,7 +9,6 @@ type Tab = 'activos' | 'archivados'
 export default function GlobalDashboard() {
   const { profile, signOut } = useAuthStore()
   const { archivar, restaurar, eliminarPermanentemente } = useCondominios()
-  const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('activos')
 
   // Modal state
