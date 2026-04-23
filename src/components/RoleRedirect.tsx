@@ -31,7 +31,7 @@ export function RoleRedirect() {
 
   switch (profile.rol) {
     case 'super_admin':
-      return <Navigate to="/admin" replace />
+      return <Navigate to="/dashboard" replace />
     case 'admin_condominio':
       return <Navigate to={`/admin/condominio/${profile.condominio_id}/dashboard`} replace />
     case 'propietario':

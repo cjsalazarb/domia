@@ -31,7 +31,7 @@ export default function Login() {
         .single()
 
       if (profile?.rol === 'super_admin') {
-        window.location.href = '/admin'
+        window.location.href = '/dashboard'
       } else if (profile?.rol === 'admin_condominio') {
         window.location.href = `/admin/condominio/${profile.condominio_id}/residentes`
       } else if (profile?.rol === 'guardia') {

@@ -72,9 +72,9 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
           {condominioId && (
             <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
               {isSuper && (
-                <a href="/admin"
+                <a href="/dashboard"
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', marginBottom: '8px', transition: 'color 0.15s' }}>
-                  ← Mis condominios
+                  ← Dashboard global
                 </a>
               )}
               <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '14px', fontWeight: 700, color: '#0D9E6E', lineHeight: '1.3' }}>

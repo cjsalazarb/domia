@@ -7,6 +7,8 @@ import SinAcceso from '@/pages/auth/SinAcceso'
 import CambiarPassword from '@/pages/auth/CambiarPassword'
 
 import MisCondominios from '@/pages/admin/MisCondominios'
+import GlobalDashboard from '@/pages/admin/GlobalDashboard'
+import FinanzasGlobal from '@/pages/admin/FinanzasGlobal'
 import Condominios from '@/pages/admin/Condominios'
 import CondominioDashboard from '@/pages/admin/condominio/Dashboard'
 import Residentes from '@/pages/admin/condominio/Residentes'
@@ -44,6 +46,26 @@ export const router = createBrowserRouter([
 
   // Raíz — redirige según rol
   { path: '/', element: <RoleRedirect /> },
+
+  // Dashboard global — nueva pantalla principal
+  {
+    path: '/dashboard',
+    element: (
+      <ProtectedRoute rolesPermitidos={['super_admin']}>
+        <GlobalDashboard />
+      </ProtectedRoute>
+    ),
+  },
+
+  // Finanzas global
+  {
+    path: '/finanzas-global',
+    element: (
+      <ProtectedRoute rolesPermitidos={['super_admin']}>
+        <FinanzasGlobal />
+      </ProtectedRoute>
+    ),
+  },
 
   // Admin — pantalla de selección de condominios
   {

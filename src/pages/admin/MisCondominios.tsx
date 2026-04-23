@@ -84,8 +84,30 @@ export default function MisCondominios() {
     <div style={{ minHeight: '100vh', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif" }}>
       {/* Header */}
       <div style={{ backgroundColor: '#0D1117', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '22px', fontWeight: 800, color: 'white' }}>
-          DOM<span style={{ color: '#0D9E6E' }}>IA</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '22px', fontWeight: 800, color: 'white' }}>
+            DOM<span style={{ color: '#0D9E6E' }}>IA</span>
+          </div>
+          <nav style={{ display: 'flex', gap: '4px' }}>
+            {[
+              { label: 'Dashboard', path: '/dashboard', icon: '🏠' },
+              { label: 'Condominios', path: '/admin', icon: '🏢' },
+              { label: 'Finanzas Global', path: '/finanzas-global', icon: '💰' },
+            ].map(item => {
+              const active = window.location.pathname === item.path
+              return (
+                <a key={item.path} href={item.path}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px',
+                    borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: active ? 600 : 400,
+                    backgroundColor: active ? 'rgba(13,158,110,0.15)' : 'transparent',
+                    color: active ? '#0D9E6E' : 'rgba(255,255,255,0.6)', transition: 'all 0.15s',
+                  }}>
+                  <span style={{ fontSize: '14px' }}>{item.icon}</span>{item.label}
+                </a>
+              )
+            })}
+          </nav>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{profile?.nombre} {profile?.apellido}</span>
