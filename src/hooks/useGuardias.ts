@@ -165,7 +165,20 @@ export function useTurnos(condominioId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['turnos', condominioId] }),
   })
 
-  return { turnos: query.data || [], isLoading: query.isLoading, crearTurno, crearTurnosBatch, eliminarTurno }
+  const actualizarTurno = useMutation({
+    mutationFn: async (input: { id: string; fecha: string; horaInicio: string; horaFin: string }) => {
+      const { error } = await supabase.from('turnos').update({
+        fecha: input.fecha,
+        hora_programada_inicio: input.horaInicio,
+        hora_programada_fin: input.horaFin,
+        tipo: derivarTipo(input.horaInicio),
+      }).eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['turnos', condominioId] }),
+  })
+
+  return { turnos: query.data || [], isLoading: query.isLoading, crearTurno, crearTurnosBatch, eliminarTurno, actualizarTurno }
 }
 
 function formatLocalDate(d: Date): string {

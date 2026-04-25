@@ -22,7 +22,7 @@ function formatHora(t: string): string {
 
 export default function GestionTurnos({ condominioId }: Props) {
   const { guardias } = useGuardias(condominioId)
-  const { turnos, isLoading, crearTurno, crearTurnosBatch, eliminarTurno } = useTurnos(condominioId)
+  const { turnos, isLoading, crearTurno, crearTurnosBatch, eliminarTurno, actualizarTurno } = useTurnos(condominioId)
   const [guardiaId, setGuardiaId] = useState('')
   const [horaInicio, setHoraInicio] = useState('06:00')
   const [horaFin, setHoraFin] = useState('14:00')
@@ -34,6 +34,13 @@ export default function GestionTurnos({ condominioId }: Props) {
   const [conflicto, setConflicto] = useState<{ fechasConflicto: string[]; fechasLibres: string[]; todasFechas: string[]; guardiaNombre: string } | null>(null)
   // Delete turno confirmation
   const [confirmDeleteTurno, setConfirmDeleteTurno] = useState<any>(null)
+  // Edit turno modal
+  const [editTurno, setEditTurno] = useState<any>(null)
+  const [editHoraInicio, setEditHoraInicio] = useState('')
+  const [editHoraFin, setEditHoraFin] = useState('')
+  const [editFecha, setEditFecha] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
 
   // Weekly summary data — use local dates (Bolivia UTC-4)
   const semana = useMemo(() => {
@@ -185,6 +192,40 @@ export default function GestionTurnos({ condominioId }: Props) {
     }
   }
 
+  const openEditTurno = (t: any) => {
+    setEditTurno(t)
+    setEditHoraInicio(formatHora(t.hora_programada_inicio))
+    setEditHoraFin(formatHora(t.hora_programada_fin))
+    setEditFecha(t.fecha)
+    setEditError('')
+  }
+
+  const handleEditTurnoSave = async () => {
+    if (!editTurno) return
+    if (!editHoraInicio || !editHoraFin) { setEditError('Las horas son obligatorias'); return }
+    if (!editFecha) { setEditError('La fecha es obligatoria'); return }
+
+    // Check conflict if date changed
+    if (editFecha !== editTurno.fecha) {
+      const conflictoExistente = turnos.find(t => t.id !== editTurno.id && t.guardia_id === editTurno.guardia_id && t.fecha === editFecha)
+      if (conflictoExistente) {
+        setEditError(`Ya tiene turno el ${editFecha}. Elimine el turno existente primero.`)
+        return
+      }
+    }
+
+    setEditSaving(true)
+    setEditError('')
+    try {
+      await actualizarTurno.mutateAsync({ id: editTurno.id, fecha: editFecha, horaInicio: editHoraInicio, horaFin: editHoraFin })
+      setEditTurno(null)
+    } catch (err: any) {
+      setEditError(err?.message || 'Error al modificar turno')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   const inputStyle = { padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '13px', fontFamily: "'Inter', sans-serif", color: '#0D1117', backgroundColor: 'white', outline: 'none' }
 
   if (isLoading) return <div style={{ textAlign: 'center', padding: '40px', color: '#5E6B62' }}>Cargando...</div>
@@ -325,11 +366,49 @@ export default function GestionTurnos({ condominioId }: Props) {
                   <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, backgroundColor: '#EBF4FF', color: '#0D4A8F' }}>{hInicio}-{hFin}</span>
                   <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
                   {t.horas_trabajadas && <span style={{ fontSize: '11px', color: '#1A7A4A', fontWeight: 600 }}>{Number(t.horas_trabajadas).toFixed(1)}h</span>}
+                  <button onClick={() => openEditTurno(t)} style={{ padding: '3px 8px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Modificar</button>
                   <button onClick={() => setConfirmDeleteTurno(t)} style={{ padding: '3px 8px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Eliminar</button>
                 </div>
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Edit turno modal */}
+      {editTurno && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setEditTurno(null)}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '420px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Modificar turno</h3>
+            <div style={{ fontSize: '13px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", marginBottom: '16px' }}>
+              Guardia: <strong style={{ color: '#0D1117' }}>{(editTurno.guardias as any)?.nombre} {(editTurno.guardias as any)?.apellido}</strong>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Hora inicio</label>
+                  <input type="time" value={editHoraInicio} onChange={e => setEditHoraInicio(e.target.value)} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Hora fin</label>
+                  <input type="time" value={editHoraFin} onChange={e => setEditHoraFin(e.target.value)} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Fecha</label>
+                <input type="date" value={editFecha} onChange={e => setEditFecha(e.target.value)} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const }} />
+              </div>
+            </div>
+            {editError && (
+              <div style={{ marginTop: '12px', backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '8px 14px', fontSize: '13px', color: '#B83232', fontFamily: "'Inter', sans-serif" }}>
+                {editError}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+              <button onClick={() => setEditTurno(null)} style={{ padding: '8px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
+              <button onClick={handleEditTurnoSave} disabled={editSaving} style={{ padding: '8px 18px', backgroundColor: editSaving ? '#C8D4CB' : '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: editSaving ? 'not-allowed' : 'pointer', fontFamily: "'Nunito', sans-serif" }}>{editSaving ? 'Guardando...' : 'Guardar cambios'}</button>
+            </div>
+          </div>
         </div>
       )}
 
