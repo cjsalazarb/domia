@@ -18,14 +18,23 @@ const ESTADO_STYLE: Record<string, { bg: string; text: string; label: string }> 
 
 interface Props { condominioId: string }
 
+function formatLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default function GestionTurnos({ condominioId }: Props) {
   const { guardias } = useGuardias(condominioId)
-  const { turnos, isLoading, crearTurno } = useTurnos(condominioId)
+  const { turnos, isLoading, crearTurno, crearTurnosBatch } = useTurnos(condominioId)
   const [guardiaId, setGuardiaId] = useState('')
   const [tipo, setTipo] = useState('manana')
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
+  const [fechaInicio, setFechaInicio] = useState(formatLocalDate(new Date()))
+  const [fechaFin, setFechaFin] = useState(formatLocalDate(new Date()))
+  const [formError, setFormError] = useState('')
+  const [asignando, setAsignando] = useState(false)
+  // Conflict modal state
+  const [conflicto, setConflicto] = useState<{ fechasConflicto: string[]; fechasLibres: string[]; todasFechas: string[]; guardiaNombre: string } | null>(null)
 
-  // Weekly summary data
+  // Weekly summary data — use local dates (Bolivia UTC-4)
   const semana = useMemo(() => {
     const hoy = new Date()
     const lunes = new Date(hoy)
@@ -34,7 +43,7 @@ export default function GestionTurnos({ condominioId }: Props) {
     for (let i = 0; i < 7; i++) {
       const d = new Date(lunes)
       d.setDate(lunes.getDate() + i)
-      dias.push(d.toISOString().split('T')[0])
+      dias.push(formatLocalDate(d))
     }
     return dias
   }, [])
@@ -71,10 +80,102 @@ export default function GestionTurnos({ condominioId }: Props) {
     enabled: !!condominioId,
   })
 
+  function generarRangoFechas(inicio: string, fin: string): string[] {
+    const fechas: string[] = []
+    const d = new Date(inicio + 'T12:00')
+    const end = new Date(fin + 'T12:00')
+    while (d <= end) {
+      fechas.push(formatLocalDate(d))
+      d.setDate(d.getDate() + 1)
+    }
+    return fechas
+  }
+
   const handleAsignar = async () => {
-    if (!guardiaId || !fecha) return
-    await crearTurno.mutateAsync({ guardia_id: guardiaId, tipo, fecha })
-    setGuardiaId('')
+    if (!guardiaId || !fechaInicio || !fechaFin) return
+    setFormError('')
+
+    // Validation 1: fin >= inicio
+    if (fechaFin < fechaInicio) {
+      setFormError('La fecha fin debe ser posterior a la fecha inicio')
+      return
+    }
+
+    // Validation 2: max 31 days
+    const dias = generarRangoFechas(fechaInicio, fechaFin)
+    if (dias.length > 31) {
+      setFormError('El rango maximo es de 31 dias')
+      return
+    }
+
+    // Check conflicts
+    const turnosGuardia = turnos.filter(t => t.guardia_id === guardiaId)
+    const fechasOcupadas = new Set(turnosGuardia.map(t => t.fecha))
+    const fechasConflicto = dias.filter(d => fechasOcupadas.has(d))
+    const fechasLibres = dias.filter(d => !fechasOcupadas.has(d))
+
+    if (fechasConflicto.length > 0) {
+      const g = guardias.find(g => g.id === guardiaId)
+      setConflicto({
+        fechasConflicto,
+        fechasLibres,
+        todasFechas: dias,
+        guardiaNombre: g ? `${g.nombre} ${g.apellido}` : '',
+      })
+      return
+    }
+
+    // No conflicts — insert all
+    setAsignando(true)
+    try {
+      if (dias.length === 1) {
+        await crearTurno.mutateAsync({ guardia_id: guardiaId, tipo, fecha: dias[0] })
+      } else {
+        await crearTurnosBatch.mutateAsync({ guardia_id: guardiaId, tipo, fechas: dias })
+      }
+      setGuardiaId('')
+    } catch (err: any) {
+      setFormError(err?.message || 'Error al asignar turnos')
+    } finally {
+      setAsignando(false)
+    }
+  }
+
+  const handleConflictoSobreescribir = async () => {
+    if (!conflicto) return
+    setAsignando(true)
+    setConflicto(null)
+    try {
+      await crearTurnosBatch.mutateAsync({
+        guardia_id: guardiaId, tipo,
+        fechas: conflicto.todasFechas,
+        sobreescribir: conflicto.fechasConflicto,
+      })
+      setGuardiaId('')
+    } catch (err: any) {
+      setFormError(err?.message || 'Error al asignar turnos')
+    } finally {
+      setAsignando(false)
+    }
+  }
+
+  const handleConflictoSaltar = async () => {
+    if (!conflicto) return
+    setConflicto(null)
+    if (conflicto.fechasLibres.length === 0) return
+    setAsignando(true)
+    try {
+      if (conflicto.fechasLibres.length === 1) {
+        await crearTurno.mutateAsync({ guardia_id: guardiaId, tipo, fecha: conflicto.fechasLibres[0] })
+      } else {
+        await crearTurnosBatch.mutateAsync({ guardia_id: guardiaId, tipo, fechas: conflicto.fechasLibres })
+      }
+      setGuardiaId('')
+    } catch (err: any) {
+      setFormError(err?.message || 'Error al asignar turnos')
+    } finally {
+      setAsignando(false)
+    }
   }
 
   const inputStyle = { padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '13px', fontFamily: "'Inter', sans-serif", color: '#0D1117', backgroundColor: 'white', outline: 'none' }
@@ -89,20 +190,61 @@ export default function GestionTurnos({ condominioId }: Props) {
       <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '20px', marginBottom: '20px' }}>
         <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '14px', fontWeight: 700, color: '#0D1117', marginBottom: '12px' }}>Asignar turno</div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <select value={guardiaId} onChange={e => setGuardiaId(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: '150px' }}>
+          <select value={guardiaId} onChange={e => { setGuardiaId(e.target.value); setFormError('') }} style={{ ...inputStyle, flex: 1, minWidth: '150px' }}>
             <option value="">Guardia...</option>
             {guardias.filter(g => g.activo).map(g => <option key={g.id} value={g.id}>{g.nombre} {g.apellido}</option>)}
           </select>
           <select value={tipo} onChange={e => setTipo(e.target.value)} style={inputStyle}>
             {TIPO_TURNO.map(t => <option key={t.key} value={t.key}>{t.label} ({t.hora})</option>)}
           </select>
-          <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} style={inputStyle} />
-          <button onClick={handleAsignar} disabled={!guardiaId || crearTurno.isPending} style={{
-            padding: '10px 18px', backgroundColor: !guardiaId ? '#C8D4CB' : '#1A7A4A', color: 'white', border: 'none',
-            borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: !guardiaId ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
-          }}>{crearTurno.isPending ? '...' : 'Asignar'}</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>Desde</span>
+            <input type="date" value={fechaInicio} onChange={e => { setFechaInicio(e.target.value); setFormError('') }} style={inputStyle} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>Hasta</span>
+            <input type="date" value={fechaFin} onChange={e => { setFechaFin(e.target.value); setFormError('') }} style={inputStyle} />
+          </div>
+          <button onClick={handleAsignar} disabled={!guardiaId || asignando} style={{
+            padding: '10px 18px', backgroundColor: (!guardiaId || asignando) ? '#C8D4CB' : '#1A7A4A', color: 'white', border: 'none',
+            borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: (!guardiaId || asignando) ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+          }}>{asignando ? 'Asignando...' : 'Asignar'}</button>
         </div>
+        {formError && (
+          <div style={{ marginTop: '10px', backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '8px 14px', fontSize: '13px', color: '#B83232', fontFamily: "'Inter', sans-serif" }}>
+            {formError}
+          </div>
+        )}
       </div>
+
+      {/* Conflict modal */}
+      {conflicto && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setConflicto(null)}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '440px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#C07A2E', margin: '0 0 12px' }}>Turnos existentes</h3>
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#0D1117', margin: '0 0 8px', lineHeight: 1.5 }}>
+              <strong>{conflicto.guardiaNombre}</strong> ya tiene turno en:
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
+              {conflicto.fechasConflicto.map(f => {
+                const d = new Date(f + 'T12:00')
+                return (
+                  <span key={f} style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, backgroundColor: '#FEF9EC', color: '#C07A2E', fontFamily: "'Inter', sans-serif" }}>
+                    {d.toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit' })}
+                  </span>
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button onClick={handleConflictoSobreescribir} style={{ padding: '10px 18px', backgroundColor: '#C07A2E', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Nunito', sans-serif" }}>Sobreescribir</button>
+              <button onClick={handleConflictoSaltar} disabled={conflicto.fechasLibres.length === 0} style={{ padding: '10px 18px', backgroundColor: conflicto.fechasLibres.length === 0 ? '#C8D4CB' : '#0D4A8F', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: conflicto.fechasLibres.length === 0 ? 'not-allowed' : 'pointer', fontFamily: "'Nunito', sans-serif" }}>
+                Saltar ese{conflicto.fechasConflicto.length !== 1 ? 's' : ''} dia{conflicto.fechasConflicto.length !== 1 ? 's' : ''}{conflicto.fechasLibres.length > 0 ? ` (asignar ${conflicto.fechasLibres.length} restante${conflicto.fechasLibres.length !== 1 ? 's' : ''})` : ' (no quedan dias libres)'}
+              </button>
+              <button onClick={() => setConflicto(null)} style={{ padding: '10px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Weekly summary */}
       {guardiasActivos.length > 0 && (
@@ -114,7 +256,7 @@ export default function GestionTurnos({ condominioId }: Props) {
               <div style={{ backgroundColor: '#F4F7F5', padding: '8px 12px', fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 600, color: '#5E6B62' }}>Guardia</div>
               {semana.map(d => {
                 const date = new Date(d + 'T12:00')
-                const isToday = d === new Date().toISOString().split('T')[0]
+                const isToday = d === formatLocalDate(new Date())
                 return (
                   <div key={d} style={{ backgroundColor: isToday ? '#E8F4F0' : '#F4F7F5', padding: '8px 4px', textAlign: 'center', fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, color: isToday ? '#1A7A4A' : '#5E6B62' }}>
                     {date.toLocaleDateString('es-BO', { weekday: 'short' }).toUpperCase()}

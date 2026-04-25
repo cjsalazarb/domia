@@ -19,6 +19,18 @@ export default function RegistroGuardias({ condominioId }: Props) {
   const [saving, setSaving] = useState(false)
   const [resultado, setResultado] = useState<{ email: string; emailSent: boolean } | null>(null)
   const [error, setError] = useState('')
+  // Edit modal state
+  const [editGuardia, setEditGuardia] = useState<any>(null)
+  const [editNombre, setEditNombre] = useState('')
+  const [editApellido, setEditApellido] = useState('')
+  const [editCi, setEditCi] = useState('')
+  const [editEmpresa, setEditEmpresa] = useState('')
+  const [editHabilitacion, setEditHabilitacion] = useState('')
+  const [editTelefono, setEditTelefono] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  // Deactivate confirmation
+  const [confirmDeactivate, setConfirmDeactivate] = useState<any>(null)
 
   const { data: condominio } = useQuery({
     queryKey: ['condominio-nombre', condominioId],
@@ -68,6 +80,56 @@ export default function RegistroGuardias({ condominioId }: Props) {
     } finally {
       setSaving(false)
     }
+  }
+
+  const openEdit = (g: any) => {
+    setEditGuardia(g)
+    setEditNombre(g.nombre)
+    setEditApellido(g.apellido)
+    setEditCi(g.ci)
+    setEditEmpresa(g.empresa || '')
+    setEditHabilitacion(g.habilitacion_dgsc || '')
+    setEditTelefono(g.telefono || '')
+    setEditEmail('')
+    setError('')
+  }
+
+  const handleEditSave = async () => {
+    if (!editGuardia) return
+    setEditSaving(true)
+    setError('')
+    try {
+      await actualizar.mutateAsync({
+        id: editGuardia.id,
+        updates: {
+          nombre: editNombre,
+          apellido: editApellido,
+          ci: editCi,
+          empresa: editEmpresa || null,
+          habilitacion_dgsc: editHabilitacion || null,
+          telefono: editTelefono || null,
+        },
+      })
+      setEditGuardia(null)
+    } catch (err: any) {
+      setError(err?.message || 'Error al actualizar guardia')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const handleToggleActivo = async (g: any) => {
+    if (g.activo) {
+      setConfirmDeactivate(g)
+    } else {
+      await actualizar.mutateAsync({ id: g.id, updates: { activo: true } })
+    }
+  }
+
+  const confirmDeactivateGuardia = async () => {
+    if (!confirmDeactivate) return
+    await actualizar.mutateAsync({ id: confirmDeactivate.id, updates: { activo: false } })
+    setConfirmDeactivate(null)
   }
 
   const inputStyle = { width: '100%', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '14px', color: '#0D1117', fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const }
@@ -146,12 +208,63 @@ export default function RegistroGuardias({ condominioId }: Props) {
                 {g.habilitacion_dgsc && <div style={{ fontSize: '11px', color: '#0D4A8F', marginTop: '2px' }}>DGSC: {g.habilitacion_dgsc}</div>}
                 {g.user_id && <div style={{ fontSize: '11px', color: '#1A7A4A', marginTop: '2px' }}>Con acceso al portal</div>}
               </div>
-              <button onClick={() => actualizar.mutate({ id: g.id, updates: { activo: !g.activo } })} style={{
-                padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', cursor: 'pointer',
-                backgroundColor: g.activo ? '#E8F4F0' : '#F0F0F0', color: g.activo ? '#1A7A4A' : '#5E6B62',
-              }}>{g.activo ? 'Activo' : 'Inactivo'}</button>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <button onClick={() => openEdit(g)} style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, border: 'none', cursor: 'pointer', backgroundColor: '#EBF4FF', color: '#0D4A8F', fontFamily: "'Inter', sans-serif" }}>Editar</button>
+                <button onClick={() => handleToggleActivo(g)} style={{
+                  padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: "'Inter', sans-serif",
+                  backgroundColor: g.activo ? '#E8F4F0' : '#F0F0F0', color: g.activo ? '#1A7A4A' : '#5E6B62',
+                }}>{g.activo ? 'Activo' : 'Inactivo'}</button>
+              </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {editGuardia && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setEditGuardia(null)}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '500px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Editar Guardia</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div><label style={labelStyle}>Nombre *</label><input value={editNombre} onChange={e => setEditNombre(e.target.value)} style={inputStyle} /></div>
+                <div><label style={labelStyle}>Apellido *</label><input value={editApellido} onChange={e => setEditApellido(e.target.value)} style={inputStyle} /></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div><label style={labelStyle}>CI *</label><input value={editCi} onChange={e => setEditCi(e.target.value)} style={inputStyle} /></div>
+                <div><label style={labelStyle}>Empresa</label><input value={editEmpresa} onChange={e => setEditEmpresa(e.target.value)} style={inputStyle} /></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div><label style={labelStyle}>N° Habilitacion DGSC</label><input value={editHabilitacion} onChange={e => setEditHabilitacion(e.target.value)} style={inputStyle} /></div>
+                <div><label style={labelStyle}>Telefono</label><input value={editTelefono} onChange={e => setEditTelefono(e.target.value)} style={inputStyle} /></div>
+              </div>
+            </div>
+            {error && (
+              <div style={{ backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#B83232', marginTop: '12px', fontFamily: "'Inter', sans-serif" }}>
+                {error}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+              <button onClick={() => setEditGuardia(null)} style={{ padding: '8px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
+              <button onClick={handleEditSave} disabled={!editNombre || !editApellido || !editCi || editSaving} style={{ padding: '8px 18px', backgroundColor: (!editNombre || !editApellido || !editCi || editSaving) ? '#C8D4CB' : '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: (!editNombre || !editApellido || !editCi || editSaving) ? 'not-allowed' : 'pointer', fontFamily: "'Nunito', sans-serif" }}>{editSaving ? 'Guardando...' : 'Guardar cambios'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deactivate confirmation modal */}
+      {confirmDeactivate && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setConfirmDeactivate(null)}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#B83232', margin: '0 0 12px' }}>Desactivar guardia</h3>
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#0D1117', margin: '0 0 20px', lineHeight: 1.5 }}>
+              ¿Desactivar a <strong>{confirmDeactivate.nombre} {confirmDeactivate.apellido}</strong>? Ya no podra acceder a /guardia.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button onClick={() => setConfirmDeactivate(null)} style={{ padding: '8px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
+              <button onClick={confirmDeactivateGuardia} style={{ padding: '8px 18px', backgroundColor: '#B83232', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Nunito', sans-serif" }}>Desactivar</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

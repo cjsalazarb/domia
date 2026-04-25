@@ -8,7 +8,7 @@ const supabase = createClient(
 )
 
 const resendApiKey = Deno.env.get('RESEND_API_KEY')
-const appUrl = Deno.env.get('APP_URL') || 'https://domia-sigma.vercel.app'
+const appUrl = Deno.env.get('APP_URL') || 'https://app.domia.me'
 
 function generarPasswordTemporal(): string {
   const mayusculas = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
@@ -24,8 +24,13 @@ function generarPasswordTemporal(): string {
 
 function emailHtml(
   nombre: string, apellido: string, email: string,
-  password: string, condominioNombre: string
+  password: string, condominioNombre: string, esGuardia: boolean = false
 ): string {
+  const portalPath = esGuardia ? '/guardia' : '/portal'
+  const portalLabel = esGuardia ? 'Portal de Guardias' : 'Portal de Residentes'
+  const bienvenidaTexto = esGuardia
+    ? `Ha sido registrado como guardia de seguridad en <strong>${condominioNombre}</strong>, administrado por ALTRION.`
+    : `Le damos la bienvenida al portal de residentes de <strong>${condominioNombre}</strong>, administrado por ALTRION.`
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#F5F5F5;font-family:'Inter',Arial,sans-serif">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F5F5;padding:24px">
@@ -40,8 +45,7 @@ function emailHtml(
       Estimado/a ${nombre} ${apellido},
     </h2>
     <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 20px">
-      Le damos la bienvenida al portal de residentes de
-      <strong>${condominioNombre}</strong>, administrado por ALTRION.
+      ${bienvenidaTexto}
     </p>
     <div style="background:#F8F9FA;border:1px solid #E0E0E0;border-radius:10px;padding:20px;margin-bottom:20px">
       <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;font-weight:600">
@@ -58,8 +62,8 @@ function emailHtml(
         </tr>
       </table>
     </div>
-    <a href="${appUrl}/portal" style="display:block;text-align:center;background:#1A4A7A;color:white;padding:14px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;font-family:'Nunito',sans-serif">
-      Ingresar al portal →
+    <a href="${appUrl}${portalPath}" style="display:block;text-align:center;background:#1A4A7A;color:white;padding:14px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;font-family:'Nunito',sans-serif">
+      Ingresar al ${portalLabel} →
     </a>
     <div style="background:#FFF8E1;border-left:3px solid #C07A2E;border-radius:0 8px 8px 0;padding:12px 14px;margin-top:20px">
       <p style="font-size:13px;color:#555;margin:0;line-height:1.5">
@@ -130,10 +134,10 @@ serve(async (req) => {
 
     const userId = authData.user.id
 
-    // 4. Create profile
+    // 4. Create profile (upsert to handle duplicates safely)
     const { error: profileError } = await supabase
       .from('profiles')
-      .insert({
+      .upsert({
         id: userId,
         rol: tipo,
         nombre,
@@ -141,7 +145,7 @@ serve(async (req) => {
         email,
         condominio_id,
         activo: true,
-      })
+      }, { onConflict: 'id' })
 
     if (profileError) {
       await supabase.auth.admin.deleteUser(userId)
@@ -174,23 +178,35 @@ serve(async (req) => {
 
     // 7. Send welcome email via Resend
     let emailSent = false
+    let emailError: string | null = null
     if (resendApiKey) {
       const resend = new Resend(resendApiKey)
       try {
-        await resend.emails.send({
-          from: 'ALTRION <noreply@domia.bo>',
+        const esGuardia = !!guardia_id
+        const emailResult = await resend.emails.send({
+          from: 'ALTRION <noreply@domia.me>',
           to: email,
-          subject: `Bienvenido a DOMIA — Sus credenciales | ${condominio_nombre || 'Su Condominio'}`,
-          html: emailHtml(nombre, apellido, email, passwordTemporal, condominio_nombre || 'Su Condominio'),
+          subject: esGuardia
+            ? `Bienvenido a ALTRION — Credenciales de Guardia | ${condominio_nombre || 'Su Condominio'}`
+            : `Bienvenido a ALTRION — Sus credenciales | ${condominio_nombre || 'Su Condominio'}`,
+          html: emailHtml(nombre, apellido, email, passwordTemporal, condominio_nombre || 'Su Condominio', esGuardia),
         })
-        emailSent = true
+        if (emailResult.error) {
+          emailError = JSON.stringify(emailResult.error)
+          console.error('Resend error:', emailError)
+        } else {
+          emailSent = true
+        }
       } catch (emailErr) {
-        console.error('Error enviando email:', (emailErr as Error).message)
+        emailError = (emailErr as Error).message
+        console.error('Error enviando email:', emailError)
       }
+    } else {
+      emailError = 'RESEND_API_KEY not configured'
     }
 
     return new Response(
-      JSON.stringify({ success: true, user_id: userId, email_sent: emailSent }),
+      JSON.stringify({ success: true, user_id: userId, email_sent: emailSent, email_error: emailError }),
       { headers }
     )
   } catch (err) {

@@ -149,6 +149,14 @@ export function useUnidades(condominioId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['unidades', condominioId] }),
   })
 
+  const actualizar = useMutation({
+    mutationFn: async (params: { id: string; updates: { edificio_id?: string; numero?: string; piso?: number | null; tipo?: string; area_m2?: number | null } }) => {
+      const { error } = await supabase.from('unidades').update(params.updates).eq('id', params.id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['unidades', condominioId] }),
+  })
+
   const eliminar = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('unidades').delete().eq('id', id)
@@ -157,7 +165,7 @@ export function useUnidades(condominioId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['unidades', condominioId] }),
   })
 
-  return { unidades: query.data || [], isLoading: query.isLoading, crear, eliminar }
+  return { unidades: query.data || [], isLoading: query.isLoading, crear, actualizar, eliminar }
 }
 
 export function useDocumentos(condominioId: string) {

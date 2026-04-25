@@ -25,6 +25,14 @@ export async function crearUsuarioResidente(params: CrearUsuarioParams): Promise
     })
 
     if (error) {
+      // Extract the real error from the response body if available
+      const contextBody = (error as any).context
+      if (contextBody && typeof contextBody.json === 'function') {
+        try {
+          const body = await contextBody.json()
+          if (body?.error) return { success: false, error: body.error }
+        } catch { /* fall through */ }
+      }
       return { success: false, error: error.message || 'Error de conexión con la función' }
     }
 

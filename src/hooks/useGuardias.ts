@@ -124,7 +124,37 @@ export function useTurnos(condominioId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['turnos', condominioId] }),
   })
 
-  return { turnos: query.data || [], isLoading: query.isLoading, crearTurno }
+  const crearTurnosBatch = useMutation({
+    mutationFn: async (input: { guardia_id: string; tipo: string; fechas: string[]; sobreescribir?: string[] }) => {
+      const horarios: Record<string, { inicio: string; fin: string }> = {
+        manana: { inicio: '06:00', fin: '14:00' },
+        tarde: { inicio: '14:00', fin: '22:00' },
+        noche: { inicio: '22:00', fin: '06:00' },
+      }
+      const h = horarios[input.tipo] || horarios.manana
+      // Delete existing turnos for overwrite dates
+      if (input.sobreescribir && input.sobreescribir.length > 0) {
+        const { error: delErr } = await supabase.from('turnos').delete()
+          .eq('guardia_id', input.guardia_id).eq('condominio_id', condominioId)
+          .in('fecha', input.sobreescribir)
+        if (delErr) throw delErr
+      }
+      // Insert all new turnos
+      const rows = input.fechas.map(f => ({
+        guardia_id: input.guardia_id, condominio_id: condominioId, tipo: input.tipo,
+        fecha: f, hora_programada_inicio: h.inicio, hora_programada_fin: h.fin, estado: 'programado' as const,
+      }))
+      const { error } = await supabase.from('turnos').insert(rows)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['turnos', condominioId] }),
+  })
+
+  return { turnos: query.data || [], isLoading: query.isLoading, crearTurno, crearTurnosBatch }
+}
+
+function formatLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function useMiTurno(guardiaId: string) {
@@ -133,7 +163,7 @@ export function useMiTurno(guardiaId: string) {
   const query = useQuery({
     queryKey: ['mi-turno', guardiaId],
     queryFn: async () => {
-      const hoy = new Date().toISOString().split('T')[0]
+      const hoy = formatLocalDate(new Date())
       const { data, error } = await supabase.from('turnos').select('*')
         .eq('guardia_id', guardiaId).eq('fecha', hoy).in('estado', ['programado', 'activo']).limit(1).single()
       if (error && error.code !== 'PGRST116') throw error

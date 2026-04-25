@@ -118,7 +118,7 @@ serve(async () => {
 
           try {
             await resend.emails.send({
-              from: 'DOMIA <noreply@domia.bo>',
+              from: 'ALTRION <noreply@domia.me>',
               to: residente.email,
               subject: `Recibo de mantenimiento ${mesLabel} — ${condoNombre}`,
               html: `

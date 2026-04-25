@@ -100,7 +100,7 @@ serve(async () => {
           const fecha = new Date().toLocaleDateString('es-BO', { day: 'numeric', month: 'long', year: 'numeric' })
           try {
             await resend.emails.send({
-              from: 'DOMIA <noreply@domia.bo>',
+              from: 'ALTRION <noreply@domia.me>',
               to: adminEmail,
               subject: `Condominio eliminado — ${condo.nombre}`,
               html: wrap(condo.nombre, `
@@ -126,7 +126,7 @@ serve(async () => {
 
         try {
           await resend.emails.send({
-            from: 'DOMIA <noreply@domia.bo>',
+            from: 'ALTRION <noreply@domia.me>',
             to: adminEmail,
             subject: asunto,
             html: wrap(condo.nombre, `

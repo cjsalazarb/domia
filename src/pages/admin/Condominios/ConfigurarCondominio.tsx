@@ -48,13 +48,21 @@ function TabEdificios({ condominioId }: { condominioId: string }) {
 }
 
 function TabUnidades({ condominioId }: { condominioId: string }) {
-  const { unidades, crear, eliminar } = useUnidades(condominioId)
+  const { unidades, crear, actualizar, eliminar } = useUnidades(condominioId)
   const { edificios } = useEdificios(condominioId)
   const [show, setShow] = useState(false); const [edId, setEdId] = useState(''); const [num, setNum] = useState('')
   const [piso, setPiso] = useState(''); const [tipo, setTipo] = useState('apartamento'); const [area, setArea] = useState('')
   const [showImport, setShowImport] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  // Edit modal state
+  const [editUnit, setEditUnit] = useState<any>(null)
+  const [editNum, setEditNum] = useState('')
+  const [editEdId, setEditEdId] = useState('')
+  const [editPiso, setEditPiso] = useState('')
+  const [editTipo, setEditTipo] = useState('apartamento')
+  const [editArea, setEditArea] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
   const { data: condoNombre } = useQuery({
     queryKey: ['condo-nombre-tab', condominioId],
     queryFn: async () => {
@@ -81,6 +89,39 @@ function TabUnidades({ condominioId }: { condominioId: string }) {
     if (!confirm('¿Eliminar esta unidad?')) return
     try { await eliminar.mutateAsync(id) } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al eliminar')
+    }
+  }
+
+  const openEdit = (u: any) => {
+    setEditUnit(u)
+    setEditNum(u.numero)
+    setEditEdId(u.edificio_id)
+    setEditPiso(u.piso != null ? String(u.piso) : '')
+    setEditTipo(u.tipo)
+    setEditArea(u.area_m2 != null ? String(u.area_m2) : '')
+    setError('')
+  }
+
+  const handleEditSave = async () => {
+    if (!editUnit) return
+    setEditSaving(true)
+    setError('')
+    try {
+      await actualizar.mutateAsync({
+        id: editUnit.id,
+        updates: {
+          edificio_id: editEdId,
+          numero: editNum,
+          piso: editPiso ? parseInt(editPiso) : null,
+          tipo: editTipo,
+          area_m2: editArea ? parseFloat(editArea) : null,
+        },
+      })
+      setEditUnit(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar unidad')
+    } finally {
+      setEditSaving(false)
     }
   }
 
@@ -131,19 +172,44 @@ function TabUnidades({ condominioId }: { condominioId: string }) {
 
       {unidades.length === 0 ? <div style={{ color: '#5E6B62', fontSize: '13px', padding: '20px', textAlign: 'center' }}>Sin unidades</div> : (
         <div style={{ backgroundColor: 'white', borderRadius: '16px', overflow: 'hidden', border: '1px solid #E8F4F0' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 0.8fr 0.6fr 0.5fr', padding: '10px 16px', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 0.8fr 0.6fr 0.8fr', padding: '10px 16px', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             <span>Numero</span><span>Edificio</span><span>Piso</span><span>Tipo</span><span>m²</span><span></span>
           </div>
           {unidades.map((u, i) => (
-            <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 0.8fr 0.6fr 0.5fr', padding: '10px 16px', fontSize: '13px', borderBottom: i < unidades.length - 1 ? '1px solid #F0F0F0' : 'none', alignItems: 'center' }}>
+            <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 0.8fr 0.6fr 0.8fr', padding: '10px 16px', fontSize: '13px', borderBottom: i < unidades.length - 1 ? '1px solid #F0F0F0' : 'none', alignItems: 'center' }}>
               <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117' }}>{u.numero}</span>
               <span style={{ color: '#5E6B62' }}>{(u.edificios as { nombre: string } | null)?.nombre || '—'}</span>
               <span style={{ color: '#5E6B62' }}>{u.piso || '—'}</span>
               <span style={{ color: '#5E6B62', textTransform: 'capitalize' }}>{u.tipo.replace('_', ' ')}</span>
               <span style={{ color: '#5E6B62' }}>{u.area_m2 || '—'}</span>
-              <button onClick={() => handleDelete(u.id)} style={{ padding: '3px 8px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Eliminar</button>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button onClick={() => openEdit(u)} style={{ padding: '3px 8px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Editar</button>
+                <button onClick={() => handleDelete(u.id)} style={{ padding: '3px 8px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Eliminar</button>
+              </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {editUnit && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setEditUnit(null)}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '480px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Editar Unidad</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div><label style={lS}>Numero de unidad *</label><input value={editNum} onChange={e => setEditNum(e.target.value)} style={iS} /></div>
+              <div><label style={lS}>Edificio *</label><select value={editEdId} onChange={e => setEditEdId(e.target.value)} style={{ ...iS, backgroundColor: 'white' }}><option value="">— Seleccionar —</option>{edificios.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}</select></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div><label style={lS}>Piso</label><input type="number" value={editPiso} onChange={e => setEditPiso(e.target.value)} style={iS} /></div>
+                <div><label style={lS}>m²</label><input type="number" value={editArea} onChange={e => setEditArea(e.target.value)} style={iS} /></div>
+              </div>
+              <div><label style={lS}>Tipo</label><select value={editTipo} onChange={e => setEditTipo(e.target.value)} style={{ ...iS, backgroundColor: 'white' }}>{TIPOS.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}</select></div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+              <button onClick={() => setEditUnit(null)} style={{ padding: '8px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
+              <button onClick={handleEditSave} disabled={!editNum || !editEdId || editSaving} style={{ padding: '8px 18px', backgroundColor: (!editNum || !editEdId || editSaving) ? '#C8D4CB' : '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: (!editNum || !editEdId || editSaving) ? 'not-allowed' : 'pointer', fontFamily: "'Nunito', sans-serif" }}>{editSaving ? 'Guardando...' : 'Guardar cambios'}</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
