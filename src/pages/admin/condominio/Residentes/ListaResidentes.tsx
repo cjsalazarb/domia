@@ -31,13 +31,15 @@ interface Props {
   onDetalle: (id: string) => void
   onEditar: (id: string) => void
   onRegistrarPago?: (id: string) => void
+  onEliminar?: (id: string) => void
 }
 
-export default function ListaResidentes({ residentes, condominioId, onNuevo, onImportar, onDetalle, onEditar: _onEditar, onRegistrarPago }: Props) {
+export default function ListaResidentes({ residentes, condominioId, onNuevo, onImportar, onDetalle, onEditar: _onEditar, onRegistrarPago, onEliminar }: Props) {
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<string>('todos')
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
   const [filtroPago, setFiltroPago] = useState<FiltroPago>('todos')
+  const [confirmDelete, setConfirmDelete] = useState<Residente | null>(null)
 
   // Fetch recibos for current period to determine payment status
   const { data: recibosData = [] } = useQuery({
@@ -294,10 +296,35 @@ export default function ListaResidentes({ residentes, condominioId, onNuevo, onI
                       Registrar pago
                     </button>
                   )}
+                  {onEliminar && (
+                    <button
+                      onClick={() => setConfirmDelete(r)}
+                      style={{ padding: '5px 10px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
+                    >
+                      Eliminar
+                    </button>
+                  )}
                 </span>
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {confirmDelete && onEliminar && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setConfirmDelete(null)}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '420px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#B83232', margin: '0 0 12px' }}>Eliminar residente</h3>
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#0D1117', margin: '0 0 20px', lineHeight: 1.5 }}>
+              ¿Estas segura de que quieres eliminar a <strong>{confirmDelete.nombre} {confirmDelete.apellido}</strong>?
+              Se eliminara su historial de pagos y cuenta de acceso.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ padding: '8px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
+              <button onClick={() => { onEliminar(confirmDelete.id); setConfirmDelete(null) }} style={{ padding: '8px 18px', backgroundColor: '#B83232', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Nunito', sans-serif" }}>Si, eliminar</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

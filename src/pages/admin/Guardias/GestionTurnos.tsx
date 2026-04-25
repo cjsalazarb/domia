@@ -24,7 +24,7 @@ function formatLocalDate(d: Date): string {
 
 export default function GestionTurnos({ condominioId }: Props) {
   const { guardias } = useGuardias(condominioId)
-  const { turnos, isLoading, crearTurno, crearTurnosBatch } = useTurnos(condominioId)
+  const { turnos, isLoading, crearTurno, crearTurnosBatch, eliminarTurno } = useTurnos(condominioId)
   const [guardiaId, setGuardiaId] = useState('')
   const [tipo, setTipo] = useState('manana')
   const [fechaInicio, setFechaInicio] = useState(formatLocalDate(new Date()))
@@ -33,6 +33,8 @@ export default function GestionTurnos({ condominioId }: Props) {
   const [asignando, setAsignando] = useState(false)
   // Conflict modal state
   const [conflicto, setConflicto] = useState<{ fechasConflicto: string[]; fechasLibres: string[]; todasFechas: string[]; guardiaNombre: string } | null>(null)
+  // Delete turno confirmation
+  const [confirmDeleteTurno, setConfirmDeleteTurno] = useState<any>(null)
 
   // Weekly summary data — use local dates (Bolivia UTC-4)
   const semana = useMemo(() => {
@@ -313,10 +315,27 @@ export default function GestionTurnos({ condominioId }: Props) {
                   <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: tipoInfo.bg, color: tipoInfo.color }}>{tipoInfo.label}</span>
                   <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
                   {t.horas_trabajadas && <span style={{ fontSize: '11px', color: '#1A7A4A', fontWeight: 600 }}>{Number(t.horas_trabajadas).toFixed(1)}h</span>}
+                  <button onClick={() => setConfirmDeleteTurno(t)} style={{ padding: '3px 8px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Eliminar</button>
                 </div>
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Delete turno confirmation modal */}
+      {confirmDeleteTurno && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setConfirmDeleteTurno(null)}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#B83232', margin: '0 0 12px' }}>Eliminar turno</h3>
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#0D1117', margin: '0 0 20px', lineHeight: 1.5 }}>
+              ¿Eliminar el turno de <strong>{(confirmDeleteTurno.guardias as any)?.nombre} {(confirmDeleteTurno.guardias as any)?.apellido}</strong> del <strong>{confirmDeleteTurno.fecha}</strong>?
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button onClick={() => setConfirmDeleteTurno(null)} style={{ padding: '8px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
+              <button onClick={async () => { await eliminarTurno.mutateAsync(confirmDeleteTurno.id); setConfirmDeleteTurno(null) }} style={{ padding: '8px 18px', backgroundColor: '#B83232', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Nunito', sans-serif" }}>Si, eliminar</button>
+            </div>
+          </div>
         </div>
       )}
 

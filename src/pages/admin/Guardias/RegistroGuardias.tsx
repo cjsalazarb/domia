@@ -7,7 +7,7 @@ import { crearUsuarioResidente } from '@/lib/crearUsuarioResidente'
 interface Props { condominioId: string }
 
 export default function RegistroGuardias({ condominioId }: Props) {
-  const { guardias, isLoading, crear, actualizar } = useGuardias(condominioId)
+  const { guardias, isLoading, crear, actualizar, eliminar } = useGuardias(condominioId)
   const [showForm, setShowForm] = useState(false)
   const [nombre, setNombre] = useState('')
   const [apellido, setApellido] = useState('')
@@ -30,6 +30,8 @@ export default function RegistroGuardias({ condominioId }: Props) {
   const [editSaving, setEditSaving] = useState(false)
   // Deactivate confirmation
   const [confirmDeactivate, setConfirmDeactivate] = useState<any>(null)
+  // Delete confirmation
+  const [confirmDelete, setConfirmDelete] = useState<any>(null)
 
   const { data: condominio } = useQuery({
     queryKey: ['condominio-nombre', condominioId],
@@ -130,6 +132,17 @@ export default function RegistroGuardias({ condominioId }: Props) {
     setConfirmDeactivate(null)
   }
 
+  const confirmDeleteGuardia = async () => {
+    if (!confirmDelete) return
+    try {
+      await eliminar.mutateAsync(confirmDelete.id)
+      setConfirmDelete(null)
+    } catch (err: any) {
+      setError(err?.message || 'Error al eliminar guardia')
+      setConfirmDelete(null)
+    }
+  }
+
   const inputStyle = { width: '100%', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '14px', color: '#0D1117', fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const }
   const labelStyle = { display: 'block' as const, fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }
 
@@ -212,6 +225,7 @@ export default function RegistroGuardias({ condominioId }: Props) {
                   padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: "'Inter', sans-serif",
                   backgroundColor: g.activo ? '#E8F4F0' : '#F0F0F0', color: g.activo ? '#1A7A4A' : '#5E6B62',
                 }}>{g.activo ? 'Activo' : 'Inactivo'}</button>
+                <button onClick={() => setConfirmDelete(g)} style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, border: 'none', cursor: 'pointer', backgroundColor: '#FCEAEA', color: '#B83232', fontFamily: "'Inter', sans-serif" }}>Eliminar</button>
               </div>
             </div>
           ))}
@@ -261,6 +275,23 @@ export default function RegistroGuardias({ condominioId }: Props) {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button onClick={() => setConfirmDeactivate(null)} style={{ padding: '8px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
               <button onClick={confirmDeactivateGuardia} style={{ padding: '8px 18px', backgroundColor: '#B83232', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Nunito', sans-serif" }}>Desactivar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setConfirmDelete(null)}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#B83232', margin: '0 0 12px' }}>Eliminar guardia</h3>
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#0D1117', margin: '0 0 20px', lineHeight: 1.5 }}>
+              ¿Estas segura de que quieres eliminar al guardia <strong>{confirmDelete.nombre} {confirmDelete.apellido}</strong>?
+              {confirmDelete.user_id && ' Se eliminara su cuenta de acceso al portal.'}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ padding: '8px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
+              <button onClick={confirmDeleteGuardia} style={{ padding: '8px 18px', backgroundColor: '#B83232', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Nunito', sans-serif" }}>Si, eliminar</button>
             </div>
           </div>
         </div>

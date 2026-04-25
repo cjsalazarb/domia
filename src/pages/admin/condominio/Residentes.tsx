@@ -15,7 +15,7 @@ type View = 'lista' | 'nuevo' | 'editar' | 'detalle' | 'importar'
 export default function Residentes() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { residentes, isLoading, createResidente, updateResidente } = useResidentes(id || '')
+  const { residentes, isLoading, createResidente, updateResidente, eliminarResidente } = useResidentes(id || '')
 
   const [view, setView] = useState<View>('lista')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -127,6 +127,7 @@ export default function Residentes() {
                 onDetalle={(rid) => { setSelectedId(rid); setView('detalle') }}
                 onEditar={(rid) => { setSelectedId(rid); setView('editar') }}
                 onRegistrarPago={(rid) => { setSelectedId(rid); setView('detalle') }}
+                onEliminar={async (rid) => { try { await eliminarResidente.mutateAsync(rid) } catch {} }}
               />
             )}
           </>

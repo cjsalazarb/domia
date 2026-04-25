@@ -90,7 +90,15 @@ export function useGuardias(condominioId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['guardias', condominioId] }),
   })
 
-  return { guardias: query.data || [], isLoading: query.isLoading, crear, actualizar }
+  const eliminar = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('guardias').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['guardias', condominioId] }),
+  })
+
+  return { guardias: query.data || [], isLoading: query.isLoading, crear, actualizar, eliminar }
 }
 
 export function useTurnos(condominioId: string) {
@@ -150,7 +158,15 @@ export function useTurnos(condominioId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['turnos', condominioId] }),
   })
 
-  return { turnos: query.data || [], isLoading: query.isLoading, crearTurno, crearTurnosBatch }
+  const eliminarTurno = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('turnos').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['turnos', condominioId] }),
+  })
+
+  return { turnos: query.data || [], isLoading: query.isLoading, crearTurno, crearTurnosBatch, eliminarTurno }
 }
 
 function formatLocalDate(d: Date): string {

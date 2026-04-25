@@ -96,12 +96,26 @@ export function useResidentes(condominioId: string) {
     },
   })
 
+  const eliminarResidente = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('residentes')
+        .update({ estado: 'inactivo', user_id: null })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['residentes', condominioId] })
+    },
+  })
+
   return {
     residentes: residentesQuery.data || [],
     isLoading: residentesQuery.isLoading,
     error: residentesQuery.error,
     createResidente,
     updateResidente,
+    eliminarResidente,
   }
 }
 
