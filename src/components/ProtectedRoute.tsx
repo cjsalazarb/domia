@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { supabase } from '@/lib/supabase'
 
-type Rol = 'super_admin' | 'admin_condominio' | 'propietario' | 'inquilino' | 'guardia'
+type Rol = 'super_admin' | 'tenant_admin' | 'admin_condominio' | 'propietario' | 'inquilino' | 'guardia'
 
 interface Props {
   children: React.ReactNode

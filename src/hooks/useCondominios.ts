@@ -39,7 +39,9 @@ export function useCondominios() {
   const crear = useMutation({
     mutationFn: async (input: Partial<Condominio>) => {
       const conPersoneria = input.tiene_personeria_juridica || false
-      const { data, error } = await supabase.from('condominios').insert({ ...input, estado: 'activo' }).select().single()
+      // Get tenant_id from current user's profile
+      const { data: prof } = await supabase.from('profiles').select('tenant_id').eq('id', (await supabase.auth.getUser()).data.user?.id || '').single()
+      const { data, error } = await supabase.from('condominios').insert({ ...input, estado: 'activo', tenant_id: prof?.tenant_id || null } as any).select().single()
       if (error) throw error
       // Poblar plan de cuentas según tipo de personería
       const { error: rpcErr } = await supabase.rpc('poblar_plan_cuentas', {

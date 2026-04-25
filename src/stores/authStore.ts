@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import type { User, Session } from '@supabase/supabase-js'
 
-type Rol = 'super_admin' | 'admin_condominio' | 'propietario' | 'inquilino' | 'guardia'
+type Rol = 'super_admin' | 'tenant_admin' | 'admin_condominio' | 'propietario' | 'inquilino' | 'guardia'
 
 interface Profile {
   id: string
@@ -13,6 +13,7 @@ interface Profile {
   telefono: string | null
   foto_url: string | null
   condominio_id: string | null
+  tenant_id: string | null
   activo: boolean
 }
 

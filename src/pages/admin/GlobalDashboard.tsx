@@ -149,6 +149,7 @@ export default function GlobalDashboard() {
             {[
               { label: 'Dashboard', path: '/dashboard', icon: '🏠' },
               { label: 'Condominios', path: '/admin', icon: '🏢' },
+              { label: 'Clientes', path: '/admin/clientes', icon: '👥' },
               { label: 'Finanzas Global', path: '/finanzas-global', icon: '💰' },
             ].map(item => {
               const active = window.location.pathname === item.path

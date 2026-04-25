@@ -20,6 +20,8 @@ import GuardiasAdmin from '@/pages/admin/Guardias'
 import Configurar from '@/pages/admin/condominio/Configurar'
 import Contabilidad from '@/pages/admin/condominio/Contabilidad'
 import CRM from '@/pages/admin/CRM'
+import TenantDashboard from '@/pages/admin/TenantDashboard'
+import ClientesDomia from '@/pages/admin/ClientesDomia'
 
 import PortalDashboard from '@/pages/portal/PortalDashboard'
 import PortalRecibos from '@/pages/portal/PortalRecibos'
@@ -85,6 +87,26 @@ export const router = createBrowserRouter([
     ),
   },
 
+  // Tenant admin dashboard
+  {
+    path: '/tenant',
+    element: (
+      <ProtectedRoute rolesPermitidos={['tenant_admin']}>
+        <TenantDashboard />
+      </ProtectedRoute>
+    ),
+  },
+
+  // Super admin — gestión de clientes
+  {
+    path: '/admin/clientes',
+    element: (
+      <ProtectedRoute rolesPermitidos={['super_admin']}>
+        <ClientesDomia />
+      </ProtectedRoute>
+    ),
+  },
+
   // CRM — solo super_admin
   {
     path: '/admin/crm',
@@ -99,7 +121,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin/condominio/:id/dashboard',
     element: (
-      <ProtectedRoute rolesPermitidos={['super_admin', 'admin_condominio']}>
+      <ProtectedRoute rolesPermitidos={['super_admin', 'tenant_admin', 'admin_condominio']}>
         <CondominioDashboard />
       </ProtectedRoute>
     ),
@@ -107,7 +129,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin/condominio/:id/residentes',
     element: (
-      <ProtectedRoute rolesPermitidos={['super_admin', 'admin_condominio']}>
+      <ProtectedRoute rolesPermitidos={['super_admin', 'tenant_admin', 'admin_condominio']}>
         <Residentes />
       </ProtectedRoute>
     ),
@@ -115,7 +137,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin/condominio/:id/financiero',
     element: (
-      <ProtectedRoute rolesPermitidos={['super_admin', 'admin_condominio']}>
+      <ProtectedRoute rolesPermitidos={['super_admin', 'tenant_admin', 'admin_condominio']}>
         <Financiero />
       </ProtectedRoute>
     ),
@@ -123,7 +145,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin/condominio/:id/mantenimiento',
     element: (
-      <ProtectedRoute rolesPermitidos={['super_admin', 'admin_condominio']}>
+      <ProtectedRoute rolesPermitidos={['super_admin', 'tenant_admin', 'admin_condominio']}>
         <Mantenimiento />
       </ProtectedRoute>
     ),
@@ -131,7 +153,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin/condominio/:id/reservas',
     element: (
-      <ProtectedRoute rolesPermitidos={['super_admin', 'admin_condominio']}>
+      <ProtectedRoute rolesPermitidos={['super_admin', 'tenant_admin', 'admin_condominio']}>
         <Reservas />
       </ProtectedRoute>
     ),
@@ -139,7 +161,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin/condominio/:id/comunicaciones',
     element: (
-      <ProtectedRoute rolesPermitidos={['super_admin', 'admin_condominio']}>
+      <ProtectedRoute rolesPermitidos={['super_admin', 'tenant_admin', 'admin_condominio']}>
         <Comunicaciones />
       </ProtectedRoute>
     ),
@@ -147,7 +169,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin/condominio/:id/guardias',
     element: (
-      <ProtectedRoute rolesPermitidos={['super_admin', 'admin_condominio']}>
+      <ProtectedRoute rolesPermitidos={['super_admin', 'tenant_admin', 'admin_condominio']}>
         <GuardiasAdmin />
       </ProtectedRoute>
     ),
@@ -155,7 +177,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin/condominio/:id/contabilidad',
     element: (
-      <ProtectedRoute rolesPermitidos={['super_admin', 'admin_condominio']}>
+      <ProtectedRoute rolesPermitidos={['super_admin', 'tenant_admin', 'admin_condominio']}>
         <Contabilidad />
       </ProtectedRoute>
     ),
@@ -163,7 +185,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin/condominio/:id/configurar',
     element: (
-      <ProtectedRoute rolesPermitidos={['super_admin', 'admin_condominio']}>
+      <ProtectedRoute rolesPermitidos={['super_admin', 'tenant_admin', 'admin_condominio']}>
         <Configurar />
       </ProtectedRoute>
     ),
