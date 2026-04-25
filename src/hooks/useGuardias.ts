@@ -178,7 +178,41 @@ export function useTurnos(condominioId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['turnos', condominioId] }),
   })
 
-  return { turnos: query.data || [], isLoading: query.isLoading, crearTurno, crearTurnosBatch, eliminarTurno, actualizarTurno }
+  const actualizarTurnosBatch = useMutation({
+    mutationFn: async (input: { ids: string[]; horaInicio: string; horaFin: string; fechas?: string[] }) => {
+      if (input.fechas && input.fechas.length === input.ids.length) {
+        // Update each turno with its corresponding new fecha
+        for (let i = 0; i < input.ids.length; i++) {
+          const { error } = await supabase.from('turnos').update({
+            fecha: input.fechas[i],
+            hora_programada_inicio: input.horaInicio,
+            hora_programada_fin: input.horaFin,
+            tipo: derivarTipo(input.horaInicio),
+          }).eq('id', input.ids[i])
+          if (error) throw error
+        }
+      } else {
+        // Just update hours for all
+        const { error } = await supabase.from('turnos').update({
+          hora_programada_inicio: input.horaInicio,
+          hora_programada_fin: input.horaFin,
+          tipo: derivarTipo(input.horaInicio),
+        }).in('id', input.ids)
+        if (error) throw error
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['turnos', condominioId] }),
+  })
+
+  const eliminarTurnosBatch = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('turnos').delete().in('id', ids)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['turnos', condominioId] }),
+  })
+
+  return { turnos: query.data || [], isLoading: query.isLoading, crearTurno, crearTurnosBatch, eliminarTurno, actualizarTurno, actualizarTurnosBatch, eliminarTurnosBatch }
 }
 
 function formatLocalDate(d: Date): string {

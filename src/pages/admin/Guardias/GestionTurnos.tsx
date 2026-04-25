@@ -20,9 +20,61 @@ function formatHora(t: string): string {
   return t?.slice(0, 5) || ''
 }
 
+interface TurnoGroup {
+  guardiaNombre: string
+  guardia_id: string
+  horaInicio: string
+  horaFin: string
+  fechaInicio: string
+  fechaFin: string
+  estado: string
+  ids: string[]
+}
+
+function agruparTurnos(turnos: any[]): TurnoGroup[] {
+  // Sort by guardia name, then fecha ascending
+  const sorted = [...turnos].sort((a, b) => {
+    const na = `${a.guardias?.nombre || ''} ${a.guardias?.apellido || ''}`
+    const nb = `${b.guardias?.nombre || ''} ${b.guardias?.apellido || ''}`
+    if (na !== nb) return na.localeCompare(nb)
+    return a.fecha.localeCompare(b.fecha)
+  })
+
+  const groups: TurnoGroup[] = []
+  for (const t of sorted) {
+    const hi = formatHora(t.hora_programada_inicio)
+    const hf = formatHora(t.hora_programada_fin)
+    const last = groups[groups.length - 1]
+    // Check if consecutive with last group
+    if (last && last.guardia_id === t.guardia_id && last.horaInicio === hi && last.horaFin === hf && last.estado === t.estado) {
+      const lastEnd = new Date(last.fechaFin + 'T12:00')
+      const thisDate = new Date(t.fecha + 'T12:00')
+      const diffDays = (thisDate.getTime() - lastEnd.getTime()) / 86400000
+      if (diffDays === 1) {
+        last.fechaFin = t.fecha
+        last.ids.push(t.id)
+        continue
+      }
+    }
+    groups.push({
+      guardiaNombre: `${t.guardias?.nombre || ''} ${t.guardias?.apellido || ''}`,
+      guardia_id: t.guardia_id,
+      horaInicio: hi,
+      horaFin: hf,
+      fechaInicio: t.fecha,
+      fechaFin: t.fecha,
+      estado: t.estado,
+      ids: [t.id],
+    })
+  }
+  // Sort by fechaInicio descending
+  groups.sort((a, b) => b.fechaInicio.localeCompare(a.fechaInicio))
+  return groups
+}
+
 export default function GestionTurnos({ condominioId }: Props) {
   const { guardias } = useGuardias(condominioId)
-  const { turnos, isLoading, crearTurno, crearTurnosBatch, eliminarTurno, actualizarTurno } = useTurnos(condominioId)
+  const { turnos, isLoading, crearTurno, crearTurnosBatch, eliminarTurno, actualizarTurnosBatch, eliminarTurnosBatch } = useTurnos(condominioId)
   const [guardiaId, setGuardiaId] = useState('')
   const [horaInicio, setHoraInicio] = useState('06:00')
   const [horaFin, setHoraFin] = useState('14:00')
@@ -32,13 +84,12 @@ export default function GestionTurnos({ condominioId }: Props) {
   const [asignando, setAsignando] = useState(false)
   // Conflict modal state
   const [conflicto, setConflicto] = useState<{ fechasConflicto: string[]; fechasLibres: string[]; todasFechas: string[]; guardiaNombre: string } | null>(null)
-  // Delete turno confirmation
-  const [confirmDeleteTurno, setConfirmDeleteTurno] = useState<any>(null)
-  // Edit turno modal
-  const [editTurno, setEditTurno] = useState<any>(null)
+  // Delete group confirmation
+  const [confirmDeleteGroup, setConfirmDeleteGroup] = useState<TurnoGroup | null>(null)
+  // Edit group modal
+  const [editGroup, setEditGroup] = useState<TurnoGroup | null>(null)
   const [editHoraInicio, setEditHoraInicio] = useState('')
   const [editHoraFin, setEditHoraFin] = useState('')
-  const [editFecha, setEditFecha] = useState('')
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
@@ -69,6 +120,8 @@ export default function GestionTurnos({ condominioId }: Props) {
     }
     return map
   }, [turnos, semana])
+
+  const turnosAgrupados = useMemo(() => agruparTurnos(turnos), [turnos])
 
   const guardiasActivos = guardias.filter(g => g.activo)
 
@@ -192,38 +245,39 @@ export default function GestionTurnos({ condominioId }: Props) {
     }
   }
 
-  const openEditTurno = (t: any) => {
-    setEditTurno(t)
-    setEditHoraInicio(formatHora(t.hora_programada_inicio))
-    setEditHoraFin(formatHora(t.hora_programada_fin))
-    setEditFecha(t.fecha)
+  const openEditGroup = (g: TurnoGroup) => {
+    setEditGroup(g)
+    setEditHoraInicio(g.horaInicio)
+    setEditHoraFin(g.horaFin)
     setEditError('')
   }
 
-  const handleEditTurnoSave = async () => {
-    if (!editTurno) return
+  const handleEditGroupSave = async () => {
+    if (!editGroup) return
     if (!editHoraInicio || !editHoraFin) { setEditError('Las horas son obligatorias'); return }
-    if (!editFecha) { setEditError('La fecha es obligatoria'); return }
-
-    // Check conflict if date changed
-    if (editFecha !== editTurno.fecha) {
-      const conflictoExistente = turnos.find(t => t.id !== editTurno.id && t.guardia_id === editTurno.guardia_id && t.fecha === editFecha)
-      if (conflictoExistente) {
-        setEditError(`Ya tiene turno el ${editFecha}. Elimine el turno existente primero.`)
-        return
-      }
-    }
 
     setEditSaving(true)
     setEditError('')
     try {
-      await actualizarTurno.mutateAsync({ id: editTurno.id, fecha: editFecha, horaInicio: editHoraInicio, horaFin: editHoraFin })
-      setEditTurno(null)
+      await actualizarTurnosBatch.mutateAsync({ ids: editGroup.ids, horaInicio: editHoraInicio, horaFin: editHoraFin })
+      setEditGroup(null)
     } catch (err: any) {
-      setEditError(err?.message || 'Error al modificar turno')
+      setEditError(err?.message || 'Error al modificar turnos')
     } finally {
       setEditSaving(false)
     }
+  }
+
+  const handleDeleteGroup = async () => {
+    if (!confirmDeleteGroup) return
+    try {
+      if (confirmDeleteGroup.ids.length === 1) {
+        await eliminarTurno.mutateAsync(confirmDeleteGroup.ids[0])
+      } else {
+        await eliminarTurnosBatch.mutateAsync(confirmDeleteGroup.ids)
+      }
+      setConfirmDeleteGroup(null)
+    } catch {}
   }
 
   const inputStyle = { padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '13px', fontFamily: "'Inter', sans-serif", color: '#0D1117', backgroundColor: 'white', outline: 'none' }
@@ -345,29 +399,29 @@ export default function GestionTurnos({ condominioId }: Props) {
         </div>
       )}
 
-      {/* Turnos list */}
-      {turnos.length === 0 ? (
+      {/* Turnos list (grouped) */}
+      {turnosAgrupados.length === 0 ? (
         <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '40px', textAlign: 'center', color: '#5E6B62', fontSize: '14px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>No hay turnos registrados</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {turnos.map(t => {
-            const est = ESTADO_STYLE[t.estado] || ESTADO_STYLE.programado
-            const hInicio = formatHora(t.hora_programada_inicio)
-            const hFin = formatHora(t.hora_programada_fin)
+          {turnosAgrupados.map((g, i) => {
+            const est = ESTADO_STYLE[g.estado] || ESTADO_STYLE.programado
+            const esRango = g.fechaInicio !== g.fechaFin
+            const fechaLabel = esRango
+              ? `${new Date(g.fechaInicio + 'T12:00').toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit' })} → ${new Date(g.fechaFin + 'T12:00').toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit' })}`
+              : g.fechaInicio
             return (
-              <div key={t.id} style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '14px 20px', fontFamily: "'Inter', sans-serif", display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div key={i} style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '14px 20px', fontFamily: "'Inter', sans-serif", display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
-                  <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117', fontSize: '14px' }}>
-                    {(t.guardias as { nombre: string; apellido: string } | null)?.nombre} {(t.guardias as { nombre: string; apellido: string } | null)?.apellido}
-                  </span>
-                  <span style={{ marginLeft: '8px', fontSize: '12px', color: '#5E6B62' }}>{t.fecha}</span>
+                  <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117', fontSize: '14px' }}>{g.guardiaNombre}</span>
+                  <span style={{ marginLeft: '8px', fontSize: '12px', color: '#5E6B62' }}>{fechaLabel}</span>
+                  {esRango && <span style={{ marginLeft: '4px', fontSize: '10px', color: '#5E6B62' }}>({g.ids.length} dias)</span>}
                 </div>
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, backgroundColor: '#EBF4FF', color: '#0D4A8F' }}>{hInicio}-{hFin}</span>
+                  <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, backgroundColor: '#EBF4FF', color: '#0D4A8F' }}>{g.horaInicio}-{g.horaFin}</span>
                   <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
-                  {t.horas_trabajadas && <span style={{ fontSize: '11px', color: '#1A7A4A', fontWeight: 600 }}>{Number(t.horas_trabajadas).toFixed(1)}h</span>}
-                  <button onClick={() => openEditTurno(t)} style={{ padding: '3px 8px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Modificar</button>
-                  <button onClick={() => setConfirmDeleteTurno(t)} style={{ padding: '3px 8px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Eliminar</button>
+                  <button onClick={() => openEditGroup(g)} style={{ padding: '3px 8px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Modificar</button>
+                  <button onClick={() => setConfirmDeleteGroup(g)} style={{ padding: '3px 8px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Eliminar</button>
                 </div>
               </div>
             )
@@ -375,28 +429,27 @@ export default function GestionTurnos({ condominioId }: Props) {
         </div>
       )}
 
-      {/* Edit turno modal */}
-      {editTurno && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setEditTurno(null)}>
+      {/* Edit group modal */}
+      {editGroup && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setEditGroup(null)}>
           <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '420px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
             <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Modificar turno</h3>
-            <div style={{ fontSize: '13px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", marginBottom: '16px' }}>
-              Guardia: <strong style={{ color: '#0D1117' }}>{(editTurno.guardias as any)?.nombre} {(editTurno.guardias as any)?.apellido}</strong>
+            <div style={{ fontSize: '13px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", marginBottom: '8px' }}>
+              Guardia: <strong style={{ color: '#0D1117' }}>{editGroup.guardiaNombre}</strong>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Hora inicio</label>
-                  <input type="time" value={editHoraInicio} onChange={e => setEditHoraInicio(e.target.value)} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Hora fin</label>
-                  <input type="time" value={editHoraFin} onChange={e => setEditHoraFin(e.target.value)} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const }} />
-                </div>
+            <div style={{ fontSize: '12px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", marginBottom: '16px' }}>
+              {editGroup.fechaInicio === editGroup.fechaFin
+                ? `Fecha: ${editGroup.fechaInicio}`
+                : `Rango: ${editGroup.fechaInicio} → ${editGroup.fechaFin} (${editGroup.ids.length} dias)`}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Hora inicio</label>
+                <input type="time" value={editHoraInicio} onChange={e => setEditHoraInicio(e.target.value)} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Fecha</label>
-                <input type="date" value={editFecha} onChange={e => setEditFecha(e.target.value)} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const }} />
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Hora fin</label>
+                <input type="time" value={editHoraFin} onChange={e => setEditHoraFin(e.target.value)} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const }} />
               </div>
             </div>
             {editError && (
@@ -405,24 +458,27 @@ export default function GestionTurnos({ condominioId }: Props) {
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button onClick={() => setEditTurno(null)} style={{ padding: '8px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
-              <button onClick={handleEditTurnoSave} disabled={editSaving} style={{ padding: '8px 18px', backgroundColor: editSaving ? '#C8D4CB' : '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: editSaving ? 'not-allowed' : 'pointer', fontFamily: "'Nunito', sans-serif" }}>{editSaving ? 'Guardando...' : 'Guardar cambios'}</button>
+              <button onClick={() => setEditGroup(null)} style={{ padding: '8px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
+              <button onClick={handleEditGroupSave} disabled={editSaving} style={{ padding: '8px 18px', backgroundColor: editSaving ? '#C8D4CB' : '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: editSaving ? 'not-allowed' : 'pointer', fontFamily: "'Nunito', sans-serif" }}>{editSaving ? 'Guardando...' : 'Guardar cambios'}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete turno confirmation modal */}
-      {confirmDeleteTurno && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setConfirmDeleteTurno(null)}>
+      {/* Delete group confirmation modal */}
+      {confirmDeleteGroup && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setConfirmDeleteGroup(null)}>
           <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#B83232', margin: '0 0 12px' }}>Eliminar turno</h3>
+            <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#B83232', margin: '0 0 12px' }}>Eliminar turno{confirmDeleteGroup.ids.length > 1 ? 's' : ''}</h3>
             <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#0D1117', margin: '0 0 20px', lineHeight: 1.5 }}>
-              ¿Eliminar el turno de <strong>{(confirmDeleteTurno.guardias as any)?.nombre} {(confirmDeleteTurno.guardias as any)?.apellido}</strong> del <strong>{confirmDeleteTurno.fecha}</strong>?
+              ¿Eliminar {confirmDeleteGroup.ids.length > 1 ? `los ${confirmDeleteGroup.ids.length} turnos` : 'el turno'} de <strong>{confirmDeleteGroup.guardiaNombre}</strong>
+              {confirmDeleteGroup.fechaInicio === confirmDeleteGroup.fechaFin
+                ? ` del ${confirmDeleteGroup.fechaInicio}`
+                : ` del ${confirmDeleteGroup.fechaInicio} al ${confirmDeleteGroup.fechaFin}`}?
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button onClick={() => setConfirmDeleteTurno(null)} style={{ padding: '8px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
-              <button onClick={async () => { await eliminarTurno.mutateAsync(confirmDeleteTurno.id); setConfirmDeleteTurno(null) }} style={{ padding: '8px 18px', backgroundColor: '#B83232', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Nunito', sans-serif" }}>Si, eliminar</button>
+              <button onClick={() => setConfirmDeleteGroup(null)} style={{ padding: '8px 18px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
+              <button onClick={handleDeleteGroup} style={{ padding: '8px 18px', backgroundColor: '#B83232', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Nunito', sans-serif" }}>Si, eliminar</button>
             </div>
           </div>
         </div>
