@@ -89,7 +89,6 @@ export default function RegistroGuardias({ condominioId }: Props) {
     setEditEmpresa(g.empresa || '')
     setEditHabilitacion(g.habilitacion_dgsc || '')
     setEditTelefono(g.telefono || '')
-    setEditEmail('')
     setError('')
   }
 
