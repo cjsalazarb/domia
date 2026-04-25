@@ -27,7 +27,6 @@ export default function RegistroGuardias({ condominioId }: Props) {
   const [editEmpresa, setEditEmpresa] = useState('')
   const [editHabilitacion, setEditHabilitacion] = useState('')
   const [editTelefono, setEditTelefono] = useState('')
-  const [editEmail, setEditEmail] = useState('')
   const [editSaving, setEditSaving] = useState(false)
   // Deactivate confirmation
   const [confirmDeactivate, setConfirmDeactivate] = useState<any>(null)
