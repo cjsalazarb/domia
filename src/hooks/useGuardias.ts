@@ -115,17 +115,20 @@ export function useTurnos(condominioId: string) {
     enabled: !!condominioId,
   })
 
+  const derivarTipo = (horaInicio: string): 'manana' | 'tarde' | 'noche' => {
+    const h = parseInt(horaInicio.split(':')[0])
+    if (h >= 6 && h < 14) return 'manana'
+    if (h >= 14 && h < 22) return 'tarde'
+    return 'noche'
+  }
+
   const crearTurno = useMutation({
-    mutationFn: async (input: { guardia_id: string; tipo: string; fecha: string }) => {
-      const horarios: Record<string, { inicio: string; fin: string }> = {
-        manana: { inicio: '06:00', fin: '14:00' },
-        tarde: { inicio: '14:00', fin: '22:00' },
-        noche: { inicio: '22:00', fin: '06:00' },
-      }
-      const h = horarios[input.tipo] || horarios.manana
+    mutationFn: async (input: { guardia_id: string; fecha: string; horaInicio: string; horaFin: string }) => {
       const { error } = await supabase.from('turnos').insert({
-        guardia_id: input.guardia_id, condominio_id: condominioId, tipo: input.tipo,
-        fecha: input.fecha, hora_programada_inicio: h.inicio, hora_programada_fin: h.fin, estado: 'programado',
+        guardia_id: input.guardia_id, condominio_id: condominioId,
+        tipo: derivarTipo(input.horaInicio),
+        fecha: input.fecha, hora_programada_inicio: input.horaInicio, hora_programada_fin: input.horaFin,
+        estado: 'programado',
       })
       if (error) throw error
     },
@@ -133,13 +136,7 @@ export function useTurnos(condominioId: string) {
   })
 
   const crearTurnosBatch = useMutation({
-    mutationFn: async (input: { guardia_id: string; tipo: string; fechas: string[]; sobreescribir?: string[] }) => {
-      const horarios: Record<string, { inicio: string; fin: string }> = {
-        manana: { inicio: '06:00', fin: '14:00' },
-        tarde: { inicio: '14:00', fin: '22:00' },
-        noche: { inicio: '22:00', fin: '06:00' },
-      }
-      const h = horarios[input.tipo] || horarios.manana
+    mutationFn: async (input: { guardia_id: string; fechas: string[]; horaInicio: string; horaFin: string; sobreescribir?: string[] }) => {
       // Delete existing turnos for overwrite dates
       if (input.sobreescribir && input.sobreescribir.length > 0) {
         const { error: delErr } = await supabase.from('turnos').delete()
@@ -147,10 +144,12 @@ export function useTurnos(condominioId: string) {
           .in('fecha', input.sobreescribir)
         if (delErr) throw delErr
       }
+      const tipo = derivarTipo(input.horaInicio)
       // Insert all new turnos
       const rows = input.fechas.map(f => ({
-        guardia_id: input.guardia_id, condominio_id: condominioId, tipo: input.tipo,
-        fecha: f, hora_programada_inicio: h.inicio, hora_programada_fin: h.fin, estado: 'programado' as const,
+        guardia_id: input.guardia_id, condominio_id: condominioId, tipo,
+        fecha: f, hora_programada_inicio: input.horaInicio, hora_programada_fin: input.horaFin,
+        estado: 'programado' as const,
       }))
       const { error } = await supabase.from('turnos').insert(rows)
       if (error) throw error

@@ -3,12 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useGuardias, useTurnos } from '@/hooks/useGuardias'
 
-const TIPO_TURNO = [
-  { key: 'manana', label: 'Mañana', hora: '06:00 — 14:00', color: '#C07A2E', bg: '#FEF9EC' },
-  { key: 'tarde', label: 'Tarde', hora: '14:00 — 22:00', color: '#0D4A8F', bg: '#EBF4FF' },
-  { key: 'noche', label: 'Noche', hora: '22:00 — 06:00', color: '#7B1AC8', bg: '#F5ECFF' },
-]
-
 const ESTADO_STYLE: Record<string, { bg: string; text: string; label: string }> = {
   programado: { bg: '#F0F0F0', text: '#5E6B62', label: 'Programado' },
   activo: { bg: '#E8F4F0', text: '#1A7A4A', label: 'En turno' },
@@ -22,11 +16,16 @@ function formatLocalDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function formatHora(t: string): string {
+  return t?.slice(0, 5) || ''
+}
+
 export default function GestionTurnos({ condominioId }: Props) {
   const { guardias } = useGuardias(condominioId)
   const { turnos, isLoading, crearTurno, crearTurnosBatch, eliminarTurno } = useTurnos(condominioId)
   const [guardiaId, setGuardiaId] = useState('')
-  const [tipo, setTipo] = useState('manana')
+  const [horaInicio, setHoraInicio] = useState('06:00')
+  const [horaFin, setHoraFin] = useState('14:00')
   const [fechaInicio, setFechaInicio] = useState(formatLocalDate(new Date()))
   const [fechaFin, setFechaFin] = useState(formatLocalDate(new Date()))
   const [formError, setFormError] = useState('')
@@ -51,11 +50,14 @@ export default function GestionTurnos({ condominioId }: Props) {
   }, [])
 
   const turnosSemana = useMemo(() => {
-    const map = new Map<string, Map<string, string>>() // guardiaId -> fecha -> tipo
+    const map = new Map<string, Map<string, { inicio: string; fin: string }>>()
     for (const t of turnos) {
       if (semana.includes(t.fecha)) {
         if (!map.has(t.guardia_id)) map.set(t.guardia_id, new Map())
-        map.get(t.guardia_id)!.set(t.fecha, t.tipo)
+        map.get(t.guardia_id)!.set(t.fecha, {
+          inicio: formatHora(t.hora_programada_inicio),
+          fin: formatHora(t.hora_programada_fin),
+        })
       }
     }
     return map
@@ -97,13 +99,16 @@ export default function GestionTurnos({ condominioId }: Props) {
     if (!guardiaId || !fechaInicio || !fechaFin) return
     setFormError('')
 
-    // Validation 1: fin >= inicio
+    if (!horaInicio || !horaFin) {
+      setFormError('Las horas de inicio y fin son obligatorias')
+      return
+    }
+
     if (fechaFin < fechaInicio) {
       setFormError('La fecha fin debe ser posterior a la fecha inicio')
       return
     }
 
-    // Validation 2: max 31 days
     const dias = generarRangoFechas(fechaInicio, fechaFin)
     if (dias.length > 31) {
       setFormError('El rango maximo es de 31 dias')
@@ -131,9 +136,9 @@ export default function GestionTurnos({ condominioId }: Props) {
     setAsignando(true)
     try {
       if (dias.length === 1) {
-        await crearTurno.mutateAsync({ guardia_id: guardiaId, tipo, fecha: dias[0] })
+        await crearTurno.mutateAsync({ guardia_id: guardiaId, fecha: dias[0], horaInicio, horaFin })
       } else {
-        await crearTurnosBatch.mutateAsync({ guardia_id: guardiaId, tipo, fechas: dias })
+        await crearTurnosBatch.mutateAsync({ guardia_id: guardiaId, fechas: dias, horaInicio, horaFin })
       }
       setGuardiaId('')
     } catch (err: any) {
@@ -149,7 +154,7 @@ export default function GestionTurnos({ condominioId }: Props) {
     setConflicto(null)
     try {
       await crearTurnosBatch.mutateAsync({
-        guardia_id: guardiaId, tipo,
+        guardia_id: guardiaId, horaInicio, horaFin,
         fechas: conflicto.todasFechas,
         sobreescribir: conflicto.fechasConflicto,
       })
@@ -168,9 +173,9 @@ export default function GestionTurnos({ condominioId }: Props) {
     setAsignando(true)
     try {
       if (conflicto.fechasLibres.length === 1) {
-        await crearTurno.mutateAsync({ guardia_id: guardiaId, tipo, fecha: conflicto.fechasLibres[0] })
+        await crearTurno.mutateAsync({ guardia_id: guardiaId, fecha: conflicto.fechasLibres[0], horaInicio, horaFin })
       } else {
-        await crearTurnosBatch.mutateAsync({ guardia_id: guardiaId, tipo, fechas: conflicto.fechasLibres })
+        await crearTurnosBatch.mutateAsync({ guardia_id: guardiaId, fechas: conflicto.fechasLibres, horaInicio, horaFin })
       }
       setGuardiaId('')
     } catch (err: any) {
@@ -196,9 +201,14 @@ export default function GestionTurnos({ condominioId }: Props) {
             <option value="">Guardia...</option>
             {guardias.filter(g => g.activo).map(g => <option key={g.id} value={g.id}>{g.nombre} {g.apellido}</option>)}
           </select>
-          <select value={tipo} onChange={e => setTipo(e.target.value)} style={inputStyle}>
-            {TIPO_TURNO.map(t => <option key={t.key} value={t.key}>{t.label} ({t.hora})</option>)}
-          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>Inicio</span>
+            <input type="time" value={horaInicio} onChange={e => setHoraInicio(e.target.value)} style={inputStyle} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>Fin</span>
+            <input type="time" value={horaFin} onChange={e => setHoraFin(e.target.value)} style={inputStyle} />
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '12px', color: '#5E6B62', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>Desde</span>
             <input type="date" value={fechaInicio} onChange={e => { setFechaInicio(e.target.value); setFormError('') }} style={inputStyle} />
@@ -274,13 +284,12 @@ export default function GestionTurnos({ condominioId }: Props) {
                     {g.nombre} {g.apellido}
                   </div>
                   {semana.map(d => {
-                    const turnoTipo = turnosSemana.get(g.id)?.get(d)
-                    const tipoInfo = turnoTipo ? TIPO_TURNO.find(tt => tt.key === turnoTipo) : null
+                    const turnoHoras = turnosSemana.get(g.id)?.get(d)
                     return (
                       <div key={`${g.id}-${d}`} style={{ backgroundColor: 'white', padding: '8px 4px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {tipoInfo ? (
-                          <span style={{ padding: '3px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, backgroundColor: tipoInfo.bg, color: tipoInfo.color, fontFamily: "'Inter', sans-serif" }}>
-                            {tipoInfo.label}
+                        {turnoHoras ? (
+                          <span style={{ padding: '3px 4px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, backgroundColor: '#EBF4FF', color: '#0D4A8F', fontFamily: "'Inter', sans-serif" }}>
+                            {turnoHoras.inicio}-{turnoHoras.fin}
                           </span>
                         ) : (
                           <span style={{ color: '#C8D4CB', fontSize: '12px' }}>—</span>
@@ -301,8 +310,9 @@ export default function GestionTurnos({ condominioId }: Props) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {turnos.map(t => {
-            const tipoInfo = TIPO_TURNO.find(tt => tt.key === t.tipo) || TIPO_TURNO[0]
             const est = ESTADO_STYLE[t.estado] || ESTADO_STYLE.programado
+            const hInicio = formatHora(t.hora_programada_inicio)
+            const hFin = formatHora(t.hora_programada_fin)
             return (
               <div key={t.id} style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '14px 20px', fontFamily: "'Inter', sans-serif", display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
@@ -312,7 +322,7 @@ export default function GestionTurnos({ condominioId }: Props) {
                   <span style={{ marginLeft: '8px', fontSize: '12px', color: '#5E6B62' }}>{t.fecha}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: tipoInfo.bg, color: tipoInfo.color }}>{tipoInfo.label}</span>
+                  <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, backgroundColor: '#EBF4FF', color: '#0D4A8F' }}>{hInicio}-{hFin}</span>
                   <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
                   {t.horas_trabajadas && <span style={{ fontSize: '11px', color: '#1A7A4A', fontWeight: 600 }}>{Number(t.horas_trabajadas).toFixed(1)}h</span>}
                   <button onClick={() => setConfirmDeleteTurno(t)} style={{ padding: '3px 8px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Eliminar</button>
