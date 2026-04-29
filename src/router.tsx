@@ -22,6 +22,8 @@ import Contabilidad from '@/pages/admin/condominio/Contabilidad'
 import CRM from '@/pages/admin/CRM'
 import TenantDashboard from '@/pages/admin/TenantDashboard'
 import ClientesDomia from '@/pages/admin/ClientesDomia'
+import MiSuscripcion from '@/pages/admin/MiSuscripcion'
+import TenantSuspendido from '@/pages/admin/TenantSuspendido'
 
 import PortalDashboard from '@/pages/portal/PortalDashboard'
 import PortalRecibos from '@/pages/portal/PortalRecibos'
@@ -93,6 +95,32 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute rolesPermitidos={['tenant_admin']}>
         <TenantDashboard />
+      </ProtectedRoute>
+    ),
+  },
+
+  // Tenant admin — suscripcion
+  {
+    path: '/tenant/suscripcion',
+    element: (
+      <ProtectedRoute rolesPermitidos={['tenant_admin']}>
+        <MiSuscripcion />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/activar',
+    element: (
+      <ProtectedRoute rolesPermitidos={['tenant_admin']}>
+        <MiSuscripcion />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/tenant/suspendido',
+    element: (
+      <ProtectedRoute rolesPermitidos={['tenant_admin']}>
+        <TenantSuspendido />
       </ProtectedRoute>
     ),
   },

@@ -3,6 +3,56 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useMiTenant } from '@/hooks/useTenants'
 import TrialBanner from '@/components/TrialBanner'
+import type { Tenant } from '@/hooks/useTenants'
+
+function SuscripcionBanner({ tenant }: { tenant: Tenant }) {
+  const ahora = new Date()
+  const proximoCobro = tenant.proximo_cobro ? new Date(tenant.proximo_cobro) : null
+  const diasParaCobro = proximoCobro ? Math.ceil((proximoCobro.getTime() - ahora.getTime()) / 86400000) : null
+
+  // During trial: show info about upcoming payment
+  if (tenant.estado === 'trial' && tenant.trial_hasta) {
+    const trialVence = new Date(tenant.trial_hasta)
+    const diasTrial = Math.max(0, Math.ceil((trialVence.getTime() - ahora.getTime()) / 86400000))
+    if (diasTrial <= 0) {
+      return (
+        <div style={{ backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#B83232', fontFamily: "'Inter', sans-serif" }}>
+            Tu prueba vencio. Activa tu suscripcion para continuar usando DOMIA.
+          </span>
+          <a href="/tenant/suscripcion" style={{ padding: '8px 16px', backgroundColor: '#B83232', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif" }}>
+            Pagar Bs. {Number(tenant.monto_mensual).toFixed(0)} ahora
+          </a>
+        </div>
+      )
+    }
+    // TrialBanner already handles days <= 10, so only show payment info for early trial
+    if (diasTrial > 10) {
+      return (
+        <div style={{ backgroundColor: '#EBF4FF', borderLeft: '3px solid #0D4A8F', borderRadius: '8px', padding: '10px 16px', marginBottom: '16px', fontSize: '13px', color: '#0D4A8F', fontFamily: "'Inter', sans-serif" }}>
+          Prueba gratuita activa — vence el {trialVence.toLocaleDateString('es-BO', { day: '2-digit', month: 'long' })}. Tu proximo pago sera de <strong>Bs. {Number(tenant.monto_mensual).toFixed(0)}</strong> el {proximoCobro?.toLocaleDateString('es-BO', { day: '2-digit', month: 'long' }) || '-'}.
+        </div>
+      )
+    }
+    return null // TrialBanner handles this range
+  }
+
+  // Active tenant: show reminder 3 days before cobro
+  if (tenant.estado === 'activo' && diasParaCobro !== null && diasParaCobro <= 3 && diasParaCobro >= 0) {
+    return (
+      <div style={{ backgroundColor: '#EBF4FF', borderLeft: '3px solid #0D4A8F', borderRadius: '8px', padding: '10px 16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+        <span style={{ fontSize: '13px', color: '#0D4A8F', fontFamily: "'Inter', sans-serif" }}>
+          Tu proximo pago de <strong>Bs. {Number(tenant.monto_mensual).toFixed(0)}</strong> vence el {proximoCobro!.toLocaleDateString('es-BO', { day: '2-digit', month: 'long' })}. Recuerda tener listo tu comprobante.
+        </span>
+        <a href="/tenant/suscripcion" style={{ padding: '6px 14px', backgroundColor: '#0D4A8F', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '12px', fontWeight: 700, fontFamily: "'Nunito', sans-serif" }}>
+          Ver instrucciones de pago
+        </a>
+      </div>
+    )
+  }
+
+  return null
+}
 
 export default function TenantDashboard() {
   const { profile, signOut } = useAuthStore()
@@ -51,9 +101,18 @@ export default function TenantDashboard() {
             DOM<span style={{ color: '#0D9E6E' }}>IA</span>
           </div>
           <nav style={{ display: 'flex', gap: '4px' }}>
-            <a href="/tenant" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: 600, backgroundColor: 'rgba(13,158,110,0.15)', color: '#0D9E6E' }}>
-              <span style={{ fontSize: '14px' }}>🏠</span>Dashboard
-            </a>
+            {[
+              { label: 'Dashboard', path: '/tenant', icon: '🏠' },
+              { label: 'Suscripcion', path: '/tenant/suscripcion', icon: '💳' },
+            ].map(item => {
+              const active = window.location.pathname === item.path
+              return (
+                <a key={item.path} href={item.path}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: active ? 600 : 400, backgroundColor: active ? 'rgba(13,158,110,0.15)' : 'transparent', color: active ? '#0D9E6E' : 'rgba(255,255,255,0.6)' }}>
+                  <span style={{ fontSize: '14px' }}>{item.icon}</span>{item.label}
+                </a>
+              )
+            })}
           </nav>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -71,6 +130,7 @@ export default function TenantDashboard() {
       {/* Content */}
       <div style={{ padding: '32px 24px', maxWidth: '1000px', margin: '0 auto' }}>
         <TrialBanner tenant={tenant} />
+        {tenant && <SuscripcionBanner tenant={tenant} />}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
           <div>
@@ -81,9 +141,11 @@ export default function TenantDashboard() {
               {tenant?.nombre || ''} · {condos.length} condominio{condos.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <a href="/admin/condominios" style={{ padding: '10px 20px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", textDecoration: 'none', whiteSpace: 'nowrap' }}>
-            + Nuevo condominio
-          </a>
+          {profile?.rol === 'super_admin' && (
+            <a href="/admin/condominios" style={{ padding: '10px 20px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", textDecoration: 'none', whiteSpace: 'nowrap' }}>
+              + Nuevo condominio
+            </a>
+          )}
         </div>
 
         {/* KPIs */}
@@ -107,10 +169,14 @@ export default function TenantDashboard() {
         {!isLoading && condos.length === 0 && (
           <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '48px', textAlign: 'center' }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏢</div>
-            <p style={{ color: '#5E6B62', fontSize: '15px', marginBottom: '20px' }}>Aun no tienes condominios</p>
-            <a href="/admin/condominios" style={{ display: 'inline-block', padding: '14px 28px', backgroundColor: '#1A7A4A', color: 'white', borderRadius: '12px', fontSize: '15px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", textDecoration: 'none' }}>
-              Crear primer condominio
-            </a>
+            <p style={{ color: '#5E6B62', fontSize: '15px', marginBottom: '20px' }}>
+              {profile?.rol === 'super_admin' ? 'Aun no tienes condominios' : 'Tu condominio esta siendo configurado'}
+            </p>
+            {profile?.rol === 'super_admin' && (
+              <a href="/admin/condominios" style={{ display: 'inline-block', padding: '14px 28px', backgroundColor: '#1A7A4A', color: 'white', borderRadius: '12px', fontSize: '15px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", textDecoration: 'none' }}>
+                Crear primer condominio
+              </a>
+            )}
           </div>
         )}
 

@@ -7,6 +7,7 @@ import { useCuotas } from '@/hooks/useCuotas'
 import { useProveedores } from '@/hooks/useMantenimientos'
 import { useSaldosCuentas, usePlanCuentas } from '@/hooks/useContabilidad'
 import ImportarResidentes from '@/pages/admin/condominio/Residentes/ImportarResidentes'
+import { useAuthStore } from '@/stores/authStore'
 
 type Tab = 'edificios' | 'unidades' | 'areas' | 'documentos' | 'config' | 'proveedores' | 'datos'
 
@@ -48,6 +49,8 @@ function TabEdificios({ condominioId }: { condominioId: string }) {
 }
 
 function TabUnidades({ condominioId }: { condominioId: string }) {
+  const { profile } = useAuthStore()
+  const isSuperAdmin = profile?.rol === 'super_admin'
   const { unidades, crear, actualizar, eliminar } = useUnidades(condominioId)
   const { edificios } = useEdificios(condominioId)
   const [show, setShow] = useState(false); const [edId, setEdId] = useState(''); const [num, setNum] = useState('')
@@ -140,10 +143,12 @@ function TabUnidades({ condominioId }: { condominioId: string }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Unidades ({unidades.length})</h3>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={() => setShowImport(true)} style={{ padding: '6px 14px', backgroundColor: '#0D4A8F', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Importar Excel</button>
-          <button onClick={() => { setShow(!show); setError('') }} style={{ padding: '6px 14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>{show ? 'Cancelar' : '+ Agregar'}</button>
-        </div>
+        {isSuperAdmin && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => setShowImport(true)} style={{ padding: '6px 14px', backgroundColor: '#0D4A8F', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Importar Excel</button>
+            <button onClick={() => { setShow(!show); setError('') }} style={{ padding: '6px 14px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>{show ? 'Cancelar' : '+ Agregar'}</button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -550,10 +555,12 @@ function TabDatos({ condominioId }: { condominioId: string }) {
 }
 
 export default function ConfigurarCondominio({ condominioId, onBack }: Props) {
-  const [tab, setTab] = useState<Tab>('edificios')
+  const { profile } = useAuthStore()
+  const isSuperAdmin = profile?.rol === 'super_admin'
+  const [tab, setTab] = useState<Tab>(isSuperAdmin ? 'edificios' : 'datos')
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'datos', label: 'Datos', icon: '📋' },
-    { key: 'edificios', label: 'Edificios', icon: '🏢' },
+    ...(isSuperAdmin ? [{ key: 'edificios' as Tab, label: 'Edificios', icon: '🏢' }] : []),
     { key: 'unidades', label: 'Unidades', icon: '🏠' },
     { key: 'areas', label: 'Areas Comunes', icon: '📅' },
     { key: 'proveedores', label: 'Proveedores', icon: '🔧' },
