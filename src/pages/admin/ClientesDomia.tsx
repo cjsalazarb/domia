@@ -71,7 +71,6 @@ function DetalleClienteModal({ tenant, profile, onClose, editField, setEditField
   const mesActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const pagosVerificados = pagos?.filter((p: PagoSuscripcion) => p.estado === 'verificado') || []
   const pagoEsteMes = pagosVerificados.find((p: PagoSuscripcion) => p.periodo === mesActual)
-  const pagoPendienteMes = pagos?.find((p: PagoSuscripcion) => p.periodo === mesActual && p.estado === 'pendiente')
   const montoPagadoMes = pagoEsteMes ? Number(pagoEsteMes.monto) : 0
   const montoPendienteMes = pagoEsteMes ? 0 : Number(tenant.monto_mensual)
   const diaCobro = tenant.dia_cobro || 5
