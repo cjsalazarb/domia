@@ -43,7 +43,7 @@ serve(async (req) => {
       nombre_empresa, nombre, apellido, email, telefono,
       nombre_condominio, tipo_propiedad, num_pisos, dptos_por_piso,
       total_casas, cuota_mensual, direccion_condominio,
-      valor_mensual_saas, dia_cobro,
+      valor_mensual_saas, dia_cobro, duracion_meses,
     } = await req.json()
 
     if (!nombre_empresa || !nombre || !apellido || !email) {
@@ -77,6 +77,9 @@ serve(async (req) => {
     }
 
     // 3. Create tenant
+    const fechaFinContrato = duracion_meses
+      ? new Date(Date.now() + duracion_meses * 30 * 86400000).toISOString()
+      : null
     const { data: tenant, error: tenantErr } = await supabase
       .from('tenants')
       .insert({
@@ -90,6 +93,7 @@ serve(async (req) => {
         dia_cobro: diaCobro,
         total_unidades: totalUnidades,
         monto_mensual: montoFinal,
+        ...(fechaFinContrato && { fecha_fin_contrato: fechaFinContrato }),
       })
       .select()
       .single()

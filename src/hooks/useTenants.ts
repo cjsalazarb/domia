@@ -13,6 +13,7 @@ export interface Tenant {
   total_unidades: number
   monto_mensual: number
   dia_cobro: number
+  fecha_fin_contrato: string | null
   created_at: string
   updated_at: string
   condominios?: { nombre: string }[]
@@ -33,6 +34,7 @@ export interface CrearClienteInput {
   direccion_condominio?: string
   valor_mensual_saas?: number
   dia_cobro?: number
+  duracion_meses?: number
 }
 
 export function useTenants() {

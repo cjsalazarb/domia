@@ -56,7 +56,6 @@ function DetalleClienteModal({ tenant, profile, onClose, editField, setEditField
       metodo: 'efectivo',
       referencia: pmRef || 'Pago manual',
     })
-    // Mark as verified immediately
     const { data: newPago } = await supabase.from('pagos_suscripcion').select('id').eq('tenant_id', tenant.id).eq('periodo', pmPeriodo).eq('estado', 'pendiente').order('created_at', { ascending: false }).limit(1).single()
     if (newPago) {
       await supabase.from('pagos_suscripcion').update({ estado: 'verificado', verificado_por: profile.id }).eq('id', newPago.id)
@@ -67,20 +66,74 @@ function DetalleClienteModal({ tenant, profile, onClose, editField, setEditField
     setTimeout(() => setSuccessMsg(null), 3000)
   }
 
+  // --- Seccion 1: Resumen del mes actual ---
+  const now = new Date()
+  const mesActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const pagosVerificados = pagos?.filter((p: PagoSuscripcion) => p.estado === 'verificado') || []
+  const pagoEsteMes = pagosVerificados.find((p: PagoSuscripcion) => p.periodo === mesActual)
+  const pagoPendienteMes = pagos?.find((p: PagoSuscripcion) => p.periodo === mesActual && p.estado === 'pendiente')
+  const montoPagadoMes = pagoEsteMes ? Number(pagoEsteMes.monto) : 0
+  const montoPendienteMes = pagoEsteMes ? 0 : Number(tenant.monto_mensual)
+  const diaCobro = tenant.dia_cobro || 5
+  const fechaCobro = new Date(now.getFullYear(), now.getMonth(), diaCobro)
+  const vencido = !pagoEsteMes && now > fechaCobro
+  const estadoMes = pagoEsteMes ? 'pagado' : vencido ? 'vencido' : 'pendiente'
+  const ultimoPago = pagosVerificados.length > 0 ? pagosVerificados[0] : null
+
+  // --- Seccion 2: Historial 12 meses ---
+  const ultimos12 = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+  const historial12 = ultimos12.map(periodo => {
+    const pago = pagosVerificados.find((p: PagoSuscripcion) => p.periodo === periodo)
+    return { periodo, pago }
+  })
+
+  // --- Seccion 3: Contrato y proyeccion ---
+  const fechaInicio = new Date(tenant.created_at)
+  const mesesActivo = Math.max(0, (now.getFullYear() - fechaInicio.getFullYear()) * 12 + (now.getMonth() - fechaInicio.getMonth()))
+  const tieneContrato = !!tenant.fecha_fin_contrato
+  const fechaFin = tieneContrato ? new Date(tenant.fecha_fin_contrato) : null
+  const mesesContrato = fechaFin ? Math.max(0, (fechaFin.getFullYear() - fechaInicio.getFullYear()) * 12 + (fechaFin.getMonth() - fechaInicio.getMonth())) : 0
+  const progreso = mesesContrato > 0 ? Math.min(100, Math.round((mesesActivo / mesesContrato) * 100)) : 0
+  const mesesRestantes = fechaFin ? Math.max(0, (fechaFin.getFullYear() - now.getFullYear()) * 12 + (fechaFin.getMonth() - now.getMonth())) : 0
+  const ingresosTotales = pagosVerificados.reduce((sum: number, p: PagoSuscripcion) => sum + Number(p.monto), 0)
+
+  // --- Seccion 4: Alertas ---
+  const ultimoPagoPeriodo = pagosVerificados.length > 0 ? pagosVerificados[0].periodo : null
+  const mesesSinPagar = (() => {
+    if (!ultimoPagoPeriodo) return mesesActivo
+    const [y, m] = ultimoPagoPeriodo.split('-').map(Number)
+    return (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - m)
+  })()
+  const enMora = mesesSinPagar > 1
+  const venceProonto = fechaFin && mesesRestantes <= 1 && mesesRestantes >= 0
+  const sinPagos = pagosVerificados.length === 0
+
+  const MESES_LABEL: Record<string, string> = { '01': 'Ene', '02': 'Feb', '03': 'Mar', '04': 'Abr', '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Ago', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dic' }
+  const formatPeriodo = (p: string) => { const [y, m] = p.split('-'); return `${MESES_LABEL[m] || m} ${y}` }
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={onClose}>
-      <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '28px', width: '100%', maxWidth: '640px', boxShadow: '0 8px 32px rgba(0,0,0,0.16)', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+      <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '28px', width: '100%', maxWidth: '680px', boxShadow: '0 8px 32px rgba(0,0,0,0.16)', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
           <div>
             <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 700, color: '#0D1117', margin: '0 0 4px' }}>{tenant.nombre}</h3>
             <div style={{ fontSize: '13px', color: '#5E6B62' }}>{tenant.email} {tenant.telefono ? `· ${tenant.telefono}` : ''}</div>
             <div style={{ fontSize: '13px', color: '#5E6B62' }}>Condominio: <strong>{condoNombre}</strong> · {tenant.total_unidades} unidades</div>
           </div>
-          <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
+            {enMora && <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 700, backgroundColor: '#FCEAEA', color: '#B83232' }}>En mora</span>}
+            {venceProonto && <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 700, backgroundColor: '#FEF9EC', color: '#C07A2E' }}>Vence pronto</span>}
+            {sinPagos && <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 700, backgroundColor: '#FFF8E1', color: '#F9A825' }}>Sin pagos</span>}
+          </div>
         </div>
 
         {/* Suscripcion */}
-        <div style={{ backgroundColor: '#F4F7F5', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+        <div style={{ backgroundColor: '#F4F7F5', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#0D1117', marginBottom: '10px', fontFamily: "'Nunito', sans-serif" }}>Suscripcion</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', fontSize: '13px' }}>
             <div>
@@ -97,8 +150,8 @@ function DetalleClienteModal({ tenant, profile, onClose, editField, setEditField
             <div>
               <div style={{ fontSize: '10px', color: '#5E6B62', textTransform: 'uppercase' }}>Dia de cobro</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontWeight: 600, color: '#0D1117' }}>{tenant.dia_cobro || 5}</span>
-                <button onClick={() => { setEditField('dia'); setEditValue(String(tenant.dia_cobro || 5)) }} style={{ padding: '2px 6px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '4px', fontSize: '9px', cursor: 'pointer' }}>Editar</button>
+                <span style={{ fontWeight: 600, color: '#0D1117' }}>{diaCobro}</span>
+                <button onClick={() => { setEditField('dia'); setEditValue(String(diaCobro)) }} style={{ padding: '2px 6px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '4px', fontSize: '9px', cursor: 'pointer' }}>Editar</button>
               </div>
             </div>
           </div>
@@ -116,7 +169,7 @@ function DetalleClienteModal({ tenant, profile, onClose, editField, setEditField
 
         {/* Edit inline */}
         {editField && (
-          <div style={{ backgroundColor: '#EBF4FF', borderRadius: '10px', padding: '12px', marginBottom: '16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ backgroundColor: '#EBF4FF', borderRadius: '10px', padding: '12px', marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', color: '#0D4A8F', fontWeight: 600 }}>{editField === 'monto' ? 'Nuevo monto (Bs.)' : 'Nuevo dia (1-28)'}:</span>
             <input type="number" value={editValue} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditValue(e.target.value)}
               min={editField === 'dia' ? 1 : 1} max={editField === 'dia' ? 28 : undefined}
@@ -126,70 +179,143 @@ function DetalleClienteModal({ tenant, profile, onClose, editField, setEditField
           </div>
         )}
 
-        {/* Historial de pagos */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: '#0D1117', fontFamily: "'Nunito', sans-serif" }}>Historial de pagos</div>
-          <button onClick={() => { setPagoManual(true); setPmPeriodo(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`); setPmMonto(String(tenant.monto_mensual)) }}
-            style={{ padding: '4px 10px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>+ Pago manual</button>
+        {/* SECCION 1: Resumen del mes actual */}
+        <div style={{ backgroundColor: estadoMes === 'pagado' ? '#E8F4F0' : estadoMes === 'vencido' ? '#FCEAEA' : '#FEF9EC', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#0D1117', marginBottom: '10px', fontFamily: "'Nunito', sans-serif" }}>Resumen del mes actual ({formatPeriodo(mesActual)})</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', fontSize: '12px' }}>
+            <div>
+              <div style={{ fontSize: '10px', color: '#5E6B62', textTransform: 'uppercase' }}>Pagado</div>
+              <div style={{ fontWeight: 700, fontSize: '16px', color: montoPagadoMes > 0 ? '#1A7A4A' : '#B83232' }}>Bs. {montoPagadoMes.toFixed(0)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '10px', color: '#5E6B62', textTransform: 'uppercase' }}>Pendiente</div>
+              <div style={{ fontWeight: 700, fontSize: '16px', color: montoPendienteMes > 0 ? '#C07A2E' : '#1A7A4A' }}>Bs. {montoPendienteMes.toFixed(0)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '10px', color: '#5E6B62', textTransform: 'uppercase' }}>Estado</div>
+              <div style={{ fontWeight: 700, fontSize: '14px', color: estadoMes === 'pagado' ? '#1A7A4A' : estadoMes === 'vencido' ? '#B83232' : '#C07A2E' }}>
+                {estadoMes === 'pagado' ? 'Pagado' : estadoMes === 'vencido' ? 'Vencido' : 'Pendiente'}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '10px', color: '#5E6B62', textTransform: 'uppercase' }}>Ultimo pago</div>
+              <div style={{ fontWeight: 600, fontSize: '12px', color: '#0D1117' }}>{ultimoPago?.pagado_en ? new Date(ultimoPago.pagado_en).toLocaleDateString('es-BO', { day: '2-digit', month: 'short' }) : '-'}</div>
+            </div>
+          </div>
         </div>
 
-        {pagoManual && (
-          <div style={{ backgroundColor: '#F4F7F5', borderRadius: '10px', padding: '12px', marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div>
-              <label style={{ fontSize: '10px', color: '#5E6B62', display: 'block' }}>Periodo</label>
-              <input value={pmPeriodo} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPmPeriodo(e.target.value)} placeholder="2026-05" style={{ padding: '6px 8px', border: '1px solid #D0D5DD', borderRadius: '6px', fontSize: '12px', width: '90px' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: '10px', color: '#5E6B62', display: 'block' }}>Monto</label>
-              <input value={pmMonto} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPmMonto(e.target.value)} style={{ padding: '6px 8px', border: '1px solid #D0D5DD', borderRadius: '6px', fontSize: '12px', width: '70px' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: '10px', color: '#5E6B62', display: 'block' }}>Referencia</label>
-              <input value={pmRef} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPmRef(e.target.value)} placeholder="Efectivo" style={{ padding: '6px 8px', border: '1px solid #D0D5DD', borderRadius: '6px', fontSize: '12px', width: '100px' }} />
-            </div>
-            <button onClick={handlePagoManual} style={{ padding: '6px 12px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Registrar</button>
-            <button onClick={() => setPagoManual(false)} style={{ padding: '6px 12px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}>Cancelar</button>
+        {/* SECCION 2: Historial 12 meses */}
+        <div style={{ marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#0D1117', fontFamily: "'Nunito', sans-serif" }}>Historial de pagos (12 meses)</div>
+            <button onClick={() => { setPagoManual(true); setPmPeriodo(mesActual); setPmMonto(String(tenant.monto_mensual)) }}
+              style={{ padding: '4px 10px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>+ Pago manual</button>
           </div>
-        )}
 
-        <div style={{ backgroundColor: 'white', border: '1px solid #E0E0E0', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px' }}>
-          {(!pagos || pagos.length === 0) ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#5E6B62', fontSize: '13px' }}>Sin pagos registrados</div>
-          ) : (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 0.6fr 0.7fr 1fr 0.8fr 1fr', padding: '8px 14px', backgroundColor: '#F4F7F5', fontSize: '9px', fontWeight: 600, color: '#5E6B62', textTransform: 'uppercase' }}>
-                <span>Periodo</span><span>Monto</span><span>Estado</span><span>Referencia</span><span>Pagado</span><span></span>
+          {pagoManual && (
+            <div style={{ backgroundColor: '#F4F7F5', borderRadius: '10px', padding: '12px', marginBottom: '8px', display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div>
+                <label style={{ fontSize: '10px', color: '#5E6B62', display: 'block' }}>Periodo</label>
+                <input value={pmPeriodo} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPmPeriodo(e.target.value)} placeholder="2026-05" style={{ padding: '6px 8px', border: '1px solid #D0D5DD', borderRadius: '6px', fontSize: '12px', width: '90px' }} />
               </div>
-              {pagos.map((p: PagoSuscripcion, i: number) => {
-                const pEst = ESTADO_STYLE[p.estado] || { bg: '#F4F7F5', text: '#5E6B62', label: p.estado }
-                return (
-                  <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '0.8fr 0.6fr 0.7fr 1fr 0.8fr 1fr', padding: '8px 14px', fontSize: '12px', borderBottom: i < pagos.length - 1 ? '1px solid #F0F0F0' : 'none', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 600 }}>{p.periodo}</span>
-                    <span style={{ color: '#1A7A4A' }}>Bs. {Number(p.monto).toFixed(0)}</span>
-                    <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, backgroundColor: pEst.bg, color: pEst.text, width: 'fit-content' }}>{pEst.label}</span>
-                    <span style={{ color: '#5E6B62', fontSize: '11px' }}>{p.referencia || '-'}</span>
-                    <span style={{ color: '#5E6B62', fontSize: '11px' }}>{p.pagado_en ? new Date(p.pagado_en).toLocaleDateString('es-BO') : '-'}</span>
-                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-                      {p.comprobante_url && (
-                        <button onClick={() => setVerComprobante(p.comprobante_url)} style={{ padding: '2px 6px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '4px', fontSize: '9px', fontWeight: 600, cursor: 'pointer' }}>Ver</button>
-                      )}
-                      {p.estado === 'pendiente' && (
-                        <>
-                          <button onClick={async () => {
-                            await verificarPago.mutateAsync({ pagoId: p.id, tenantId: p.tenant_id, verificadoPor: profile.id })
-                            refetch()
-                            try { await supabase.functions.invoke('notificar-pago-suscripcion', { body: { tenant_id: p.tenant_id, tipo: 'verificado' } }) } catch {}
-                          }} style={{ padding: '2px 6px', backgroundColor: '#E8F4F0', color: '#1A7A4A', border: 'none', borderRadius: '4px', fontSize: '9px', fontWeight: 600, cursor: 'pointer' }}>Verificar</button>
-                          <button onClick={() => { setRechazoId(p.id); setRechazoMotivo('') }} style={{ padding: '2px 6px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '4px', fontSize: '9px', fontWeight: 600, cursor: 'pointer' }}>Rechazar</button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
+              <div>
+                <label style={{ fontSize: '10px', color: '#5E6B62', display: 'block' }}>Monto</label>
+                <input value={pmMonto} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPmMonto(e.target.value)} style={{ padding: '6px 8px', border: '1px solid #D0D5DD', borderRadius: '6px', fontSize: '12px', width: '70px' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '10px', color: '#5E6B62', display: 'block' }}>Referencia</label>
+                <input value={pmRef} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPmRef(e.target.value)} placeholder="Efectivo" style={{ padding: '6px 8px', border: '1px solid #D0D5DD', borderRadius: '6px', fontSize: '12px', width: '100px' }} />
+              </div>
+              <button onClick={handlePagoManual} style={{ padding: '6px 12px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Registrar</button>
+              <button onClick={() => setPagoManual(false)} style={{ padding: '6px 12px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}>Cancelar</button>
+            </div>
+          )}
+
+          <div style={{ backgroundColor: 'white', border: '1px solid #E0E0E0', borderRadius: '10px', overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.7fr 0.8fr 1fr', padding: '8px 14px', backgroundColor: '#F4F7F5', fontSize: '9px', fontWeight: 600, color: '#5E6B62', textTransform: 'uppercase' }}>
+              <span>Mes</span><span>Monto</span><span>Estado</span><span>Fecha pago</span>
+            </div>
+            {historial12.map((h, i) => {
+              const pagado = !!h.pago
+              const periodoDate = new Date(h.periodo + '-01')
+              const esFuturo = periodoDate > now
+              const pendienteRow = pagos?.find((p: PagoSuscripcion) => p.periodo === h.periodo && p.estado === 'pendiente')
+              return (
+                <div key={h.periodo} style={{ display: 'grid', gridTemplateColumns: '1fr 0.7fr 0.8fr 1fr', padding: '7px 14px', fontSize: '12px', borderBottom: i < 11 ? '1px solid #F0F0F0' : 'none', alignItems: 'center', backgroundColor: pagado ? '#FAFFF8' : esFuturo ? 'white' : '#FFF8F8' }}>
+                  <span style={{ fontWeight: 600, color: '#0D1117' }}>{formatPeriodo(h.periodo)}</span>
+                  <span style={{ color: pagado ? '#1A7A4A' : '#5E6B62' }}>{pagado ? `Bs. ${Number(h.pago!.monto).toFixed(0)}` : '-'}</span>
+                  <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, width: 'fit-content',
+                    backgroundColor: pagado ? '#E8F4F0' : pendienteRow ? '#FEF9EC' : esFuturo ? '#F4F7F5' : '#FCEAEA',
+                    color: pagado ? '#1A7A4A' : pendienteRow ? '#C07A2E' : esFuturo ? '#5E6B62' : '#B83232'
+                  }}>{pagado ? 'Verificado' : pendienteRow ? 'Pendiente' : esFuturo ? '-' : 'No pagado'}</span>
+                  <span style={{ color: '#5E6B62', fontSize: '11px' }}>{h.pago?.pagado_en ? new Date(h.pago.pagado_en).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* SECCION 3: Contrato y proyeccion */}
+        <div style={{ backgroundColor: '#F4F7F5', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#0D1117', marginBottom: '10px', fontFamily: "'Nunito', sans-serif" }}>Contrato y proyeccion</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '12px', marginBottom: '12px' }}>
+            <div>
+              <div style={{ fontSize: '10px', color: '#5E6B62', textTransform: 'uppercase' }}>Fecha inicio</div>
+              <div style={{ fontWeight: 600, color: '#0D1117' }}>{fechaInicio.toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '10px', color: '#5E6B62', textTransform: 'uppercase' }}>Meses activo</div>
+              <div style={{ fontWeight: 700, color: '#0D1117', fontSize: '16px' }}>{mesesActivo}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '10px', color: '#5E6B62', textTransform: 'uppercase' }}>Ingresos totales</div>
+              <div style={{ fontWeight: 700, color: '#1A7A4A', fontSize: '16px' }}>Bs. {ingresosTotales.toFixed(0)}</div>
+            </div>
+          </div>
+          {tieneContrato && fechaFin ? (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#5E6B62', marginBottom: '4px' }}>
+                <span>{mesesActivo} de {mesesContrato} meses</span>
+                <span>{mesesRestantes} meses restantes</span>
+              </div>
+              <div style={{ width: '100%', height: '8px', backgroundColor: '#E0E0E0', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: `${progreso}%`, height: '100%', backgroundColor: progreso >= 90 ? '#C07A2E' : '#1A7A4A', borderRadius: '4px', transition: 'width 0.3s' }} />
+              </div>
+              <div style={{ fontSize: '11px', color: '#5E6B62', marginTop: '6px' }}>
+                Finaliza: <strong style={{ color: '#0D1117' }}>{fechaFin.toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>
+              </div>
             </>
+          ) : (
+            <div style={{ fontSize: '12px', color: '#5E6B62', fontStyle: 'italic' }}>Contrato indefinido</div>
           )}
         </div>
+
+        {/* Pagos pendientes con acciones */}
+        {pagos && pagos.filter((p: PagoSuscripcion) => p.estado === 'pendiente').length > 0 && (
+          <div style={{ backgroundColor: '#FEF9EC', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#C07A2E', marginBottom: '8px', fontFamily: "'Nunito', sans-serif" }}>Pagos pendientes de verificacion</div>
+            {pagos.filter((p: PagoSuscripcion) => p.estado === 'pendiente').map((p: PagoSuscripcion) => (
+              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(192,122,46,0.15)', fontSize: '12px' }}>
+                <div>
+                  <span style={{ fontWeight: 600, color: '#0D1117' }}>{formatPeriodo(p.periodo)}</span>
+                  <span style={{ color: '#1A7A4A', marginLeft: '8px' }}>Bs. {Number(p.monto).toFixed(0)}</span>
+                  {p.referencia && <span style={{ color: '#5E6B62', marginLeft: '8px', fontSize: '11px' }}>{p.referencia}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {p.comprobante_url && (
+                    <button onClick={() => setVerComprobante(p.comprobante_url)} style={{ padding: '3px 8px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '4px', fontSize: '9px', fontWeight: 600, cursor: 'pointer' }}>Ver</button>
+                  )}
+                  <button onClick={async () => {
+                    await verificarPago.mutateAsync({ pagoId: p.id, tenantId: p.tenant_id, verificadoPor: profile.id })
+                    refetch()
+                    try { await supabase.functions.invoke('notificar-pago-suscripcion', { body: { tenant_id: p.tenant_id, tipo: 'verificado' } }) } catch {}
+                  }} style={{ padding: '3px 8px', backgroundColor: '#E8F4F0', color: '#1A7A4A', border: 'none', borderRadius: '4px', fontSize: '9px', fontWeight: 600, cursor: 'pointer' }}>Verificar</button>
+                  <button onClick={() => { setRechazoId(p.id); setRechazoMotivo('') }} style={{ padding: '3px 8px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '4px', fontSize: '9px', fontWeight: 600, cursor: 'pointer' }}>Rechazar</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <button onClick={onClose} style={{ width: '100%', padding: '10px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cerrar</button>
       </div>
@@ -293,6 +419,8 @@ export default function ClientesDomia() {
   const [telefonoCliente, setTelefonoCliente] = useState('')
 
   // Paso B fields
+  const [duracionTipo, setDuracionTipo] = useState<'indefinido' | 'meses'>('indefinido')
+  const [duracionMeses, setDuracionMeses] = useState(12)
   const [nombreCondominio, setNombreCondominio] = useState('')
   const [tipoPropiedad, setTipoPropiedad] = useState<'edificio' | 'conjunto'>('edificio')
   const [numPisos, setNumPisos] = useState(3)
@@ -306,6 +434,7 @@ export default function ClientesDomia() {
   const resetForm = () => {
     setPaso(1)
     setNombreEmpresa(''); setEmailCliente(''); setTelefonoCliente('')
+    setDuracionTipo('indefinido'); setDuracionMeses(12)
     setNombreCondominio(''); setTipoPropiedad('edificio')
     setNumPisos(3); setDptosPorPiso(4); setTotalCasas(8)
     setCuotaMensual(0); setDireccionCondominio('')
@@ -345,6 +474,7 @@ export default function ClientesDomia() {
         direccion_condominio: direccionCondominio.trim() || undefined,
         valor_mensual_saas: valorMensualSaas,
         dia_cobro: diaCobro,
+        duracion_meses: duracionTipo === 'meses' ? duracionMeses : undefined,
       }
       const result = await crearCliente.mutateAsync(input)
       closeModal()
@@ -555,6 +685,26 @@ export default function ClientesDomia() {
                   <div>
                     <label style={labelStyle}>Telefono WhatsApp</label>
                     <input value={telefonoCliente} onChange={e => setTelefonoCliente(e.target.value)} placeholder="+591 7XXXXXXX" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Duracion del contrato</label>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <div onClick={() => setDuracionTipo('indefinido')}
+                        style={{ flex: 1, padding: '10px', border: `2px solid ${duracionTipo === 'indefinido' ? '#1A7A4A' : '#E0E0E0'}`, borderRadius: '10px', cursor: 'pointer', backgroundColor: duracionTipo === 'indefinido' ? '#F0FAF5' : 'white', textAlign: 'center' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0D1117', fontFamily: "'Nunito', sans-serif" }}>Indefinido</div>
+                      </div>
+                      <div onClick={() => setDuracionTipo('meses')}
+                        style={{ flex: 1, padding: '10px', border: `2px solid ${duracionTipo === 'meses' ? '#1A7A4A' : '#E0E0E0'}`, borderRadius: '10px', cursor: 'pointer', backgroundColor: duracionTipo === 'meses' ? '#F0FAF5' : 'white', textAlign: 'center' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0D1117', fontFamily: "'Nunito', sans-serif" }}>Plazo fijo</div>
+                      </div>
+                    </div>
+                    {duracionTipo === 'meses' && (
+                      <div style={{ marginTop: '8px' }}>
+                        <label style={{ fontSize: '11px', color: '#5E6B62', display: 'block', marginBottom: '4px' }}>Meses de contrato</label>
+                        <input type="number" min={1} max={36} value={duracionMeses} onChange={e => setDuracionMeses(Math.max(1, Math.min(36, parseInt(e.target.value) || 12)))} style={{ ...inputStyle, width: '120px' }} />
+                        <div style={{ fontSize: '11px', color: '#5E6B62', marginTop: '4px' }}>El contrato vencera {duracionMeses} meses despues del registro</div>
+                      </div>
+                    )}
                   </div>
                   <p style={{ fontSize: '11px', color: '#5E6B62', margin: '4px 0 0', fontStyle: 'italic' }}>
                     La contrasena temporal sera generada automaticamente por el sistema.

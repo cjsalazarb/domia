@@ -8,7 +8,7 @@ const supabase = createClient(
 )
 
 const resendApiKey = Deno.env.get('RESEND_API_KEY')
-const appUrl = Deno.env.get('APP_URL') || 'https://domia-sigma.vercel.app'
+const appUrl = Deno.env.get('APP_URL') || 'https://app.domia.me'
 
 function wrap(condominioNombre: string, content: string): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
