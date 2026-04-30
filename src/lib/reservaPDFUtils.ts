@@ -65,7 +65,7 @@ export async function generarSolicitudReserva(params: {
     condominioNombre: params.condominioNombre,
   }
 
-  const blob = await pdf(createElement(SolicitudReservaPDF, props)).toBlob()
+  const blob = await pdf(createElement(SolicitudReservaPDF, props) as any).toBlob()
   const base64 = await blobToBase64(blob)
 
   const emailHtml = templateSolicitudReserva(
@@ -122,7 +122,7 @@ export async function generarComprobanteAprobacion(params: {
     condominioNombre: params.condominioNombre,
   }
 
-  const blob = await pdf(createElement(ComprobanteReservaPDF, props)).toBlob()
+  const blob = await pdf(createElement(ComprobanteReservaPDF, props) as any).toBlob()
   const base64 = await blobToBase64(blob)
 
   const emailHtml = templateReservaAprobadaConPago(
@@ -188,7 +188,7 @@ export async function generarConfirmacionReserva(params: {
     contactoEmergencia: params.contactoEmergencia,
   }
 
-  const blob = await pdf(createElement(ConfirmacionReservaPDF, props)).toBlob()
+  const blob = await pdf(createElement(ConfirmacionReservaPDF, props) as any).toBlob()
   const base64 = await blobToBase64(blob)
 
   const emailHtml = templateConfirmacionReserva(

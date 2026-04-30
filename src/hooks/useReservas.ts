@@ -303,7 +303,7 @@ export function useReservas(condominioId: string) {
         .single()
       const adminEmail = await getAdminEmail(condominioId)
       if (adminEmail && reserva) {
-        const resName = (reserva.residentes as { nombre: string; apellido: string } | null)
+        const resName = (reserva.residentes as unknown as { nombre: string; apellido: string } | null)
         await supabase.functions.invoke('notificar-reserva', {
           body: {
             tipo: 'comprobante_subido',
@@ -377,7 +377,7 @@ export function useReservas(condominioId: string) {
         .single()
 
       if (reserva) {
-        const res = reserva.residentes as { nombre: string; apellido: string; email?: string; user_id?: string } | null
+        const res = reserva.residentes as unknown as { nombre: string; apellido: string; email?: string; user_id?: string } | null
         const resEmail = await getResidenteEmail(res)
         if (resEmail) {
           await supabase.functions.invoke('notificar-reserva', {
