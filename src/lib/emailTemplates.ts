@@ -262,7 +262,154 @@ export function templateRecordatorioEliminacion(
   `)
 }
 
-// 13. Condominio eliminado definitivamente
+// 13. Solicitud de reserva (para administradora)
+export function templateSolicitudReserva(
+  residente: string, condominio: string, area: string, fecha: string,
+  horaInicio: string, horaFin: string, monto: number
+): string {
+  return wrap(condominio, `
+    <h2 style="font-family:'Nunito',sans-serif;color:#C07A2E;margin:0 0 8px;font-size:18px">Nueva solicitud de reserva</h2>
+    <p style="color:#5E6B62;font-size:14px;margin:0 0 16px"><strong>${residente}</strong> ha solicitado reservar un area comun.</p>
+    <div style="background:#F4F7F5;border-radius:10px;padding:14px;margin-bottom:8px">
+      <div style="font-size:12px;color:#5E6B62">Area</div>
+      <div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#0D1117;margin-top:2px">${area}</div>
+    </div>
+    <div style="background:#F4F7F5;border-radius:10px;padding:14px;margin-bottom:8px">
+      <div style="font-size:12px;color:#5E6B62">Fecha y hora</div>
+      <div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#0D1117;margin-top:2px">${fecha} · ${horaInicio} — ${horaFin}</div>
+    </div>
+    ${monto > 0 ? kpiBox('Monto estimado', `Bs. ${monto.toFixed(2)}`, '#C07A2E') : ''}
+    <p style="color:#5E6B62;font-size:13px;margin:16px 0 0">Ingresa al panel de administracion para aprobar o rechazar esta solicitud.</p>
+  `)
+}
+
+// 14. Reserva aprobada (para residente, con adjunto PDF)
+export function templateReservaAprobadaConPago(
+  residente: string, condominio: string, area: string, fecha: string,
+  horaInicio: string, horaFin: string, total: number, fechaLimitePago: string,
+  numeroReserva?: string
+): string {
+  return wrap(condominio, `
+    <h2 style="font-family:'Nunito',sans-serif;color:#1A7A4A;margin:0 0 8px;font-size:18px">Reserva aprobada</h2>
+    <p style="color:#5E6B62;font-size:14px;margin:0 0 16px">Estimado/a <strong>${residente}</strong>, su solicitud de reserva ha sido aprobada.</p>
+    ${numeroReserva ? `<div style="background:#F4F7F5;border-radius:10px;padding:14px;margin-bottom:8px"><div style="font-size:12px;color:#5E6B62">Numero de reserva</div><div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#0D1117;margin-top:2px">${numeroReserva}</div></div>` : ''}
+    <div style="background:#F4F7F5;border-radius:10px;padding:14px;margin-bottom:8px">
+      <div style="font-size:12px;color:#5E6B62">Area: ${area}</div>
+      <div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#0D1117;margin-top:2px">${fecha} · ${horaInicio} — ${horaFin}</div>
+    </div>
+    ${total > 0 ? kpiBox('Total a pagar', `Bs. ${total.toFixed(2)}`) : ''}
+    ${total > 0 ? `
+    <p style="color:#5E6B62;font-size:13px;margin:8px 0 0">Fecha limite de pago: <strong>${fechaLimitePago}</strong></p>
+    <p style="color:#5E6B62;font-size:13px;margin:8px 0 0">Para confirmar su reserva, realice el pago y suba el comprobante en el portal:</p>
+    ${btn('Subir comprobante de pago →', 'https://app.domia.me/portal/reservar')}
+    ` : '<p style="color:#5E6B62;font-size:13px;margin:16px 0 0">Su reserva esta confirmada. Adjuntamos el comprobante.</p>'}
+  `)
+}
+
+// 15. Pago de reserva confirmado (para residente)
+export function templatePagoReservaConfirmado(
+  residente: string, condominio: string, area: string, fecha: string, monto: number
+): string {
+  return wrap(condominio, `
+    <h2 style="font-family:'Nunito',sans-serif;color:#1A7A4A;margin:0 0 8px;font-size:18px">Pago confirmado</h2>
+    <p style="color:#5E6B62;font-size:14px;margin:0 0 16px">Estimado/a <strong>${residente}</strong>, el pago de su reserva ha sido confirmado.</p>
+    <div style="background:#F4F7F5;border-radius:10px;padding:14px;margin-bottom:8px">
+      <div style="font-size:12px;color:#5E6B62">Reserva</div>
+      <div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#0D1117;margin-top:2px">${area} · ${fecha}</div>
+    </div>
+    ${kpiBox('Monto pagado', `Bs. ${monto.toFixed(2)}`)}
+    <p style="color:#5E6B62;font-size:13px;margin:16px 0 0">Adjuntamos el comprobante de pago. Gracias.</p>
+  `)
+}
+
+// 16. Confirmación de reserva con condiciones de entrega
+export function templateConfirmacionReserva(
+  residente: string, condominio: string, area: string, fecha: string,
+  horaInicio: string, horaFin: string, unidad: string, numeroReserva: string,
+  montoGarantia: number, montoAlquiler: number, montoTotal: number,
+  condicionesUso: string | null, inventario: string | null,
+  reglas: string | null, politicaGarantia: string | null,
+  contactoEmergencia: string | null
+): string {
+  const separator = '<hr style="border:none;border-top:2px solid #C9A84C;margin:20px 0">'
+
+  let content = `
+    ${separator}
+    <h2 style="font-family:'Nunito',sans-serif;color:#1A7A4A;margin:0 0 4px;font-size:18px;text-align:center">CONFIRMACION DE RESERVA</h2>
+    <p style="text-align:center;font-size:13px;color:#0D4A8F;font-weight:700;margin:0 0 16px">${numeroReserva}</p>
+    ${separator}
+
+    <p style="color:#5E6B62;font-size:14px;margin:0 0 16px">Estimado/a <strong>${residente}</strong>, su pago ha sido recibido y su reserva esta confirmada.</p>
+
+    <div style="background:#F4F7F5;border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;color:#5E6B62;text-transform:uppercase;font-weight:600;margin-bottom:8px">Datos de la Reserva</div>
+      <div style="font-size:14px;color:#0D1117;line-height:1.8">
+        <strong>Area:</strong> ${area}<br/>
+        <strong>Fecha:</strong> ${fecha}<br/>
+        <strong>Horario:</strong> ${horaInicio} a ${horaFin}<br/>
+        <strong>Unidad:</strong> ${unidad}
+      </div>
+    </div>
+
+    <div style="background:#F4F7F5;border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;color:#5E6B62;text-transform:uppercase;font-weight:600;margin-bottom:8px">Pagos Registrados</div>
+      ${montoGarantia > 0 ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:#0D1117;margin-bottom:4px"><span>Garantia (reembolsable):</span> <strong>Bs. ${montoGarantia.toFixed(2)}</strong></div>` : ''}
+      ${montoAlquiler > 0 ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:#0D1117;margin-bottom:4px"><span>Alquiler:</span> <strong>Bs. ${montoAlquiler.toFixed(2)}</strong></div>` : ''}
+      <div style="border-top:1px solid #C8D4CB;padding-top:6px;margin-top:4px;font-size:14px;color:#0D1117"><strong>Total pagado: Bs. ${montoTotal.toFixed(2)}</strong></div>
+    </div>`
+
+  if (condicionesUso) {
+    content += `
+    <div style="background:#F4F7F5;border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;color:#5E6B62;text-transform:uppercase;font-weight:600;margin-bottom:8px">Condiciones de Entrega</div>
+      <div style="font-size:13px;color:#0D1117;line-height:1.6;white-space:pre-wrap">${condicionesUso}</div>
+    </div>`
+  }
+
+  if (inventario) {
+    content += `
+    <div style="background:#F4F7F5;border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;color:#5E6B62;text-transform:uppercase;font-weight:600;margin-bottom:8px">Inventario del Area</div>
+      <div style="font-size:13px;color:#0D1117;line-height:1.6;white-space:pre-wrap">${inventario}</div>
+      <p style="font-size:11px;color:#5E6B62;font-style:italic;margin:8px 0 0">Al recibir el area confirma que estos elementos estan en buen estado.</p>
+    </div>`
+  }
+
+  if (reglas) {
+    content += `
+    <div style="background:#FEF9EC;border-left:3px solid #C07A2E;border-radius:8px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;color:#C07A2E;text-transform:uppercase;font-weight:600;margin-bottom:8px">Reglas de Uso</div>
+      <div style="font-size:13px;color:#0D1117;line-height:1.6;white-space:pre-wrap">${reglas}</div>
+    </div>`
+  }
+
+  if (politicaGarantia && montoGarantia > 0) {
+    content += `
+    <div style="background:#F4F7F5;border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;color:#5E6B62;text-transform:uppercase;font-weight:600;margin-bottom:8px">Politica de Garantia</div>
+      <div style="font-size:13px;color:#0D1117;line-height:1.6;white-space:pre-wrap">${politicaGarantia}</div>
+      <p style="font-size:13px;color:#0D4A8F;font-weight:700;margin:8px 0 0">Garantia: Bs. ${montoGarantia.toFixed(2)}</p>
+    </div>`
+  }
+
+  if (contactoEmergencia) {
+    content += `
+    <div style="background:#F4F7F5;border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;color:#5E6B62;text-transform:uppercase;font-weight:600;margin-bottom:8px">Contacto de Emergencia</div>
+      <div style="font-size:14px;color:#0D1117;font-weight:700">${contactoEmergencia}</div>
+    </div>`
+  }
+
+  content += `
+    ${separator}
+    <p style="font-size:11px;color:#5E6B62;text-align:center;margin:0">Este email sirve como comprobante oficial. Guardelo para cualquier consulta.</p>
+    <p style="font-size:11px;color:#5E6B62;text-align:center;margin:4px 0 0">ALTRION S.R.L. — noreply@domia.me</p>
+    ${separator}`
+
+  return wrap(condominio, content)
+}
+
+// 17. Condominio eliminado definitivamente
 export function templateCondominioEliminado(
   condominio: string, fecha: string
 ): string {

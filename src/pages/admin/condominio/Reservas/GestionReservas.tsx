@@ -1,13 +1,26 @@
 import { useState, useMemo } from 'react'
-import { useReservas } from '@/hooks/useReservas'
+import { useReservas, type EstadoReserva } from '@/hooks/useReservas'
 import { useAuthStore } from '@/stores/authStore'
 
 const ESTADO_STYLE: Record<string, { bg: string; text: string; label: string }> = {
   pendiente: { bg: '#FEF9EC', text: '#C07A2E', label: 'Pendiente' },
+  aprobado_pendiente_pago: { bg: '#EBF4FF', text: '#0D4A8F', label: 'Aprobada — Pago pendiente' },
+  comprobante_enviado: { bg: '#F5ECFF', text: '#7B1AC8', label: 'Comprobante enviado' },
+  confirmado: { bg: '#E8F4F0', text: '#1A7A4A', label: 'Confirmada' },
   aprobada: { bg: '#E8F4F0', text: '#1A7A4A', label: 'Aprobada' },
   rechazada: { bg: '#FCEAEA', text: '#B83232', label: 'Rechazada' },
   cancelada: { bg: '#F0F0F0', text: '#5E6B62', label: 'Cancelada' },
+  finalizado: { bg: '#F0F0F0', text: '#5E6B62', label: 'Finalizada' },
 }
+
+const FILTROS: { key: string; label: string }[] = [
+  { key: 'pendiente', label: 'Pendientes' },
+  { key: 'comprobante_enviado', label: 'Comprobantes' },
+  { key: 'aprobado_pendiente_pago', label: 'Pago pendiente' },
+  { key: 'confirmado', label: 'Confirmadas' },
+  { key: 'finalizado', label: 'Finalizadas' },
+  { key: 'todos', label: 'Todas' },
+]
 
 interface Props { condominioId: string }
 
@@ -15,7 +28,7 @@ const AREA_COLORS = ['#1A7A4A', '#0D4A8F', '#C07A2E', '#7B1AC8', '#B83232', '#2E
 
 export default function GestionReservas({ condominioId }: Props) {
   const { user } = useAuthStore()
-  const { reservas, isLoading, aprobar, rechazar } = useReservas(condominioId)
+  const { reservas, isLoading, aprobar, rechazar, confirmarPago, devolverGarantia } = useReservas(condominioId)
   const [filtro, setFiltro] = useState<string>('pendiente')
   const [rechazandoId, setRechazandoId] = useState<string | null>(null)
   const [motivoRechazo, setMotivoRechazo] = useState('')
@@ -25,6 +38,9 @@ export default function GestionReservas({ condominioId }: Props) {
 
   const filtradas = filtro === 'todos' ? reservas : reservas.filter(r => r.estado === filtro)
 
+  const pendientesCount = reservas.filter(r => r.estado === 'pendiente').length
+  const comprobantesCount = reservas.filter(r => r.estado === 'comprobante_enviado').length
+
   // Calendar data
   const areaColorMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -33,9 +49,10 @@ export default function GestionReservas({ condominioId }: Props) {
     return map
   }, [reservas])
 
+  const activeStates: EstadoReserva[] = ['pendiente', 'aprobada', 'aprobado_pendiente_pago', 'comprobante_enviado', 'confirmado']
   const reservasPorFecha = useMemo(() => {
     const map = new Map<string, typeof reservas>()
-    for (const r of reservas.filter(r => r.estado === 'pendiente' || r.estado === 'aprobada')) {
+    for (const r of reservas.filter(r => activeStates.includes(r.estado))) {
       const list = map.get(r.fecha) || []
       list.push(r)
       map.set(r.fecha, list)
@@ -64,24 +81,25 @@ export default function GestionReservas({ condominioId }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div>
             <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Gestion de Reservas</h2>
-            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62', marginTop: '4px' }}>{reservas.filter(r => r.estado === 'pendiente').length} pendiente{reservas.filter(r => r.estado === 'pendiente').length !== 1 ? 's' : ''} de aprobacion</p>
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62', marginTop: '4px' }}>
+              {pendientesCount} pendiente{pendientesCount !== 1 ? 's' : ''}
+              {comprobantesCount > 0 && ` · ${comprobantesCount} comprobante${comprobantesCount !== 1 ? 's' : ''} por verificar`}
+            </p>
           </div>
-          {reservas.filter(r => r.estado === 'pendiente').length > 0 && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: '6px',
-              padding: '6px 14px', borderRadius: '20px',
-              backgroundColor: '#B83232', color: 'white',
-              fontSize: '12px', fontWeight: 700,
-              fontFamily: "'Inter', sans-serif",
-              animation: 'none',
-              whiteSpace: 'nowrap',
-            }}>
-              <span style={{
-                width: '8px', height: '8px', borderRadius: '50%',
-                backgroundColor: 'white', display: 'inline-block',
-              }} />
-              {reservas.filter(r => r.estado === 'pendiente').length} solicitud{reservas.filter(r => r.estado === 'pendiente').length !== 1 ? 'es' : ''} pendiente{reservas.filter(r => r.estado === 'pendiente').length !== 1 ? 's' : ''}
-            </span>
+          {(pendientesCount > 0 || comprobantesCount > 0) && (
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {pendientesCount > 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', backgroundColor: '#B83232', color: 'white', fontSize: '12px', fontWeight: 700, fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'white', display: 'inline-block' }} />
+                  {pendientesCount} solicitud{pendientesCount !== 1 ? 'es' : ''}
+                </span>
+              )}
+              {comprobantesCount > 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', backgroundColor: '#7B1AC8', color: 'white', fontSize: '12px', fontWeight: 700, fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+                  {comprobantesCount} comprobante{comprobantesCount !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
           )}
         </div>
         <div style={{ display: 'flex', gap: '4px', backgroundColor: '#F0F0F0', borderRadius: '10px', padding: '3px' }}>
@@ -104,7 +122,6 @@ export default function GestionReservas({ condominioId }: Props) {
       {vista === 'calendario' && (
         <div style={{ marginBottom: '24px' }}>
           <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px' }}>
-            {/* Month nav */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <button onClick={() => setCalMes(p => { const d = new Date(p.year, p.month - 1, 1); return { year: d.getFullYear(), month: d.getMonth() } })}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#1A7A4A', padding: '4px 10px' }}>‹</button>
@@ -115,14 +132,12 @@ export default function GestionReservas({ condominioId }: Props) {
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#1A7A4A', padding: '4px 10px' }}>›</button>
             </div>
 
-            {/* Day headers */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', marginBottom: '6px' }}>
               {['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'].map(d => (
                 <span key={d} style={{ fontSize: '11px', fontWeight: 600, color: '#5E6B62', fontFamily: "'Inter', sans-serif", padding: '6px 0' }}>{d}</span>
               ))}
             </div>
 
-            {/* Days grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
               {diasMes.map((day, i) => {
                 if (day === null) return <div key={`e-${i}`} />
@@ -133,9 +148,7 @@ export default function GestionReservas({ condominioId }: Props) {
                 const isToday = dateStr === todayStr
 
                 return (
-                  <button
-                    key={dateStr}
-                    onClick={() => setDiaSeleccionado(isSelected ? null : dateStr)}
+                  <button key={dateStr} onClick={() => setDiaSeleccionado(isSelected ? null : dateStr)}
                     style={{
                       minHeight: '56px', borderRadius: '10px', border: isToday ? '2px solid #1A7A4A' : isSelected ? '2px solid #0D4A8F' : '1px solid #F0F0F0',
                       backgroundColor: isSelected ? '#EBF4FF' : 'white',
@@ -147,16 +160,9 @@ export default function GestionReservas({ condominioId }: Props) {
                       <div style={{ display: 'flex', gap: '2px', flexWrap: 'wrap', justifyContent: 'center' }}>
                         {diaReservas.slice(0, 3).map((r, idx) => {
                           const areaName = (r.areas_comunes as { nombre: string } | null)?.nombre || ''
-                          return (
-                            <span key={idx} style={{
-                              width: '6px', height: '6px', borderRadius: '50%',
-                              backgroundColor: areaColorMap.get(areaName) || '#5E6B62',
-                            }} />
-                          )
+                          return <span key={idx} style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: areaColorMap.get(areaName) || '#5E6B62' }} />
                         })}
-                        {diaReservas.length > 3 && (
-                          <span style={{ fontSize: '8px', color: '#5E6B62' }}>+{diaReservas.length - 3}</span>
-                        )}
+                        {diaReservas.length > 3 && <span style={{ fontSize: '8px', color: '#5E6B62' }}>+{diaReservas.length - 3}</span>}
                       </div>
                     )}
                   </button>
@@ -164,7 +170,6 @@ export default function GestionReservas({ condominioId }: Props) {
               })}
             </div>
 
-            {/* Area color legend */}
             <div style={{ display: 'flex', gap: '12px', marginTop: '14px', flexWrap: 'wrap' }}>
               {[...areaColorMap.entries()].map(([name, color]) => (
                 <span key={name} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>
@@ -175,7 +180,6 @@ export default function GestionReservas({ condominioId }: Props) {
             </div>
           </div>
 
-          {/* Detail for selected day */}
           {diaSeleccionado && (
             <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '20px', marginTop: '12px' }}>
               <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 12px' }}>
@@ -193,8 +197,7 @@ export default function GestionReservas({ condominioId }: Props) {
                         <div>
                           <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '14px', fontWeight: 700, color: '#0D1117' }}>{areaName}</div>
                           <div style={{ fontSize: '12px', color: '#5E6B62' }}>
-                            {r.hora_inicio?.slice(0, 5)} — {r.hora_fin?.slice(0, 5)} ·{' '}
-                            {(r.residentes as { nombre: string; apellido: string } | null)?.nombre} {(r.residentes as { nombre: string; apellido: string } | null)?.apellido}
+                            {r.hora_inicio?.slice(0, 5)} — {r.hora_fin?.slice(0, 5)} · {(r.residentes as { nombre: string; apellido: string } | null)?.nombre} {(r.residentes as { nombre: string; apellido: string } | null)?.apellido}
                           </div>
                         </div>
                         <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
@@ -208,24 +211,28 @@ export default function GestionReservas({ condominioId }: Props) {
         </div>
       )}
 
+      {/* Filter tabs */}
       {vista === 'lista' && (
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {['pendiente', 'aprobada', 'rechazada', 'todos'].map(e => (
-          <button key={e} onClick={() => setFiltro(e)} style={{
-            padding: '6px 14px', borderRadius: '8px', border: 'none', fontSize: '12px',
-            fontWeight: filtro === e ? 600 : 400, fontFamily: "'Inter', sans-serif", cursor: 'pointer',
-            backgroundColor: filtro === e ? '#1A7A4A' : '#F0F0F0', color: filtro === e ? 'white' : '#5E6B62',
-          }}>{e === 'todos' ? 'Todas' : ESTADO_STYLE[e]?.label || e}</button>
-        ))}
-      </div>
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          {FILTROS.map(f => (
+            <button key={f.key} onClick={() => setFiltro(f.key)} style={{
+              padding: '6px 14px', borderRadius: '8px', border: 'none', fontSize: '12px',
+              fontWeight: filtro === f.key ? 600 : 400, fontFamily: "'Inter', sans-serif", cursor: 'pointer',
+              backgroundColor: filtro === f.key ? '#1A7A4A' : '#F0F0F0', color: filtro === f.key ? 'white' : '#5E6B62',
+            }}>{f.label}</button>
+          ))}
+        </div>
       )}
 
+      {/* List view */}
       {vista === 'lista' && (filtradas.length === 0 ? (
         <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '40px', textAlign: 'center', color: '#5E6B62', fontSize: '14px' }}>No hay reservas</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {filtradas.map(r => {
             const est = ESTADO_STYLE[r.estado] || ESTADO_STYLE.pendiente
+            const residente = r.residentes as { nombre: string; apellido: string } | null
+            const resNombre = `${residente?.nombre || ''} ${residente?.apellido || ''}`.trim()
             return (
               <div key={r.id} style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '20px', fontFamily: "'Inter', sans-serif" }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
@@ -234,8 +241,7 @@ export default function GestionReservas({ condominioId }: Props) {
                       {(r.areas_comunes as { nombre: string } | null)?.nombre || '—'}
                     </div>
                     <div style={{ fontSize: '12px', color: '#5E6B62', marginTop: '2px' }}>
-                      {(r.residentes as { nombre: string; apellido: string } | null)?.nombre} {(r.residentes as { nombre: string; apellido: string } | null)?.apellido}
-                      {' · Unidad '}{(r.unidades as { numero: string } | null)?.numero}
+                      {resNombre} · Unidad {(r.unidades as { numero: string } | null)?.numero}
                     </div>
                   </div>
                   <span style={{ padding: '3px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
@@ -244,24 +250,63 @@ export default function GestionReservas({ condominioId }: Props) {
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
                   <span style={{ fontSize: '12px', backgroundColor: '#F4F7F5', padding: '4px 8px', borderRadius: '4px', color: '#0D1117', fontWeight: 600 }}>{r.fecha}</span>
                   <span style={{ fontSize: '12px', backgroundColor: '#F4F7F5', padding: '4px 8px', borderRadius: '4px', color: '#5E6B62' }}>{r.hora_inicio?.slice(0,5)} — {r.hora_fin?.slice(0,5)}</span>
-                  {r.cobro && Number(r.cobro) > 0 && <span style={{ fontSize: '12px', backgroundColor: '#FEF9EC', padding: '4px 8px', borderRadius: '4px', color: '#C07A2E' }}>Bs. {Number(r.cobro).toFixed(2)}</span>}
+                  {r.numero_reserva && <span style={{ fontSize: '12px', backgroundColor: '#F4F7F5', padding: '4px 8px', borderRadius: '4px', color: '#5E6B62' }}>{r.numero_reserva}</span>}
+                  {r.monto_total && Number(r.monto_total) > 0 && (
+                    <span style={{ fontSize: '12px', backgroundColor: '#FEF9EC', padding: '4px 8px', borderRadius: '4px', color: '#C07A2E' }}>
+                      Total: Bs. {Number(r.monto_total).toFixed(2)}
+                      {r.monto_garantia && Number(r.monto_garantia) > 0 && ` (Garantia: Bs. ${Number(r.monto_garantia).toFixed(2)})`}
+                    </span>
+                  )}
                   {r.motivo && <span style={{ fontSize: '12px', color: '#5E6B62' }}>"{r.motivo}"</span>}
                 </div>
 
+                {/* PASO 2: Aprobar / Rechazar */}
                 {r.estado === 'pendiente' && (
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button onClick={() => aprobar.mutate({ id: r.id, aprobado_por: user!.id })}
                       disabled={aprobar.isPending}
                       style={{ padding: '8px 16px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                      ✓ Aprobar
+                      Aprobar
                     </button>
                     <button onClick={() => setRechazandoId(rechazandoId === r.id ? null : r.id)}
                       style={{ padding: '8px 16px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                      ✕ Rechazar
+                      Rechazar
                     </button>
                   </div>
                 )}
 
+                {/* PASO 3: Comprobante subido → Ver + Confirmar */}
+                {r.estado === 'comprobante_enviado' && (
+                  <div style={{ backgroundColor: '#F5ECFF', borderRadius: '10px', padding: '14px', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#7B1AC8', marginBottom: '8px' }}>Comprobante de pago recibido</div>
+                    {r.comprobante_url && (
+                      <a href={r.comprobante_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: '#0D4A8F', textDecoration: 'underline', marginRight: '16px' }}>
+                        Ver comprobante
+                      </a>
+                    )}
+                    {r.numero_transaccion && <span style={{ fontSize: '12px', color: '#5E6B62' }}>Transaccion: {r.numero_transaccion}</span>}
+                    <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
+                      <button onClick={() => confirmarPago.mutate({ id: r.id })}
+                        disabled={confirmarPago.isPending}
+                        style={{ padding: '8px 16px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                        Confirmar pago recibido
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* PASO 5: Devolver garantía (for confirmed reservations with guarantee) */}
+                {r.estado === 'confirmado' && r.monto_garantia && Number(r.monto_garantia) > 0 && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => devolverGarantia.mutate({ id: r.id })}
+                      disabled={devolverGarantia.isPending}
+                      style={{ padding: '8px 16px', backgroundColor: '#0D4A8F', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                      Devolver garantia (Bs. {Number(r.monto_garantia).toFixed(2)})
+                    </button>
+                  </div>
+                )}
+
+                {/* Rechazo form */}
                 {rechazandoId === r.id && (
                   <div style={{ marginTop: '12px', backgroundColor: '#FCEAEA', borderRadius: '10px', padding: '14px' }}>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#B83232', marginBottom: '6px', fontFamily: "'Inter', sans-serif" }}>

@@ -9,9 +9,13 @@ interface ReservaSlot { fecha: string; hora_inicio: string; hora_fin: string }
 
 const ESTADO_STYLE: Record<string, { bg: string; text: string; label: string }> = {
   pendiente: { bg: '#FEF9EC', text: '#C07A2E', label: 'Pendiente' },
+  aprobado_pendiente_pago: { bg: '#EBF4FF', text: '#0D4A8F', label: 'Aprobada — Pago pendiente' },
+  comprobante_enviado: { bg: '#F5ECFF', text: '#7B1AC8', label: 'Comprobante enviado' },
+  confirmado: { bg: '#E8F4F0', text: '#1A7A4A', label: 'Confirmada' },
   aprobada: { bg: '#E8F4F0', text: '#1A7A4A', label: 'Aprobada' },
   rechazada: { bg: '#FCEAEA', text: '#B83232', label: 'Rechazada' },
   cancelada: { bg: '#F0F0F0', text: '#5E6B62', label: 'Cancelada' },
+  finalizado: { bg: '#F0F0F0', text: '#5E6B62', label: 'Finalizada' },
 }
 
 export default function ReservarArea() {
@@ -29,13 +33,16 @@ export default function ReservarArea() {
 
   const condominioId = profile?.condominio_id || residente?.condominio_id || ''
   const { areas } = useAreasComunes(condominioId)
-  const { crearReserva, reservas } = useReservas(condominioId)
+  const { crearReserva, reservas, subirComprobante } = useReservas(condominioId)
 
   const [areaId, setAreaId] = useState('')
   const [fecha, setFecha] = useState('')
   const [horaInicio, setHoraInicio] = useState('')
   const [horaFin, setHoraFin] = useState('')
   const [motivo, setMotivo] = useState('')
+  const [comprobanteFile, setComprobanteFile] = useState<File | null>(null)
+  const [numTransaccion, setNumTransaccion] = useState('')
+  const [subiendoId, setSubiendoId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [calMes, setCalMes] = useState(() => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() } })
@@ -85,7 +92,9 @@ export default function ReservarArea() {
 
   const areasActivas = areas.filter(a => a.activa)
   const areaSeleccionada = areas.find(a => a.id === areaId)
-  const costoTotal = areaSeleccionada?.tarifa && areaSeleccionada.tarifa > 0 ? areaSeleccionada.tarifa : 0
+  const garantia = Number(areaSeleccionada?.monto_garantia) || 0
+  const alquiler = Number(areaSeleccionada?.monto_alquiler) || Number(areaSeleccionada?.tarifa) || 0
+  const costoTotal = garantia + alquiler
 
   // My reservations
   const misReservas = reservas.filter(r => r.residente_id === residente?.id).slice(0, 10)
@@ -105,6 +114,8 @@ export default function ReservarArea() {
         hora_fin: horaFin,
         motivo: motivo || undefined,
         cobro: costoTotal,
+        monto_garantia: garantia,
+        monto_alquiler: alquiler,
         requiere_aprobacion: areaSeleccionada?.requiere_aprobacion ?? true,
       })
       setSuccess(true)
@@ -334,9 +345,23 @@ export default function ReservarArea() {
           </div>
 
           {costoTotal > 0 && (
-            <div style={{ backgroundColor: '#FEF9EC', borderRadius: '10px', padding: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', color: '#C07A2E' }}>Costo</span>
-              <span style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 800, color: '#C07A2E' }}>Bs. {costoTotal.toFixed(2)}</span>
+            <div style={{ backgroundColor: '#FEF9EC', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+              {garantia > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '13px', color: '#5E6B62' }}>Garantia (reembolsable)</span>
+                  <span style={{ fontSize: '13px', color: '#C07A2E', fontWeight: 600 }}>Bs. {garantia.toFixed(2)}</span>
+                </div>
+              )}
+              {alquiler > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '13px', color: '#5E6B62' }}>Alquiler</span>
+                  <span style={{ fontSize: '13px', color: '#C07A2E', fontWeight: 600 }}>Bs. {alquiler.toFixed(2)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E8D6A0', paddingTop: '6px', marginTop: '4px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#0D1117' }}>Total a pagar</span>
+                <span style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 800, color: '#C07A2E' }}>Bs. {costoTotal.toFixed(2)}</span>
+              </div>
             </div>
           )}
 
@@ -360,15 +385,66 @@ export default function ReservarArea() {
             <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Mis reservas</h3>
             {misReservas.map(r => {
               const est = ESTADO_STYLE[r.estado] || ESTADO_STYLE.pendiente
+              const needsPayment = r.estado === 'aprobado_pendiente_pago'
               return (
-                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #F0F0F0' }}>
-                  <div>
-                    <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: '14px', color: '#0D1117' }}>
-                      {(r.areas_comunes as { nombre: string } | null)?.nombre}
+                <div key={r.id} style={{ padding: '12px 0', borderBottom: '1px solid #F0F0F0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, fontSize: '14px', color: '#0D1117' }}>
+                        {(r.areas_comunes as { nombre: string } | null)?.nombre}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#5E6B62' }}>{r.fecha} · {r.hora_inicio?.slice(0,5)} — {r.hora_fin?.slice(0,5)}</div>
+                      {r.numero_reserva && <div style={{ fontSize: '10px', color: '#5E6B62', marginTop: '2px' }}>{r.numero_reserva}</div>}
+                      {r.monto_total && Number(r.monto_total) > 0 && (
+                        <div style={{ fontSize: '11px', color: '#C07A2E', fontWeight: 600, marginTop: '2px' }}>Total: Bs. {Number(r.monto_total).toFixed(2)}</div>
+                      )}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#5E6B62' }}>{r.fecha} · {r.hora_inicio?.slice(0,5)} — {r.hora_fin?.slice(0,5)}</div>
+                    <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, backgroundColor: est.bg, color: est.text, whiteSpace: 'nowrap' }}>{est.label}</span>
                   </div>
-                  <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, backgroundColor: est.bg, color: est.text }}>{est.label}</span>
+
+                  {/* Upload comprobante for approved-pending-payment */}
+                  {needsPayment && (
+                    <div style={{ marginTop: '10px', backgroundColor: '#EBF4FF', borderRadius: '10px', padding: '14px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#0D4A8F', marginBottom: '8px' }}>Suba su comprobante de pago para confirmar la reserva</div>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={e => { setComprobanteFile(e.target.files?.[0] || null); setSubiendoId(r.id) }}
+                        style={{ fontSize: '12px', marginBottom: '8px', display: 'block' }}
+                      />
+                      <input
+                        value={subiendoId === r.id ? numTransaccion : ''}
+                        onChange={e => { setNumTransaccion(e.target.value); setSubiendoId(r.id) }}
+                        placeholder="Numero de transaccion (opcional)"
+                        style={{ ...inputStyle, fontSize: '12px', padding: '8px 10px', marginBottom: '8px' }}
+                      />
+                      <button
+                        onClick={async () => {
+                          if (!comprobanteFile || subiendoId !== r.id) return
+                          try {
+                            await subirComprobante.mutateAsync({ id: r.id, file: comprobanteFile, numero_transaccion: numTransaccion || undefined })
+                            setComprobanteFile(null); setNumTransaccion(''); setSubiendoId(null)
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : 'Error subiendo comprobante')
+                          }
+                        }}
+                        disabled={!comprobanteFile || subiendoId !== r.id || subirComprobante.isPending}
+                        style={{
+                          padding: '8px 16px', backgroundColor: (!comprobanteFile || subiendoId !== r.id) ? '#C8D4CB' : '#0D4A8F',
+                          color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                          cursor: (!comprobanteFile || subiendoId !== r.id) ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        {subirComprobante.isPending ? 'Subiendo...' : 'Confirmar pago'}
+                      </button>
+                    </div>
+                  )}
+
+                  {r.estado === 'comprobante_enviado' && (
+                    <div style={{ marginTop: '8px', backgroundColor: '#F5ECFF', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#7B1AC8' }}>
+                      Comprobante enviado — esperando verificacion del administrador
+                    </div>
+                  )}
                 </div>
               )
             })}

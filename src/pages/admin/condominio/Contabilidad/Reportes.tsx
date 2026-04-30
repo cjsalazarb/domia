@@ -2,7 +2,13 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useSaldosCuentas } from '@/hooks/useContabilidad'
-import { exportarReporteContablePDF } from '@/lib/exportarReporteContable'
+import {
+  exportarBalanceGeneral,
+  exportarEstadoResultados,
+  exportarSumasSaldos,
+  exportarLibroMayor,
+  exportarFlujoCaja,
+} from '@/lib/exportarReporteContable'
 
 type Reporte = 'balance' | 'resultados' | 'sumas' | 'mayor' | 'flujo'
 
@@ -77,7 +83,7 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
   async function handleExportPDF() {
     setExportando(true)
     try {
-      await exportarReporteContablePDF({
+      const datos = {
         condominioNombre: condominioNombre || 'Condominio',
         hasta,
         saldos,
@@ -89,7 +95,14 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
         entradasCaja, entradasBanco, salidasCaja, salidasBanco,
         egresosGastos, totalEntradas, totalSalidas: totalSalidasCalc,
         saldoDisponible, gastosDetalle,
-      })
+      }
+      switch (reporte) {
+        case 'balance': await exportarBalanceGeneral(datos); break
+        case 'resultados': await exportarEstadoResultados(datos); break
+        case 'sumas': await exportarSumasSaldos(datos); break
+        case 'mayor': await exportarLibroMayor(datos); break
+        case 'flujo': await exportarFlujoCaja(datos); break
+      }
     } catch (e) {
       console.error('Error exportando PDF:', e)
     } finally {

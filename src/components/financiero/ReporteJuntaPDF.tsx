@@ -57,7 +57,7 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
   return (
     <Document>
       {/* Cover page */}
-      <Page size="A4" style={s.page}>
+      <Page size="A4" orientation="landscape" style={s.page}>
         <View style={s.coverCenter}>
           <Text style={s.coverTitle}>{condominio.nombre}</Text>
           {condominio.direccion && <Text style={s.coverSub}>{condominio.direccion}</Text>}
@@ -82,7 +82,7 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
       </Page>
 
       {/* Resumen page */}
-      <Page size="A4" style={s.page}>
+      <Page size="A4" orientation="landscape" style={s.page}>
         <Text style={s.sectionTitle}>Resumen Financiero</Text>
 
         <View style={s.kpiRow}>
@@ -123,7 +123,7 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
       </Page>
 
       {/* Ingresos detail */}
-      <Page size="A4" style={s.page}>
+      <Page size="A4" orientation="landscape" style={s.page}>
         <Text style={s.sectionTitle}>Detalle de Ingresos</Text>
 
         <View style={s.tableHeader}>
@@ -156,7 +156,7 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
       </Page>
 
       {/* Egresos detail */}
-      <Page size="A4" style={s.page}>
+      <Page size="A4" orientation="landscape" style={s.page}>
         <Text style={s.sectionTitle}>Detalle de Egresos</Text>
 
         <View style={s.tableHeader}>
@@ -188,7 +188,7 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
 
       {/* Morosos */}
       {morosos.length > 0 && (
-        <Page size="A4" style={s.page}>
+        <Page size="A4" orientation="landscape" style={s.page}>
           <Text style={s.sectionTitle}>Residentes Morosos</Text>
 
           <View style={s.tableHeader}>
@@ -220,7 +220,7 @@ export default function ReporteJuntaPDF({ condominio, periodo, ingresos, egresos
       )}
       {/* Análisis IA */}
       {analisisIA && (
-        <Page size="A4" style={s.page}>
+        <Page size="A4" orientation="landscape" style={s.page}>
           <View style={{ backgroundColor: '#E8F4F0', borderRadius: 10, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 16, color: '#1A7A4A' }}>Análisis Inteligente DOMIA</Text>
           </View>

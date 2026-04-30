@@ -53,7 +53,7 @@ export default function ReporteGlobalPDF({
   return (
     <Document>
       {/* Cover page */}
-      <Page size="A4" style={s.page}>
+      <Page size="A4" orientation="landscape" style={s.page}>
         <View style={s.coverCenter}>
           <Text style={s.coverTitle}>DOMIA</Text>
           <Text style={s.coverSub}>Sistema de Administracion de Condominios</Text>
@@ -77,7 +77,7 @@ export default function ReporteGlobalPDF({
       </Page>
 
       {/* Executive summary */}
-      <Page size="A4" style={s.page}>
+      <Page size="A4" orientation="landscape" style={s.page}>
         <Text style={s.sectionTitle}>Resumen Ejecutivo</Text>
         <View style={s.kpiRow}>
           <View style={s.kpiCard}>
@@ -133,7 +133,7 @@ export default function ReporteGlobalPDF({
       </Page>
 
       {/* Expenses by condo */}
-      <Page size="A4" style={s.page}>
+      <Page size="A4" orientation="landscape" style={s.page}>
         <Text style={s.sectionTitle}>Gastos por Condominio</Text>
         <View style={s.tableHeader}>
           <Text style={{ ...s.thText, flex: 2 }}>Condominio</Text>
@@ -166,7 +166,7 @@ export default function ReporteGlobalPDF({
 
       {/* Delinquency */}
       {(top10.length > 0 || totalPendienteMora > 0) && (
-        <Page size="A4" style={s.page}>
+        <Page size="A4" orientation="landscape" style={s.page}>
           <Text style={s.sectionTitle}>Morosidad Global</Text>
 
           <View style={s.kpiRow}>
