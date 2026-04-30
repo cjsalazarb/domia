@@ -37,6 +37,7 @@ interface SaldoCuenta {
 export interface ExportData {
   condominioNombre: string
   hasta: string
+  desde?: string
   saldos: SaldoCuenta[]
   isLeaf: (codigo: string) => boolean
   resultado: number
@@ -103,14 +104,43 @@ function createDoc() {
   return new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
 }
 
-function parseFecha(hasta: string) {
-  const fechaCorte = new Date(hasta + 'T12:00:00')
-  const mes = MESES[fechaCorte.getMonth()]
-  const anio = fechaCorte.getFullYear()
-  const periodo = `${mes} ${anio}`
+const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+function parseFecha(hasta: string, desde?: string) {
+  const fechaHasta = new Date(hasta + 'T12:00:00')
+  const mesHasta = MESES[fechaHasta.getMonth()]
+  const anioHasta = fechaHasta.getFullYear()
   const condoSlug = (nombre: string) => nombre.replace(/\s+/g, '')
-  const referencia = `RPT-${anio}-${String(fechaCorte.getMonth() + 1).padStart(2, '0')}`
-  return { fechaCorte, mes, anio, periodo, condoSlug, referencia }
+
+  let periodo: string
+  let fileSlug: string
+  let referencia: string
+
+  if (desde) {
+    const fechaDesde = new Date(desde + 'T12:00:00')
+    const mesDesde = MESES[fechaDesde.getMonth()]
+    const anioDesde = fechaDesde.getFullYear()
+
+    if (fechaDesde.getMonth() === fechaHasta.getMonth() && anioDesde === anioHasta) {
+      // Same month
+      periodo = `${mesHasta} ${anioHasta}`
+      fileSlug = `${MESES_CORTOS[fechaHasta.getMonth()]}_${anioHasta}`
+    } else if (anioDesde === anioHasta) {
+      // Same year, different months
+      periodo = `${mesDesde} — ${mesHasta} ${anioHasta}`
+      fileSlug = `${MESES_CORTOS[fechaDesde.getMonth()]}-${MESES_CORTOS[fechaHasta.getMonth()]}_${anioHasta}`
+    } else {
+      periodo = `${mesDesde} ${anioDesde} — ${mesHasta} ${anioHasta}`
+      fileSlug = `${MESES_CORTOS[fechaDesde.getMonth()]}${anioDesde}-${MESES_CORTOS[fechaHasta.getMonth()]}${anioHasta}`
+    }
+    referencia = `RPT-${anioDesde}-${String(fechaDesde.getMonth() + 1).padStart(2, '0')}-${String(fechaHasta.getMonth() + 1).padStart(2, '0')}`
+  } else {
+    periodo = `${mesHasta} ${anioHasta}`
+    fileSlug = `${MESES_CORTOS[fechaHasta.getMonth()]}_${anioHasta}`
+    referencia = `RPT-${anioHasta}-${String(fechaHasta.getMonth() + 1).padStart(2, '0')}`
+  }
+
+  return { fechaCorte: fechaHasta, mes: mesHasta, anio: anioHasta, periodo, fileSlug, condoSlug, referencia }
 }
 
 function addPortada(doc: jsPDF, logo: HTMLImageElement, data: ExportData, titulo: string, f: ReturnType<typeof parseFecha>) {
@@ -163,8 +193,8 @@ function addPortada(doc: jsPDF, logo: HTMLImageElement, data: ExportData, titulo
 export async function exportarBalanceGeneral(data: ExportData) {
   const doc = createDoc()
   const logo = await loadImage(altrionLogoSrc)
-  const f = parseFecha(data.hasta)
-  const fileName = `DOMIA_BalanceGeneral_${f.condoSlug(data.condominioNombre)}_${f.mes}_${f.anio}.pdf`
+  const f = parseFecha(data.hasta, data.desde)
+  const fileName = `DOMIA_BalanceGeneral_${f.condoSlug(data.condominioNombre)}_${f.fileSlug}.pdf`
 
   addPortada(doc, logo, data, 'Balance General', f)
 
@@ -235,8 +265,8 @@ export async function exportarBalanceGeneral(data: ExportData) {
 export async function exportarEstadoResultados(data: ExportData) {
   const doc = createDoc()
   const logo = await loadImage(altrionLogoSrc)
-  const f = parseFecha(data.hasta)
-  const fileName = `DOMIA_EstadoResultados_${f.condoSlug(data.condominioNombre)}_${f.mes}_${f.anio}.pdf`
+  const f = parseFecha(data.hasta, data.desde)
+  const fileName = `DOMIA_EstadoResultados_${f.condoSlug(data.condominioNombre)}_${f.fileSlug}.pdf`
 
   addPortada(doc, logo, data, 'Estado de Resultados', f)
 
@@ -304,8 +334,8 @@ export async function exportarEstadoResultados(data: ExportData) {
 export async function exportarSumasSaldos(data: ExportData) {
   const doc = createDoc()
   const logo = await loadImage(altrionLogoSrc)
-  const f = parseFecha(data.hasta)
-  const fileName = `DOMIA_SumasSaldos_${f.condoSlug(data.condominioNombre)}_${f.mes}_${f.anio}.pdf`
+  const f = parseFecha(data.hasta, data.desde)
+  const fileName = `DOMIA_SumasSaldos_${f.condoSlug(data.condominioNombre)}_${f.fileSlug}.pdf`
 
   addPortada(doc, logo, data, 'Balance de Sumas y Saldos', f)
 
@@ -380,8 +410,8 @@ export async function exportarSumasSaldos(data: ExportData) {
 export async function exportarLibroMayor(data: ExportData) {
   const doc = createDoc()
   const logo = await loadImage(altrionLogoSrc)
-  const f = parseFecha(data.hasta)
-  const fileName = `DOMIA_LibroMayor_${f.condoSlug(data.condominioNombre)}_${f.mes}_${f.anio}.pdf`
+  const f = parseFecha(data.hasta, data.desde)
+  const fileName = `DOMIA_LibroMayor_${f.condoSlug(data.condominioNombre)}_${f.fileSlug}.pdf`
 
   addPortada(doc, logo, data, 'Libro Mayor', f)
 
@@ -441,8 +471,8 @@ export async function exportarLibroMayor(data: ExportData) {
 export async function exportarFlujoCaja(data: ExportData) {
   const doc = createDoc()
   const logo = await loadImage(altrionLogoSrc)
-  const f = parseFecha(data.hasta)
-  const fileName = `DOMIA_FlujoCaja_${f.condoSlug(data.condominioNombre)}_${f.mes}_${f.anio}.pdf`
+  const f = parseFecha(data.hasta, data.desde)
+  const fileName = `DOMIA_FlujoCaja_${f.condoSlug(data.condominioNombre)}_${f.fileSlug}.pdf`
 
   addPortada(doc, logo, data, 'Flujo de Caja', f)
 
@@ -559,8 +589,8 @@ export async function exportarFlujoCaja(data: ExportData) {
 export async function exportarReporteContablePDF(data: ExportData) {
   const doc = createDoc()
   const logo = await loadImage(altrionLogoSrc)
-  const f = parseFecha(data.hasta)
-  const fileName = `DOMIA_ReporteCompleto_${f.condoSlug(data.condominioNombre)}_${f.mes}_${f.anio}.pdf`
+  const f = parseFecha(data.hasta, data.desde)
+  const fileName = `DOMIA_ReporteCompleto_${f.condoSlug(data.condominioNombre)}_${f.fileSlug}.pdf`
 
   // Page 1: Cover
   addPortada(doc, logo, data, 'Reporte Contable', f)

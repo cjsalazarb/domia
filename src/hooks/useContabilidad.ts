@@ -151,9 +151,9 @@ export function useLibroDiario(condominioId: string, desde?: string, hasta?: str
 }
 
 /* ─── Saldos por cuenta (para reportes) ─── */
-export function useSaldosCuentas(condominioId: string, hasta?: string) {
+export function useSaldosCuentas(condominioId: string, hasta?: string, desde?: string) {
   const query = useQuery({
-    queryKey: ['saldos-cuentas', condominioId, hasta],
+    queryKey: ['saldos-cuentas', condominioId, desde, hasta],
     queryFn: async () => {
       // Traer todas las cuentas
       const { data: cuentas, error: e1 } = await supabase
@@ -169,6 +169,7 @@ export function useSaldosCuentas(condominioId: string, hasta?: string) {
         .select('cuenta_id, debe, haber, asiento:asientos_contables!inner(fecha, condominio_id)')
         .eq('asiento.condominio_id', condominioId)
 
+      if (desde) q = q.gte('asiento.fecha', desde)
       if (hasta) q = q.lte('asiento.fecha', hasta)
 
       const { data: detalles, error: e2 } = await q
@@ -195,6 +196,28 @@ export function useSaldosCuentas(condominioId: string, hasta?: string) {
     enabled: !!condominioId,
   })
   return { saldos: query.data || [], isLoading: query.isLoading }
+}
+
+// Get months that have accounting entries
+export function useMesesConDatos(condominioId: string) {
+  const query = useQuery({
+    queryKey: ['meses-con-datos', condominioId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('asientos_contables')
+        .select('fecha')
+        .eq('condominio_id', condominioId)
+        .order('fecha')
+      if (error) throw error
+      const meses = new Set<string>()
+      for (const d of (data || [])) {
+        meses.add(d.fecha.slice(0, 7)) // YYYY-MM
+      }
+      return [...meses].sort()
+    },
+    enabled: !!condominioId,
+  })
+  return { mesesConDatos: query.data || [], isLoading: query.isLoading }
 }
 
 /* ─── Arqueos de caja ─── */
