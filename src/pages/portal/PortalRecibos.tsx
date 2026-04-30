@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { pdf } from '@react-pdf/renderer'
 import { supabase } from '@/lib/supabase'
 import EstadoCuentaPDF from '@/components/financiero/EstadoCuentaPDF'
+import PortalLayout from '@/components/layout/PortalLayout'
 
 const ESTADO: Record<string, { bg: string; text: string; label: string }> = {
   emitido: { bg: '#F0F0F0', text: '#5E6B62', label: 'Emitido' },
@@ -13,7 +14,7 @@ const ESTADO: Record<string, { bg: string; text: string; label: string }> = {
 }
 
 export default function PortalRecibos() {
-  const { user, signOut } = useAuthStore()
+  const { user } = useAuthStore()
   const navigate = useNavigate()
 
   const { data: residenteInfo } = useQuery({
@@ -63,17 +64,8 @@ export default function PortalRecibos() {
   const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ background: 'linear-gradient(to right, #1A7A4A, #0D9E6E)', padding: '20px 24px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 800 }}>DOM<span style={{ opacity: 0.9 }}>IA</span></span>
-          <span style={{ fontSize: '13px', opacity: 0.8 }}>Mis Recibos</span>
-        </div>
-        <button onClick={() => { signOut(); navigate('/login') }} style={{ padding: '6px 14px', backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>Salir</button>
-      </div>
-
+    <PortalLayout title="Pagos">
       <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-        <button onClick={() => navigate('/portal')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#1A7A4A', padding: 0, marginBottom: '16px', fontFamily: "'Inter', sans-serif" }}>← Volver al portal</button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Mis Recibos</h1>
           <button onClick={handleEstadoCuenta} disabled={!recibos?.length}
@@ -113,6 +105,6 @@ export default function PortalRecibos() {
           </button>
         )}
       </div>
-    </div>
+    </PortalLayout>
   )
 }

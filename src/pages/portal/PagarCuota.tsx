@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
+import PortalLayout from '@/components/layout/PortalLayout'
 
 const METODOS = [
   { key: 'transferencia', label: 'Transferencia', icon: '🏦' },
@@ -12,7 +13,7 @@ const METODOS = [
 ]
 
 export default function PagarCuota() {
-  const { user, profile, signOut } = useAuthStore()
+  const { user } = useAuthStore()
   const navigate = useNavigate()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -124,37 +125,8 @@ export default function PagarCuota() {
   const reciboSeleccionado = recibos?.find(r => r.id === selectedRecibo)
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
-      <div style={{
-        background: 'linear-gradient(to right, #1A7A4A, #0D9E6E)',
-        padding: '20px 24px',
-        color: 'white',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 800 }}>
-            DOM<span style={{ opacity: 0.9 }}>IA</span>
-          </span>
-          <span style={{ fontSize: '13px', opacity: 0.8 }}>Portal Residente</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ fontSize: '13px' }}>{profile?.nombre} {profile?.apellido}</span>
-          <button
-            onClick={() => { signOut(); navigate('/login') }}
-            style={{ padding: '6px 14px', backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}
-          >
-            Salir
-          </button>
-        </div>
-      </div>
-
+    <PortalLayout title="Pagar Cuota">
       <div style={{ padding: '24px', maxWidth: '600px', margin: '0 auto' }}>
-        <button onClick={() => navigate('/portal')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#1A7A4A', padding: 0, marginBottom: '16px' }}>
-          ← Volver al portal
-        </button>
 
         <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: '0 0 4px' }}>
           Pagar Cuota
@@ -350,6 +322,6 @@ export default function PagarCuota() {
         )}
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
+    </PortalLayout>
   )
 }

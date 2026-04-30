@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
-import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import PortalLayout from '@/components/layout/PortalLayout'
 
 export default function MisDatos() {
-  const { user, profile, signOut } = useAuthStore()
-  const navigate = useNavigate()
+  const { user } = useAuthStore()
   const queryClient = useQueryClient()
 
   const { data: residente } = useQuery({
@@ -77,22 +76,8 @@ export default function MisDatos() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ background: 'linear-gradient(to right, #1A7A4A, #0D9E6E)', padding: '20px 24px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 800 }}>DOM<span style={{ opacity: 0.9 }}>IA</span></span>
-          <span style={{ fontSize: '13px', opacity: 0.8 }}>Mis datos</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ fontSize: '13px' }}>{profile?.nombre} {profile?.apellido}</span>
-          <button onClick={() => { signOut(); navigate('/login') }} style={{ padding: '6px 14px', backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>Salir</button>
-        </div>
-      </div>
-
+    <PortalLayout title="Mi Perfil">
       <div style={{ padding: '24px', maxWidth: '500px', margin: '0 auto' }}>
-        <button onClick={() => navigate('/portal')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#1A7A4A', padding: 0, marginBottom: '16px', fontFamily: "'Inter', sans-serif" }}>
-          ← Volver al portal
-        </button>
 
         <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: '0 0 24px' }}>
           Mis Datos
@@ -210,6 +195,6 @@ export default function MisDatos() {
           )}
         </div>
       </div>
-    </div>
+    </PortalLayout>
   )
 }

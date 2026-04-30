@@ -2,6 +2,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import PortalLayout from '@/components/layout/PortalLayout'
 
 export default function PortalDashboard() {
   const { user, profile, signOut } = useAuthStore()
@@ -56,7 +57,8 @@ export default function PortalDashboard() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif" }}>
+    <PortalLayout>
+    <div style={{ minHeight: '100vh', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif", paddingBottom: '70px' }}>
       {/* Header */}
       <div style={{
         background: 'linear-gradient(to right, #1A7A4A, #0D9E6E)',
@@ -157,5 +159,6 @@ export default function PortalDashboard() {
         </div>
       </div>
     </div>
+    </PortalLayout>
   )
 }
