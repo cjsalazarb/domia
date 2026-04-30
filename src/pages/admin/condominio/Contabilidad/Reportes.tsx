@@ -85,7 +85,7 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
     const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     setMesDesde(ym); setMesHasta(ahora)
   }
-  function setAnio() {
+  function setAño() {
     const y = new Date().getFullYear()
     setMesDesde(`${y}-01`); setMesHasta(ahora)
   }
@@ -216,7 +216,7 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
   const d3 = new Date(); d3.setMonth(d3.getMonth() - 2)
   const trimestreDesde = `${d3.getFullYear()}-${String(d3.getMonth() + 1).padStart(2, '0')}`
   const isTrimestre = mesDesde === trimestreDesde && mesHasta === ahora
-  const isAnio = mesDesde === `${new Date().getFullYear()}-01` && mesHasta === ahora
+  const isAño = mesDesde === `${new Date().getFullYear()}-01` && mesHasta === ahora
 
   return (
     <div>
@@ -239,7 +239,7 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
         {/* Quick buttons */}
         <button onClick={setMesActual} style={quickBtnStyle(isMesActual)}>Mes actual</button>
         <button onClick={setTrimestre} style={quickBtnStyle(isTrimestre)}>Trimestre</button>
-        <button onClick={setAnio} style={quickBtnStyle(isAnio)}>Anio</button>
+        <button onClick={setAño} style={quickBtnStyle(isAño)}>Año</button>
 
         <span style={{ width: '1px', height: '24px', backgroundColor: '#E8F4F0', margin: '0 4px' }} />
 
