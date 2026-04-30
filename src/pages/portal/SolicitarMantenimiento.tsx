@@ -4,8 +4,18 @@ import { supabase } from '@/lib/supabase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import PortalLayout from '@/components/layout/PortalLayout'
 
+const TIPOS = [
+  { key: 'fuga', label: 'Fuga de agua', icon: '💧' },
+  { key: 'dano', label: 'Daño', icon: '🔨' },
+  { key: 'ruido', label: 'Ruido', icon: '🔊' },
+  { key: 'seguridad', label: 'Seguridad', icon: '🛡️' },
+  { key: 'electrico', label: 'Eléctrico', icon: '⚡' },
+  { key: 'limpieza', label: 'Limpieza', icon: '🧹' },
+  { key: 'otro', label: 'Otro', icon: '📋' },
+]
+
 const PRIORIDADES = [
-  { key: 'baja', label: 'Baja', color: '#1A7A4A', bg: '#E8F4F0' },
+  { key: 'baja', label: 'Normal', color: '#1A7A4A', bg: '#E8F4F0' },
   { key: 'media', label: 'Media', color: '#C07A2E', bg: '#FEF9EC' },
   { key: 'alta', label: 'Alta', color: '#B83232', bg: '#FCEAEA' },
   { key: 'urgente', label: 'Urgente', color: '#B83232', bg: '#FCEAEA' },
@@ -24,6 +34,7 @@ export default function SolicitarMantenimiento() {
   const queryClient = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const [tipo, setTipo] = useState('otro')
   const [titulo, setTitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [prioridad, setPrioridad] = useState('media')
@@ -69,6 +80,7 @@ export default function SolicitarMantenimiento() {
         titulo,
         descripcion,
         prioridad,
+        tipo,
         foto_url: foto_url || null,
         solicitado_por: user?.id,
         estado: 'pendiente',
@@ -77,6 +89,7 @@ export default function SolicitarMantenimiento() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mis-mantenimientos'] })
+      setTipo('otro')
       setTitulo('')
       setDescripcion('')
       setPrioridad('media')
@@ -96,18 +109,34 @@ export default function SolicitarMantenimiento() {
     <PortalLayout title="Incidencias">
       <div style={{ padding: '24px', maxWidth: '700px', margin: '0 auto' }}>
 
-        <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: '0 0 24px' }}>Solicitar Mantenimiento</h1>
+        <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: '0 0 24px' }}>Reportar Incidencia</h1>
 
         {/* Form */}
         <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', padding: '32px', marginBottom: '24px' }}>
           {success && (
             <div style={{ backgroundColor: '#E8F4F0', borderLeft: '3px solid #1A7A4A', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#1A7A4A', marginBottom: '16px' }}>
-              Solicitud enviada correctamente. El administrador la revisará pronto.
+              Incidencia reportada correctamente. El administrador la revisara pronto.
             </div>
           )}
 
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#0D1117', marginBottom: '6px' }}>Título *</label>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#0D1117', marginBottom: '8px' }}>Tipo de incidencia *</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {TIPOS.map(t => (
+                <button key={t.key} onClick={() => setTipo(t.key)} style={{
+                  padding: '8px 14px', borderRadius: '10px', border: tipo === t.key ? '2px solid #1A7A4A' : '1px solid #C8D4CB',
+                  backgroundColor: tipo === t.key ? '#E8F4F0' : 'white', cursor: 'pointer',
+                  fontSize: '12px', fontWeight: tipo === t.key ? 700 : 400, color: tipo === t.key ? '#1A7A4A' : '#5E6B62',
+                  fontFamily: "'Inter', sans-serif", display: 'flex', alignItems: 'center', gap: '4px',
+                }}>
+                  <span>{t.icon}</span> {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#0D1117', marginBottom: '6px' }}>Titulo *</label>
             <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ej: Fuga de agua en baño" style={inputStyle}
               onFocus={e => e.target.style.borderColor = '#1A7A4A'} onBlur={e => e.target.style.borderColor = '#C8D4CB'} />
           </div>
