@@ -8,6 +8,7 @@ import {
   exportarSumasSaldos,
   exportarLibroMayor,
   exportarFlujoCaja,
+  exportarReporteContablePDF,
 } from '@/lib/exportarReporteContable'
 
 type Reporte = 'balance' | 'resultados' | 'sumas' | 'mayor' | 'flujo'
@@ -165,6 +166,16 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <label style={{ fontSize: '12px', color: '#5E6B62' }}>Corte al</label>
           <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} style={inputStyle} />
+          <button onClick={async () => { setExportando(true); try { await exportarReporteContablePDF(datos) } catch (e) { console.error(e) } finally { setExportando(false) } }}
+            disabled={exportando || isLoading || saldos.length === 0}
+            style={{
+              padding: '8px 16px', backgroundColor: exportando ? '#ccc' : '#0D1117', color: 'white',
+              border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+              cursor: exportando ? 'not-allowed' : 'pointer', fontFamily: "'Inter', sans-serif",
+              display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap',
+            }}>
+            {exportando ? 'Generando...' : '\u2B07 Reporte Completo'}
+          </button>
         </div>
       </div>
 

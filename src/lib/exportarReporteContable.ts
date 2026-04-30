@@ -560,7 +560,7 @@ export async function exportarReporteContablePDF(data: ExportData) {
   const doc = createDoc()
   const logo = await loadImage(altrionLogoSrc)
   const f = parseFecha(data.hasta)
-  const fileName = `DOMIA_Reporte_${f.condoSlug(data.condominioNombre)}_${f.mes}_${f.anio}.pdf`
+  const fileName = `DOMIA_ReporteCompleto_${f.condoSlug(data.condominioNombre)}_${f.mes}_${f.anio}.pdf`
 
   // Page 1: Cover
   addPortada(doc, logo, data, 'Reporte Contable', f)
