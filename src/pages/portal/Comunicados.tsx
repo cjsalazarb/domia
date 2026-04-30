@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
@@ -14,17 +14,26 @@ interface Notificacion {
 }
 
 const TIPOS_ALERTA = [
-  { key: 'ayuda', label: 'Necesito ayuda', icon: '🆘', color: '#EA580C', bg: '#FFF7ED' },
-  { key: 'paquete', label: 'Paquete', icon: '📦', color: '#2563EB', bg: '#EFF6FF' },
-  { key: 'ruido', label: 'Ruido', icon: '🔊', color: '#CA8A04', bg: '#FEFCE8' },
-  { key: 'emergencia', label: 'Emergencia', icon: '🚨', color: '#DC2626', bg: '#FEF2F2' },
+  { key: 'ayuda', label: 'Necesito ayuda', icon: '\uD83C\uDD98', color: '#EA580C', bg: '#FFF7ED' },
+  { key: 'paquete', label: 'Paquete', icon: '\uD83D\uDCE6', color: '#2563EB', bg: '#EFF6FF' },
+  { key: 'ruido', label: 'Ruido', icon: '\uD83D\uDD0A', color: '#CA8A04', bg: '#FEFCE8' },
+  { key: 'emergencia', label: 'Emergencia', icon: '\uD83D\uDEA8', color: '#DC2626', bg: '#FEF2F2' },
 ]
 
 export default function Comunicados() {
   const { user } = useAuthStore()
   const queryClient = useQueryClient()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [alertaEnviada, setAlertaEnviada] = useState(false)
+  const [alertaMsg, setAlertaMsg] = useState<{ text: string; color: string } | null>(null)
+  const [alertaError, setAlertaError] = useState('')
+  const [cooldown, setCooldown] = useState(0)
+
+  // Cooldown timer
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const t = setTimeout(() => setCooldown(c => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [cooldown])
 
   const { data: residente } = useQuery({
     queryKey: ['mi-residente', user?.id],
@@ -35,22 +44,31 @@ export default function Comunicados() {
     enabled: !!user,
   })
 
-  // Alertas al guardia
   const enviarAlerta = useMutation({
     mutationFn: async (tipo: string) => {
-      if (!residente) throw new Error('Sin residente')
+      if (!residente) throw new Error('No se encontro tu perfil de residente. Contacta al administrador.')
       const { error } = await supabase.from('alertas_residentes').insert({
         condominio_id: residente.condominio_id,
         residente_id: residente.id,
         unidad_id: residente.unidad_id,
         tipo,
       })
-      if (error) throw error
+      if (error) throw new Error(error.message)
+      return tipo
     },
-    onSuccess: () => {
+    onSuccess: (_data, tipo) => {
       queryClient.invalidateQueries({ queryKey: ['mis-alertas'] })
-      setAlertaEnviada(true)
-      setTimeout(() => setAlertaEnviada(false), 3000)
+      setCooldown(30)
+      setAlertaError('')
+      if (tipo === 'emergencia') {
+        setAlertaMsg({ text: 'Emergencia reportada — el guardia sera notificado', color: '#DC2626' })
+      } else {
+        setAlertaMsg({ text: 'Alerta enviada al guardia de turno', color: '#1A7A4A' })
+      }
+      setTimeout(() => setAlertaMsg(null), 4000)
+    },
+    onError: (err) => {
+      setAlertaError(err instanceof Error ? err.message : 'Error al enviar alerta')
     },
   })
 
@@ -97,12 +115,12 @@ export default function Comunicados() {
     },
   })
 
-  const handleOpen = (notif: Notificacion) => {
-    setSelectedId(selectedId === notif.id ? null : notif.id)
+  const handleOpen = useCallback((notif: Notificacion) => {
+    setSelectedId(prev => prev === notif.id ? null : notif.id)
     if (!notif.leido) {
       marcarLeido.mutate(notif.id)
     }
-  }
+  }, [marcarLeido])
 
   const noLeidos = notificaciones.filter(n => !n.leido).length
 
@@ -111,44 +129,74 @@ export default function Comunicados() {
     return d.toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
+  function tiempoRelativo(iso: string): string {
+    const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+    if (mins < 1) return 'ahora'
+    if (mins < 60) return `hace ${mins} min`
+    if (mins < 1440) return `hace ${Math.floor(mins / 60)}h`
+    return new Date(iso).toLocaleDateString('es-BO')
+  }
+
   return (
-    <PortalLayout title="Comunicados">
+    <PortalLayout title="Alertas">
       <div style={{ padding: '24px', maxWidth: '600px', margin: '0 auto' }}>
 
         {/* Llamar al guardia */}
         <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', padding: '20px', marginBottom: '20px' }}>
-          <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 12px' }}>Llamar al guardia</h2>
-          {alertaEnviada && (
-            <div style={{ backgroundColor: '#E8F4F0', borderLeft: '3px solid #1A7A4A', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#1A7A4A', marginBottom: '12px' }}>
-              Alerta enviada al guardia de turno
+          <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0D1117', margin: '0 0 12px' }}>Llamar al guardia</h2>
+
+          {alertaMsg && (
+            <div style={{ backgroundColor: alertaMsg.color === '#DC2626' ? '#FEF2F2' : '#E8F4F0', borderLeft: `3px solid ${alertaMsg.color}`, borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: alertaMsg.color, marginBottom: '12px', fontWeight: 600 }}>
+              {alertaMsg.text}
             </div>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            {TIPOS_ALERTA.map(t => (
-              <button key={t.key} onClick={() => enviarAlerta.mutate(t.key)} disabled={enviarAlerta.isPending}
-                style={{
-                  padding: '14px 12px', borderRadius: '12px', border: 'none', cursor: 'pointer',
-                  backgroundColor: t.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-                }}>
-                <span style={{ fontSize: '24px' }}>{t.icon}</span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: t.color, fontFamily: "'Inter', sans-serif" }}>{t.label}</span>
-              </button>
-            ))}
+          {alertaError && (
+            <div style={{ backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#B83232', marginBottom: '12px' }}>
+              {alertaError}
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            {TIPOS_ALERTA.map(t => {
+              const disabled = enviarAlerta.isPending || cooldown > 0
+              return (
+                <button key={t.key} onClick={() => { setAlertaError(''); enviarAlerta.mutate(t.key) }} disabled={disabled}
+                  style={{
+                    padding: '16px 12px', borderRadius: '14px', border: 'none',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    backgroundColor: disabled ? '#F0F0F0' : t.bg,
+                    opacity: disabled ? 0.6 : 1,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+                  }}>
+                  <span style={{ fontSize: '28px' }}>{t.icon}</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: disabled ? '#999' : t.color, fontFamily: "'Nunito', sans-serif" }}>{t.label}</span>
+                  {cooldown > 0 && (
+                    <span style={{ fontSize: '10px', color: '#999' }}>{cooldown}s</span>
+                  )}
+                </button>
+              )
+            })}
           </div>
+
+          {/* Historial de alertas */}
           {misAlertas.length > 0 && (
-            <div style={{ marginTop: '12px', borderTop: '1px solid #F0F0F0', paddingTop: '12px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: '#5E6B62', marginBottom: '6px', textTransform: 'uppercase' }}>Historial</div>
+            <div style={{ marginTop: '16px', borderTop: '1px solid #F0F0F0', paddingTop: '12px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: '#5E6B62', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Historial de alertas</div>
               {misAlertas.slice(0, 5).map(a => {
-                const tipoInfo = TIPOS_ALERTA.find(t => t.key === a.tipo)
-                const fecha = new Date(a.created_at)
-                const mins = Math.floor((Date.now() - fecha.getTime()) / 60000)
-                const tiempo = mins < 1 ? 'ahora' : mins < 60 ? `hace ${mins} min` : mins < 1440 ? `hace ${Math.floor(mins / 60)}h` : fecha.toLocaleDateString('es-BO')
+                const tipoInfo = TIPOS_ALERTA.find(ta => ta.key === a.tipo)
                 return (
-                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', fontSize: '12px' }}>
-                    <span style={{ color: '#0D1117' }}>{tipoInfo?.icon} {tipoInfo?.label || a.tipo}</span>
+                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #F8F8F8', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>{tipoInfo?.icon || '?'}</span>
+                      <span style={{ color: '#0D1117', fontWeight: 500 }}>{tipoInfo?.label || a.tipo}</span>
+                    </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <span style={{ color: '#5E6B62' }}>{tiempo}</span>
-                      <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, backgroundColor: a.atendida ? '#E8F4F0' : '#FEF9EC', color: a.atendida ? '#1A7A4A' : '#C07A2E' }}>
+                      <span style={{ fontSize: '11px', color: '#5E6B62' }}>{tiempoRelativo(a.created_at)}</span>
+                      <span style={{
+                        padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600,
+                        backgroundColor: a.atendida ? '#E8F4F0' : '#FEF9EC',
+                        color: a.atendida ? '#1A7A4A' : '#C07A2E',
+                      }}>
                         {a.atendida ? 'Atendida' : 'Pendiente'}
                       </span>
                     </div>
@@ -159,6 +207,7 @@ export default function Comunicados() {
           )}
         </div>
 
+        {/* Comunicados */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h1 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '24px', fontWeight: 700, color: '#0D1117', margin: 0 }}>
             Comunicados
@@ -193,7 +242,6 @@ export default function Comunicados() {
                     padding: '16px 20px',
                     cursor: 'pointer',
                     borderLeft: n.leido ? 'none' : '4px solid #0D4A8F',
-                    transition: 'all 0.2s',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
