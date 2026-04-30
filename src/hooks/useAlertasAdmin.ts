@@ -25,7 +25,7 @@ export function useAlertasAdmin(condominioIds?: string[]) {
     queryKey: ['alertas-admin', condominioIds],
     queryFn: async () => {
       let q = supabase.from('alertas_residentes')
-        .select('*, residentes(nombre, apellido), unidades(numero), condominios:condominio_id(nombre)')
+        .select('*, residentes(nombre, apellido), unidades(numero)')
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -34,8 +34,20 @@ export function useAlertasAdmin(condominioIds?: string[]) {
       }
 
       const { data, error } = await q
-      if (error) throw error
-      return data as AlertaAdmin[]
+      if (error) {
+        console.error('[useAlertasAdmin] Error:', error.message)
+        throw error
+      }
+
+      // Fetch condominio names separately to avoid join issues
+      if (data && data.length > 0) {
+        const condoIds = [...new Set(data.map(a => a.condominio_id))]
+        const { data: condos } = await supabase.from('condominios').select('id, nombre').in('id', condoIds)
+        const condoMap = new Map((condos || []).map(c => [c.id, c.nombre]))
+        return data.map(a => ({ ...a, condominios: { nombre: condoMap.get(a.condominio_id) || '?' } })) as AlertaAdmin[]
+      }
+
+      return (data || []) as AlertaAdmin[]
     },
     enabled: true,
   })
