@@ -80,34 +80,51 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
   const saldoDisponible = (caja?.saldo || 0) + (banco?.saldo || 0)
   const gastosDetalle = gastos.filter(s => isLeaf(s.codigo) && s.debe > 0)
 
-  async function handleExportPDF() {
+  const datos = {
+    condominioNombre: condominioNombre || 'Condominio',
+    hasta,
+    saldos,
+    isLeaf,
+    resultado,
+    totalActivos, totalPasivos, totalPatrimonio,
+    totalIngresos, totalGastos,
+    todosConMov, totalDebeSumas, totalHaberSumas,
+    entradasCaja, entradasBanco, salidasCaja, salidasBanco,
+    egresosGastos, totalEntradas, totalSalidas: totalSalidasCalc,
+    saldoDisponible, gastosDetalle,
+  }
+
+  const exportFn: Record<Reporte, (d: typeof datos) => Promise<void>> = {
+    balance: exportarBalanceGeneral,
+    resultados: exportarEstadoResultados,
+    sumas: exportarSumasSaldos,
+    mayor: exportarLibroMayor,
+    flujo: exportarFlujoCaja,
+  }
+
+  async function handleExportPDF(tipo: Reporte) {
     setExportando(true)
     try {
-      const datos = {
-        condominioNombre: condominioNombre || 'Condominio',
-        hasta,
-        saldos,
-        isLeaf,
-        resultado,
-        totalActivos, totalPasivos, totalPatrimonio,
-        totalIngresos, totalGastos,
-        todosConMov, totalDebeSumas, totalHaberSumas,
-        entradasCaja, entradasBanco, salidasCaja, salidasBanco,
-        egresosGastos, totalEntradas, totalSalidas: totalSalidasCalc,
-        saldoDisponible, gastosDetalle,
-      }
-      switch (reporte) {
-        case 'balance': await exportarBalanceGeneral(datos); break
-        case 'resultados': await exportarEstadoResultados(datos); break
-        case 'sumas': await exportarSumasSaldos(datos); break
-        case 'mayor': await exportarLibroMayor(datos); break
-        case 'flujo': await exportarFlujoCaja(datos); break
-      }
+      await exportFn[tipo](datos)
     } catch (e) {
       console.error('Error exportando PDF:', e)
     } finally {
       setExportando(false)
     }
+  }
+
+  function PdfBtn({ tipo }: { tipo: Reporte }) {
+    return (
+      <button onClick={() => handleExportPDF(tipo)} disabled={exportando || isLoading || saldos.length === 0}
+        style={{
+          padding: '6px 14px', backgroundColor: exportando ? '#ccc' : '#1D9E75', color: 'white',
+          border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+          cursor: exportando ? 'not-allowed' : 'pointer', fontFamily: "'Inter', sans-serif",
+          display: 'inline-flex', alignItems: 'center', gap: '4px',
+        }}>
+        {exportando ? 'Generando...' : '\u2B07 PDF'}
+      </button>
+    )
   }
 
   function renderTabla(titulo: string, items: typeof saldos, totalLabel: string, total: number, colorTotal: string) {
@@ -148,14 +165,6 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <label style={{ fontSize: '12px', color: '#5E6B62' }}>Corte al</label>
           <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} style={inputStyle} />
-          <button onClick={handleExportPDF} disabled={exportando || isLoading || saldos.length === 0}
-            style={{
-              padding: '8px 16px', backgroundColor: exportando ? '#ccc' : '#1D9E75', color: 'white',
-              border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-              cursor: exportando ? 'not-allowed' : 'pointer', fontFamily: "'Inter', sans-serif",
-            }}>
-            {exportando ? 'Generando PDF...' : '\u2B07 Exportar PDF'}
-          </button>
         </div>
       </div>
 
@@ -180,6 +189,10 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
           {/* Balance General */}
           {reporte === 'balance' && (
             <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Balance General</h3>
+                <PdfBtn tipo="balance" />
+              </div>
               {renderTabla('Activo', activos, 'TOTAL ACTIVO', totalActivos, '#0D9E6E')}
               {renderTabla('Pasivo', pasivos, 'TOTAL PASIVO', totalPasivos, '#E85D04')}
               {renderTabla('Patrimonio', patrimonio, 'TOTAL PATRIMONIO', totalPatrimonio, '#0D4A8F')}
@@ -199,6 +212,10 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
           {/* Estado de Resultados */}
           {reporte === 'resultados' && (
             <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Estado de Resultados</h3>
+                <PdfBtn tipo="resultados" />
+              </div>
               {renderTabla('Ingresos', ingresos, 'TOTAL INGRESOS', totalIngresos, '#2D6A4F')}
               {renderTabla('Gastos', gastos, 'TOTAL GASTOS', totalGastos, '#D62828')}
 
@@ -211,6 +228,11 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
 
           {/* Balance de Sumas y Saldos */}
           {reporte === 'sumas' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Balance de Sumas y Saldos</h3>
+                <PdfBtn tipo="sumas" />
+              </div>
             <div style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #E8F4F0', overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <thead>
@@ -247,10 +269,16 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
                 </tfoot>
               </table>
             </div>
+            </div>
           )}
 
           {/* Libro Mayor */}
           {reporte === 'mayor' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Libro Mayor</h3>
+                <PdfBtn tipo="mayor" />
+              </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {saldos.filter(s => s.nivel === 3 && (s.debe > 0 || s.haber > 0)).map(s => (
                 <div key={s.id} style={{ backgroundColor: 'white', borderRadius: '10px', border: '1px solid #E8F4F0', padding: '16px' }}>
@@ -275,11 +303,16 @@ export default function Reportes({ condominioId }: { condominioId: string }) {
                 </div>
               )}
             </div>
+            </div>
           )}
 
           {/* Flujo de Caja */}
           {reporte === 'flujo' && (
             <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Flujo de Caja</h3>
+                <PdfBtn tipo="flujo" />
+              </div>
               <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 {[
                   { label: 'Total Ingresos', valor: totalEntradas, color: '#0D9E6E' },
