@@ -63,6 +63,17 @@ export function useGastos(condominioId: string, mes?: string) {
     },
   })
 
+  const editar = useMutation({
+    mutationFn: async (input: { id: string; updates: Partial<{ descripcion: string; categoria: string; monto: number; fecha: string; proveedor_nombre: string | null; notas: string | null }> }) => {
+      const { error } = await supabase.from('gastos').update(input.updates).eq('id', input.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['gastos', condominioId] })
+      qc.invalidateQueries({ queryKey: ['balance', condominioId] })
+    },
+  })
+
   const pagarGasto = useMutation({
     mutationFn: async (input: { gastoId: string; monto: number; metodo: 'efectivo' | 'transferencia' | 'cheque'; fecha: string; descripcionGasto: string; proveedorNombre: string }) => {
       // 1. Crear asiento contable: D 2.1.1 CxP Proveedores / C Caja o Banco
@@ -122,5 +133,5 @@ export function useGastos(condominioId: string, mes?: string) {
 
   const totalMes = (query.data || []).reduce((s, g) => s + Number(g.monto), 0)
 
-  return { gastos: query.data || [], isLoading: query.isLoading, crear, pagarGasto, totalMes }
+  return { gastos: query.data || [], isLoading: query.isLoading, crear, editar, pagarGasto, totalMes }
 }

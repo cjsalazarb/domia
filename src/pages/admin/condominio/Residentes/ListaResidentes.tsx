@@ -34,7 +34,7 @@ interface Props {
   onEliminar?: (id: string) => void
 }
 
-export default function ListaResidentes({ residentes, condominioId, onNuevo, onImportar, onDetalle, onEditar: _onEditar, onRegistrarPago, onEliminar }: Props) {
+export default function ListaResidentes({ residentes, condominioId, onNuevo, onImportar, onDetalle, onEditar, onRegistrarPago, onEliminar }: Props) {
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<string>('todos')
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
@@ -287,6 +287,12 @@ export default function ListaResidentes({ residentes, condominioId, onNuevo, onI
                     style={{ padding: '5px 10px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
                   >
                     Ver
+                  </button>
+                  <button
+                    onClick={() => onEditar(r.id)}
+                    style={{ padding: '5px 10px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
+                  >
+                    Editar
                   </button>
                   {onRegistrarPago && (pagoStatus === 'emitido' || pagoStatus === 'vencido') && (
                     <button

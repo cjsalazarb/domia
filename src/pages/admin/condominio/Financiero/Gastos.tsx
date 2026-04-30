@@ -26,7 +26,7 @@ export default function Gastos({ condominioId }: Props) {
   const { user } = useAuthStore()
   const hoy = new Date()
   const [mesFilter, setMesFilter] = useState(`${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`)
-  const { gastos, isLoading, crear, pagarGasto, totalMes } = useGastos(condominioId, mesFilter)
+  const { gastos, isLoading, crear, editar, pagarGasto, totalMes } = useGastos(condominioId, mesFilter)
   const { proveedores } = useProveedores(condominioId)
   const [catFilter, setCatFilter] = useState('todas')
   const [showForm, setShowForm] = useState(false)
@@ -44,6 +44,18 @@ export default function Gastos({ condominioId }: Props) {
   const [pagoFecha, setPagoFecha] = useState(hoy.toISOString().split('T')[0])
   const [pagoMetodo, setPagoMetodo] = useState<'efectivo' | 'transferencia' | 'cheque'>('transferencia')
   const [pagoError, setPagoError] = useState('')
+
+  // Modal editar gasto
+  const [editGasto, setEditGasto] = useState<{ id: string; descripcion: string; categoria: string; monto: string; fecha: string; proveedor_nombre: string; notas: string } | null>(null)
+
+  function abrirEditar(g: typeof gastos[0]) {
+    setEditGasto({ id: g.id, descripcion: g.descripcion, categoria: g.categoria, monto: String(g.monto), fecha: g.fecha, proveedor_nombre: g.proveedor_nombre || '', notas: g.notas || '' })
+  }
+  async function handleEditar() {
+    if (!editGasto) return
+    await editar.mutateAsync({ id: editGasto.id, updates: { descripcion: editGasto.descripcion, categoria: editGasto.categoria, monto: parseFloat(editGasto.monto), fecha: editGasto.fecha, proveedor_nombre: editGasto.proveedor_nombre || null, notas: editGasto.notas || null } })
+    setEditGasto(null)
+  }
 
   const filtrados = catFilter === 'todas' ? gastos : gastos.filter(g => g.categoria === catFilter)
 
@@ -219,6 +231,47 @@ export default function Gastos({ condominioId }: Props) {
         </div>
       )}
 
+      {/* Modal editar gasto */}
+      {editGasto && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '420px', maxWidth: '95vw', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+            <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Editar Gasto</h3>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Descripcion</label>
+              <input value={editGasto.descripcion} onChange={e => setEditGasto({ ...editGasto, descripcion: e.target.value })} style={iS} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Monto (Bs.)</label>
+                <input type="number" step="0.01" value={editGasto.monto} onChange={e => setEditGasto({ ...editGasto, monto: e.target.value })} style={iS} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Fecha</label>
+                <input type="date" value={editGasto.fecha} onChange={e => setEditGasto({ ...editGasto, fecha: e.target.value })} style={iS} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Categoria</label>
+                <select value={editGasto.categoria} onChange={e => setEditGasto({ ...editGasto, categoria: e.target.value })} style={iS}>
+                  {CATEGORIAS.map(c => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }}>Proveedor</label>
+                <input value={editGasto.proveedor_nombre} onChange={e => setEditGasto({ ...editGasto, proveedor_nombre: e.target.value })} style={iS} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditGasto(null)} style={{ padding: '8px 16px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cancelar</button>
+              <button onClick={handleEditar} disabled={editar.isPending} style={{ padding: '8px 16px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                {editar.isPending ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       {filtrados.length === 0 ? (
         <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '40px', textAlign: 'center', color: '#5E6B62', fontSize: '14px' }}>No hay gastos registrados para este período</div>
@@ -250,11 +303,17 @@ export default function Gastos({ condominioId }: Props) {
                     {pagado ? 'Pagado' : 'Pendiente'}
                   </span>
                 </span>
-                <span style={{ textAlign: 'center' }}>
+                <span style={{ textAlign: 'center', display: 'flex', gap: '4px', justifyContent: 'center' }}>
                   {!pagado && (
                     <button onClick={() => abrirModalPago(g)}
                       style={{ padding: '4px 10px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
                       Pagar
+                    </button>
+                  )}
+                  {!pagado && (
+                    <button onClick={() => abrirEditar(g)}
+                      style={{ padding: '4px 10px', backgroundColor: '#F4F7F5', color: '#5E6B62', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                      Editar
                     </button>
                   )}
                 </span>
