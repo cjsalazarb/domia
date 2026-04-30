@@ -1,9 +1,26 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
+import { useAlertasAdmin } from '@/hooks/useAlertasAdmin'
+
+const TIPO_ALERTA: Record<string, { label: string; icon: string; color: string; bg: string }> = {
+  ayuda: { label: 'Necesito ayuda', icon: '\uD83C\uDD98', color: '#EA580C', bg: '#FFF7ED' },
+  paquete: { label: 'Paquete', icon: '\uD83D\uDCE6', color: '#2563EB', bg: '#EFF6FF' },
+  ruido: { label: 'Ruido', icon: '\uD83D\uDD0A', color: '#CA8A04', bg: '#FEFCE8' },
+  emergencia: { label: 'EMERGENCIA', icon: '\uD83D\uDEA8', color: '#DC2626', bg: '#FEF2F2' },
+}
+
+function tiempoRelativo(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (mins < 1) return 'ahora'
+  if (mins < 60) return `hace ${mins} min`
+  if (mins < 1440) return `hace ${Math.floor(mins / 60)}h`
+  return `hace ${Math.floor(mins / 1440)}d`
+}
 
 export default function GlobalDashboard() {
   const { profile, signOut } = useAuthStore()
+  const { alertas: alertasAdmin, pendientes: alertasPendientes, emergenciasPendientes, marcarAtendida } = useAlertasAdmin()
 
   const hoy = new Date()
   const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`
@@ -147,7 +164,7 @@ export default function GlobalDashboard() {
           </div>
           <nav style={{ display: 'flex', gap: '4px' }}>
             {[
-              { label: 'Dashboard', path: '/dashboard', icon: '🏠' },
+              { label: 'Dashboard', path: '/dashboard', icon: '🏠', badge: alertasPendientes },
               { label: 'Condominios', path: '/admin', icon: '🏢' },
               { label: 'Clientes', path: '/admin/clientes', icon: '👥' },
               { label: 'Finanzas Global', path: '/finanzas-global', icon: '💰' },
@@ -163,6 +180,11 @@ export default function GlobalDashboard() {
                     transition: 'all 0.15s',
                   }}>
                   <span style={{ fontSize: '14px' }}>{item.icon}</span>{item.label}
+                  {'badge' in item && (item as any).badge > 0 && (
+                    <span style={{ backgroundColor: '#DC2626', color: 'white', borderRadius: '10px', padding: '1px 7px', fontSize: '10px', fontWeight: 700, minWidth: '16px', textAlign: 'center' }}>
+                      {(item as any).badge}
+                    </span>
+                  )}
                 </a>
               )
             })}
@@ -194,6 +216,61 @@ export default function GlobalDashboard() {
 
         {!isLoading && data && (
           <>
+            {/* ═══ EMERGENCIA BANNER ═══ */}
+            {emergenciasPendientes.length > 0 && (
+              <div style={{ backgroundColor: '#FEF2F2', border: '2px solid #DC2626', borderRadius: '16px', padding: '16px 20px', marginBottom: '16px' }}>
+                {emergenciasPendientes.map(e => (
+                  <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: e === emergenciasPendientes[emergenciasPendientes.length - 1] ? 0 : '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '24px' }}>{'\uD83D\uDEA8'}</span>
+                      <div>
+                        <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '15px', fontWeight: 800, color: '#DC2626' }}>
+                          EMERGENCIA — Unidad {(e.unidades as any)?.numero || '?'} en {(e.condominios as any)?.nombre || '?'}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#DC2626' }}>{(e.residentes as any)?.nombre} {(e.residentes as any)?.apellido} · {tiempoRelativo(e.created_at)}</div>
+                      </div>
+                    </div>
+                    <button onClick={() => marcarAtendida.mutate(e.id)} disabled={marcarAtendida.isPending}
+                      style={{ padding: '8px 16px', backgroundColor: '#DC2626', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Nunito', sans-serif" }}>
+                      Marcar atendida
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ═══ ALERTAS DE RESIDENTES ═══ */}
+            {alertasPendientes > 0 && (
+              <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Alertas de Residentes</h2>
+                  <span style={{ backgroundColor: '#DC2626', color: 'white', borderRadius: '12px', padding: '4px 12px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif" }}>{alertasPendientes}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {alertasAdmin.filter(a => !a.atendida).map(a => {
+                    const t = TIPO_ALERTA[a.tipo] || { label: a.tipo, icon: '?', color: '#5E6B62', bg: '#F0F0F0' }
+                    return (
+                      <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', backgroundColor: t.bg, borderRadius: '12px', borderLeft: `4px solid ${t.color}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                          <span style={{ fontSize: '20px' }}>{t.icon}</span>
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: t.color }}>{t.label}</div>
+                            <div style={{ fontSize: '12px', color: '#5E6B62' }}>
+                              {(a.condominios as any)?.nombre} · Unidad {(a.unidades as any)?.numero || '?'} · {(a.residentes as any)?.nombre} {(a.residentes as any)?.apellido} · {tiempoRelativo(a.created_at)}
+                            </div>
+                          </div>
+                        </div>
+                        <button onClick={() => marcarAtendida.mutate(a.id)} disabled={marcarAtendida.isPending}
+                          style={{ padding: '6px 14px', backgroundColor: 'white', color: t.color, border: `1px solid ${t.color}`, borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+                          Atendido
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* ═══ SECTION 1: Business Summary Cards ═══ */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px', marginBottom: '20px' }}>
               {[
