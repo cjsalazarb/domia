@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import PortalLayout from '@/components/layout/PortalLayout'
+import { templateEmergenciaResidente } from '@/lib/emailTemplates'
 
 interface Notificacion {
   id: string
@@ -21,7 +22,7 @@ const TIPOS_ALERTA = [
 ]
 
 export default function Comunicados() {
-  const { user } = useAuthStore()
+  const { user, profile } = useAuthStore()
   const queryClient = useQueryClient()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [alertaMsg, setAlertaMsg] = useState<{ text: string; color: string } | null>(null)
@@ -44,6 +45,24 @@ export default function Comunicados() {
     enabled: !!user,
   })
 
+  // Fetch unidad number and condominio name for emergency email
+  const { data: unidadInfo } = useQuery({
+    queryKey: ['mi-unidad-info', residente?.unidad_id],
+    queryFn: async () => {
+      const { data } = await supabase.from('unidades').select('numero').eq('id', residente!.unidad_id).single()
+      return data
+    },
+    enabled: !!residente?.unidad_id,
+  })
+  const { data: condoInfo } = useQuery({
+    queryKey: ['mi-condo-info', residente?.condominio_id],
+    queryFn: async () => {
+      const { data } = await supabase.from('condominios').select('nombre, admin_id').eq('id', residente!.condominio_id).single()
+      return data
+    },
+    enabled: !!residente?.condominio_id,
+  })
+
   const enviarAlerta = useMutation({
     mutationFn: async (tipo: string) => {
       if (!residente) throw new Error('No se encontro tu perfil de residente. Contacta al administrador.')
@@ -54,6 +73,26 @@ export default function Comunicados() {
         tipo,
       })
       if (error) throw new Error(error.message)
+
+      // Send emergency email to admin
+      if (tipo === 'emergencia' && condoInfo?.admin_id) {
+        const { data: adminProfile } = await supabase.from('profiles').select('email').eq('id', condoInfo.admin_id).single()
+        if (adminProfile?.email) {
+          const nombre = `${profile?.nombre || ''} ${profile?.apellido || ''}`.trim()
+          const timestamp = new Date().toLocaleString('es-BO', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+          const emailHtml = templateEmergenciaResidente(nombre, unidadInfo?.numero || '?', condoInfo.nombre || '', timestamp)
+          supabase.functions.invoke('notificar-reserva', {
+            body: {
+              tipo: 'emergencia',
+              reservaId: 'emergencia',
+              emailDestinatario: adminProfile.email,
+              emailAsunto: `EMERGENCIA — Unidad ${unidadInfo?.numero || '?'} en ${condoInfo.nombre || ''}`,
+              emailHtml,
+            },
+          }).catch(e => console.error('Error enviando email emergencia:', e))
+        }
+      }
+
       return tipo
     },
     onSuccess: (_data, tipo) => {
@@ -61,7 +100,7 @@ export default function Comunicados() {
       setCooldown(30)
       setAlertaError('')
       if (tipo === 'emergencia') {
-        setAlertaMsg({ text: 'Emergencia reportada — el guardia sera notificado', color: '#DC2626' })
+        setAlertaMsg({ text: 'Emergencia reportada — administrador y guardia notificados', color: '#DC2626' })
       } else {
         setAlertaMsg({ text: 'Alerta enviada al guardia de turno', color: '#1A7A4A' })
       }

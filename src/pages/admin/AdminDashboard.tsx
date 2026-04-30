@@ -2,9 +2,26 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '@/components/layout/AdminLayout'
+import { useAlertasAdmin } from '@/hooks/useAlertasAdmin'
+
+const TIPO_ALERTA: Record<string, { label: string; icon: string; color: string; bg: string }> = {
+  ayuda: { label: 'Necesito ayuda', icon: '\uD83C\uDD98', color: '#EA580C', bg: '#FFF7ED' },
+  paquete: { label: 'Paquete', icon: '\uD83D\uDCE6', color: '#2563EB', bg: '#EFF6FF' },
+  ruido: { label: 'Ruido', icon: '\uD83D\uDD0A', color: '#CA8A04', bg: '#FEFCE8' },
+  emergencia: { label: 'EMERGENCIA', icon: '\uD83D\uDEA8', color: '#DC2626', bg: '#FEF2F2' },
+}
+
+function tiempoRelativo(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (mins < 1) return 'ahora'
+  if (mins < 60) return `hace ${mins} min`
+  if (mins < 1440) return `hace ${Math.floor(mins / 60)}h`
+  return `hace ${Math.floor(mins / 1440)}d`
+}
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
+  const { alertas, pendientes, emergenciasPendientes, marcarAtendida } = useAlertasAdmin()
 
   // Global KPIs across ALL condominios
   const { data: global } = useQuery({
@@ -80,6 +97,31 @@ export default function AdminDashboard() {
         <p style={{ color: '#5E6B62', fontSize: '14px', fontFamily: "'Inter', sans-serif" }}>Vista consolidada de todos los condominios</p>
       </div>
 
+      {/* Emergency banner */}
+      {emergenciasPendientes.length > 0 && (
+        <div style={{ backgroundColor: '#FEF2F2', border: '2px solid #DC2626', borderRadius: '16px', padding: '16px 20px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '24px' }}>{'\uD83D\uDEA8'}</span>
+            <div>
+              <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 800, color: '#DC2626' }}>
+                EMERGENCIA — {emergenciasPendientes.length === 1
+                  ? `Unidad ${(emergenciasPendientes[0].unidades as any)?.numero || '?'} en ${(emergenciasPendientes[0].condominios as any)?.nombre || '?'}`
+                  : `${emergenciasPendientes.length} emergencias activas`
+                }
+              </div>
+              <div style={{ fontSize: '12px', color: '#DC2626' }}>{tiempoRelativo(emergenciasPendientes[0].created_at)}</div>
+            </div>
+          </div>
+          {emergenciasPendientes.length === 1 && (
+            <button onClick={() => marcarAtendida.mutate(emergenciasPendientes[0].id)}
+              disabled={marcarAtendida.isPending}
+              style={{ padding: '8px 16px', backgroundColor: '#DC2626', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Nunito', sans-serif" }}>
+              Marcar atendida
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Global KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px', marginBottom: '32px' }}>
         {kpi('Condominios', global?.totalCondominios || 0, '#1A7A4A', 'activos')}
@@ -89,6 +131,46 @@ export default function AdminDashboard() {
         {kpi('Guardias', global?.totalGuardias || 0, '#7B1AC8', `${global?.guardiasEnTurno || 0} en turno`)}
         {kpi('Tickets', global?.ticketsPendientes || 0, '#C07A2E', 'pendientes')}
       </div>
+
+      {/* Alertas de residentes */}
+      {pendientes > 0 && (
+        <div style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '24px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0D1117', margin: 0 }}>
+              Alertas de Residentes
+            </h2>
+            <span style={{ backgroundColor: '#DC2626', color: 'white', borderRadius: '12px', padding: '4px 12px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif" }}>
+              {pendientes}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {alertas.filter(a => !a.atendida).map(a => {
+              const t = TIPO_ALERTA[a.tipo] || { label: a.tipo, icon: '?', color: '#5E6B62', bg: '#F0F0F0' }
+              const resName = `${(a.residentes as any)?.nombre || ''} ${(a.residentes as any)?.apellido || ''}`.trim()
+              const unidad = (a.unidades as any)?.numero || '?'
+              const condo = (a.condominios as any)?.nombre || '?'
+              return (
+                <div key={a.id} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px',
+                  backgroundColor: t.bg, borderRadius: '12px', borderLeft: `4px solid ${t.color}`,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                    <span style={{ fontSize: '20px' }}>{t.icon}</span>
+                    <div>
+                      <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: 600, color: t.color }}>{t.label}</div>
+                      <div style={{ fontSize: '12px', color: '#5E6B62' }}>{condo} · Unidad {unidad} · {resName} · {tiempoRelativo(a.created_at)}</div>
+                    </div>
+                  </div>
+                  <button onClick={() => marcarAtendida.mutate(a.id)} disabled={marcarAtendida.isPending}
+                    style={{ padding: '6px 14px', backgroundColor: 'white', color: t.color, border: `1px solid ${t.color}`, borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+                    Atendido
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Condominios list */}
       <div style={{ marginBottom: '32px' }}>

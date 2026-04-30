@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
+import { useAlertasAdmin } from '@/hooks/useAlertasAdmin'
 
 interface NavItem { path: string; label: string; icon: string }
 interface Props { children: React.ReactNode; condominioId?: string; title?: string }
@@ -14,6 +15,7 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const isSuper = profile?.rol === 'super_admin'
+  const { pendientes: alertasPendientes } = useAlertasAdmin()
 
   // Fetch condominio name for sidebar header
   const { data: condominioNombre } = useQuery({
@@ -87,12 +89,19 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
           <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
             {operacionItems.map(item => {
               const active = isActive(item.path)
+              const showBadge = item.label === 'Dashboard' && alertasPendientes > 0
               return (
                 <a key={item.path} href={item.path}
                   style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', borderRadius: '10px', textDecoration: 'none',
                     backgroundColor: active ? 'rgba(13,158,110,0.15)' : 'transparent', color: active ? '#0D9E6E' : 'rgba(255,255,255,0.6)',
                     cursor: 'pointer', fontFamily: "'Inter', sans-serif", fontSize: '13px', fontWeight: active ? 600 : 400, width: '100%', transition: 'all 0.15s' }}>
-                  <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>{item.icon}</span>{item.label}
+                  <span style={{ fontSize: '16px', width: '22px', textAlign: 'center' }}>{item.icon}</span>
+                  <span style={{ flex: 1 }}>{item.label}</span>
+                  {showBadge && (
+                    <span style={{ backgroundColor: '#DC2626', color: 'white', borderRadius: '10px', padding: '1px 7px', fontSize: '10px', fontWeight: 700, minWidth: '18px', textAlign: 'center' }}>
+                      {alertasPendientes}
+                    </span>
+                  )}
                 </a>
               )
             })}

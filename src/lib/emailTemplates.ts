@@ -409,7 +409,26 @@ export function templateConfirmacionReserva(
   return wrap(condominio, content)
 }
 
-// 17. Condominio eliminado definitivamente
+// 17. Emergencia de residente
+export function templateEmergenciaResidente(
+  residente: string, unidad: string, condominio: string, timestamp: string
+): string {
+  return wrap(condominio, `
+    <div style="background:#FEF2F2;border:2px solid #DC2626;border-radius:10px;padding:16px;margin-bottom:16px;text-align:center">
+      <div style="font-size:32px;margin-bottom:8px">\uD83D\uDEA8</div>
+      <h2 style="font-family:'Nunito',sans-serif;color:#DC2626;margin:0 0 4px;font-size:20px">EMERGENCIA</h2>
+    </div>
+    <p style="color:#5E6B62;font-size:14px;margin:0 0 16px">El residente <strong>${residente}</strong> de la <strong>Unidad ${unidad}</strong> en <strong>${condominio}</strong> reporto una EMERGENCIA.</p>
+    <div style="background:#F4F7F5;border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:12px;color:#5E6B62">Hora del reporte</div>
+      <div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#0D1117;margin-top:2px">${timestamp}</div>
+    </div>
+    ${btn('Ver en DOMIA →', 'https://app.domia.me/dashboard')}
+    <p style="color:#B83232;font-size:13px;font-weight:600;margin:16px 0 0;text-align:center">Requiere atencion inmediata</p>
+  `)
+}
+
+// 18. Condominio eliminado definitivamente
 export function templateCondominioEliminado(
   condominio: string, fecha: string
 ): string {
