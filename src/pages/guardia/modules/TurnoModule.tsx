@@ -79,19 +79,21 @@ export default function TurnoModule({ guardiaId, condominioId }: Props) {
     let latitud: number | undefined
     let longitud: number | undefined
 
-    // GPS non-blocking
+    // GPS non-blocking — fail fast, never block the flow
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 8000,
-          maximumAge: 0,
-        })
+        const timer = setTimeout(() => reject(new Error('GPS timeout')), 5000)
+        navigator.geolocation.getCurrentPosition(
+          (p) => { clearTimeout(timer); resolve(p) },
+          (e) => { clearTimeout(timer); reject(e) },
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+        )
       })
       latitud = pos.coords.latitude
       longitud = pos.coords.longitude
     } catch {
       setGpsWarning(true)
+      // Continue with null coords — don't block entry
     }
 
     try {

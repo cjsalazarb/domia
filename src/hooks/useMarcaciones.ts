@@ -41,8 +41,12 @@ export function useMarcaciones(guardiaId: string, condominioId: string) {
       // Convert blob to base64
       const imagen_base64 = await blobToBase64(input.foto)
 
-      // Call Edge Function with service role (bypasses storage RLS for PIN auth)
-      const { data, error } = await supabase.functions.invoke('subir-marcador', {
+      // Call Edge Function with 15s timeout
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Tiempo de espera agotado. Intenta de nuevo.')), 15000)
+      )
+
+      const invokePromise = supabase.functions.invoke('subir-marcador', {
         body: {
           imagen_base64,
           guardia_id: guardiaId,
@@ -53,6 +57,8 @@ export function useMarcaciones(guardiaId: string, condominioId: string) {
           turno_id: input.turno_id || null,
         },
       })
+
+      const { data, error } = await Promise.race([invokePromise, timeoutPromise])
 
       if (error) {
         throw new Error(error.message || 'Error al subir marcación')
