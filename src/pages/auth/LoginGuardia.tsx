@@ -28,14 +28,22 @@ export default function LoginGuardia() {
     setError('')
     try {
       const pinHash = await hashPin(pin)
+      // Query by code, then compare PIN (supports both hashed and plain-text storage)
       const { data: guardia, error: qErr } = await supabase
         .from('guardias')
-        .select('id, codigo_guardia, condominio_id, nombre, apellido, activo')
+        .select('id, codigo_guardia, condominio_id, nombre, apellido, activo, pin_acceso')
         .eq('codigo_guardia', codigo.toUpperCase())
-        .eq('pin_acceso', pinHash)
         .single()
 
       if (qErr || !guardia) {
+        setError('Código o PIN incorrecto')
+        setLoading(false)
+        return
+      }
+
+      // Compare PIN: if stored as hash (64 chars) compare hashes, otherwise compare plain text
+      const pinMatch = guardia.pin_acceso === pinHash || guardia.pin_acceso === pin
+      if (!pinMatch) {
         setError('Código o PIN incorrecto')
         setLoading(false)
         return
@@ -80,7 +88,7 @@ export default function LoginGuardia() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#1a1a2e',
+      backgroundColor: '#ffffff',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
