@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
@@ -50,11 +50,20 @@ export function useAlertasGuardia(condominioId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['alertas-guardia', condominioId] }),
   })
 
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+
   useEffect(() => {
     if (!condominioId) return
 
+    // Remove previous channel if it exists (prevents StrictMode double-sub)
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
+
+    const channelName = `alertas-guardia-${condominioId}-${Date.now()}`
     const channel = supabase
-      .channel(`alertas-${condominioId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'alertas_residentes', filter: `condominio_id=eq.${condominioId}` },
@@ -64,8 +73,11 @@ export function useAlertasGuardia(condominioId: string) {
       )
       .subscribe()
 
+    channelRef.current = channel
+
     return () => {
       supabase.removeChannel(channel)
+      channelRef.current = null
     }
   }, [condominioId, queryClient])
 

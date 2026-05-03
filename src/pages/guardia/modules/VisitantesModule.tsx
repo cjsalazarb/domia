@@ -26,6 +26,8 @@ export default function VisitantesModule({ condominioId, guardiaId }: Props) {
   const { activos, isLoading, registrarIngreso, registrarSalida } = useVisitantes(condominioId, guardiaId)
   const [showForm, setShowForm] = useState(false)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
   // Form state
   const [nombre, setNombre] = useState('')
@@ -44,15 +46,26 @@ export default function VisitantesModule({ condominioId, guardiaId }: Props) {
   })
 
   const handleRegistrar = async () => {
-    if (!nombre.trim()) return
-    await registrarIngreso.mutateAsync({
-      nombre: nombre.trim(),
-      unidad_id: unidadId || undefined,
-      motivo: motivo || undefined,
-      ci: placa ? `PLACA:${placa}` : undefined,
-    })
-    setNombre(''); setUnidadId(''); setMotivo(''); setPlaca('')
-    setShowForm(false)
+    if (!nombre.trim()) {
+      setError('El nombre es obligatorio')
+      return
+    }
+    setError('')
+    setSuccess('')
+    try {
+      await registrarIngreso.mutateAsync({
+        nombre: nombre.trim(),
+        unidad_id: unidadId || undefined,
+        motivo: motivo || undefined,
+        ci: placa ? `PLACA:${placa}` : undefined,
+      })
+      setNombre(''); setUnidadId(''); setMotivo(''); setPlaca('')
+      setShowForm(false)
+      setSuccess('Visitante registrado')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err: any) {
+      setError(err?.message || 'Error al registrar visitante. Verifica permisos.')
+    }
   }
 
   const handleSalida = async (id: string) => {
@@ -78,6 +91,18 @@ export default function VisitantesModule({ condominioId, guardiaId }: Props) {
 
   return (
     <div style={{ paddingBottom: '100px' }}>
+      {/* Error/Success toast */}
+      {error && (
+        <div style={{ backgroundColor: '#FEF2F2', borderLeft: '3px solid #DC2626', borderRadius: '8px', padding: '12px 16px', marginBottom: '12px', fontSize: '14px', color: '#DC2626', fontFamily: "'Inter', sans-serif" }}>
+          {error}
+          <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', fontSize: '16px' }}>×</button>
+        </div>
+      )}
+      {success && (
+        <div style={{ backgroundColor: '#F0FDF4', borderLeft: '3px solid #1A7A4A', borderRadius: '8px', padding: '12px 16px', marginBottom: '12px', fontSize: '14px', color: '#1A7A4A', fontFamily: "'Inter', sans-serif" }}>
+          {success}
+        </div>
+      )}
       {/* Counter */}
       <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '20px', marginBottom: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', textAlign: 'center' }}>
         <div style={{ fontSize: '32px', fontWeight: 800, color: '#1A7A4A', fontFamily: "'Nunito', sans-serif" }}>{activos.length}</div>
@@ -177,6 +202,13 @@ export default function VisitantesModule({ condominioId, guardiaId }: Props) {
               {/* Placa */}
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#0D1B2A', marginBottom: '6px' }}>Placa vehiculo (opcional)</label>
               <input value={placa} onChange={e => setPlaca(e.target.value.toUpperCase())} placeholder="ABC-1234" style={{ ...inputStyle, marginBottom: '24px', textTransform: 'uppercase' }} />
+
+              {/* Error in form */}
+              {error && (
+                <div style={{ backgroundColor: '#FEF2F2', borderLeft: '3px solid #DC2626', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '13px', color: '#DC2626' }}>
+                  {error}
+                </div>
+              )}
 
               {/* Submit */}
               <button onClick={handleRegistrar} disabled={!nombre.trim() || registrarIngreso.isPending} style={{
