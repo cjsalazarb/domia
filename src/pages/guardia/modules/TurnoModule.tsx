@@ -50,6 +50,7 @@ export default function TurnoModule({ guardiaId, condominioId }: Props) {
   const [procesando, setProcesando] = useState(false)
   const [mensaje, setMensaje] = useState<{ text: string; color: string } | null>(null)
   const [gpsWarning, setGpsWarning] = useState(false)
+  const [selfiePreview, setSelfiePreview] = useState<string | null>(null)
 
   const showMsg = useCallback((text: string, color: string) => {
     setMensaje({ text, color })
@@ -70,6 +71,10 @@ export default function TurnoModule({ guardiaId, condominioId }: Props) {
     setCapturando(false)
     setProcesando(true)
     setGpsWarning(false)
+    setSelfiePreview(null)
+
+    // Create preview URL from blob
+    const previewUrl = URL.createObjectURL(blob)
 
     let latitud: number | undefined
     let longitud: number | undefined
@@ -99,6 +104,7 @@ export default function TurnoModule({ guardiaId, condominioId }: Props) {
           longitud,
           turno_id: turnoActual.id,
         })
+        setSelfiePreview(previewUrl)
         showMsg('Entrada registrada correctamente', '#1A7A4A')
       } else if (tipoMarcacion === 'salida' && turnoActual) {
         await finalizar.mutateAsync(turnoActual.id)
@@ -109,10 +115,12 @@ export default function TurnoModule({ guardiaId, condominioId }: Props) {
           longitud,
           turno_id: turnoActual.id,
         })
+        setSelfiePreview(previewUrl)
         showMsg('Salida registrada correctamente', '#1A7A4A')
       }
-    } catch (err) {
-      showMsg('Error al registrar marcacion', '#B83232')
+    } catch (err: any) {
+      const errMsg = err?.message || 'Error al registrar marcación'
+      showMsg(errMsg, '#B83232')
       console.error(err)
     } finally {
       setProcesando(false)
@@ -163,14 +171,14 @@ export default function TurnoModule({ guardiaId, condominioId }: Props) {
         </div>
       )}
 
-      {/* Success / error message */}
+      {/* Success / error message with selfie preview */}
       {mensaje && (
         <div
           style={{
             backgroundColor: mensaje.color === '#1A7A4A' ? '#E8F4F0' : '#FCEAEA',
             borderLeft: `3px solid ${mensaje.color}`,
-            borderRadius: 8,
-            padding: '12px 16px',
+            borderRadius: 12,
+            padding: '16px',
             marginBottom: 16,
             fontSize: 14,
             color: mensaje.color,
@@ -178,7 +186,16 @@ export default function TurnoModule({ guardiaId, condominioId }: Props) {
             fontWeight: 600,
           }}
         >
-          {mensaje.color === '#1A7A4A' ? '\u2713 ' : ''}{mensaje.text}
+          <div>{mensaje.color === '#1A7A4A' ? '\u2713 ' : ''}{mensaje.text}</div>
+          {selfiePreview && mensaje.color === '#1A7A4A' && (
+            <div style={{ marginTop: 12, textAlign: 'center' }}>
+              <img
+                src={selfiePreview}
+                alt="Selfie de marcación"
+                style={{ width: 120, height: 120, borderRadius: 12, objectFit: 'cover', border: '2px solid #1A7A4A' }}
+              />
+            </div>
+          )}
         </div>
       )}
 

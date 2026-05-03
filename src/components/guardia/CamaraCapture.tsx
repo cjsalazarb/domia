@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
 
 interface CamaraCaptureProps {
   onCapture: (blob: Blob) => void
@@ -9,6 +9,8 @@ interface CamaraCaptureProps {
 export default function CamaraCapture({ onCapture, onCancel, facing = 'environment' }: CamaraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const [permissionDenied, setPermissionDenied] = useState(false)
+  const [cameraError, setCameraError] = useState('')
 
   const stopStream = useCallback(() => {
     if (streamRef.current) {
@@ -34,8 +36,14 @@ export default function CamaraCapture({ onCapture, onCancel, facing = 'environme
         if (videoRef.current) {
           videoRef.current.srcObject = stream
         }
-      } catch (err) {
-        console.error('Error accessing camera:', err)
+      } catch (err: any) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setPermissionDenied(true)
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          setCameraError('No se encontró una cámara en este dispositivo')
+        } else {
+          setCameraError('Error al acceder a la cámara: ' + (err.message || err.name))
+        }
       }
     }
 
@@ -74,6 +82,36 @@ export default function CamaraCapture({ onCapture, onCancel, facing = 'environme
     stopStream()
     onCancel()
   }, [onCancel, stopStream])
+
+  // Permission denied or error screen
+  if (permissionDenied || cameraError) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 200, backgroundColor: '#000',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '24px', textAlign: 'center',
+      }}>
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 20 }}>
+          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+          <circle cx="12" cy="13" r="4" />
+          <line x1="1" y1="1" x2="23" y2="23" />
+        </svg>
+        <p style={{ color: 'white', fontSize: 18, fontWeight: 700, fontFamily: "'Nunito', sans-serif", marginBottom: 8 }}>
+          {permissionDenied ? 'Cámara bloqueada' : 'Error de cámara'}
+        </p>
+        <p style={{ color: '#aaa', fontSize: 14, fontFamily: "'Inter', sans-serif", lineHeight: 1.5, maxWidth: 300 }}>
+          {permissionDenied
+            ? 'Por favor permite el acceso a la cámara para continuar. Revisa los permisos en la configuración de tu navegador.'
+            : cameraError}
+        </p>
+        <button onClick={handleCancel} style={{
+          marginTop: 24, padding: '14px 32px', backgroundColor: '#333', color: 'white',
+          border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: 'pointer',
+          fontFamily: "'Inter', sans-serif",
+        }}>Volver</button>
+      </div>
+    )
+  }
 
   return (
     <div
