@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useGuardias } from '@/hooks/useGuardias'
 
@@ -45,14 +44,6 @@ export default function RegistroGuardias({ condominioId }: Props) {
   // Delete confirmation
   const [confirmDelete, setConfirmDelete] = useState<any>(null)
 
-  const { data: condominio } = useQuery({
-    queryKey: ['condominio-nombre', condominioId],
-    queryFn: async () => {
-      const { data } = await supabase.from('condominios').select('nombre').eq('id', condominioId).single()
-      return data as { nombre: string } | null
-    },
-    enabled: !!condominioId,
-  })
 
   const handleSave = async () => {
     if (!pin || pin.length !== 6) {
