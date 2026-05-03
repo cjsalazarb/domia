@@ -16,6 +16,8 @@ export interface Guardia {
   activo: boolean
   fecha_ingreso: string | null
   notas: string | null
+  codigo_guardia: string | null
+  pin_acceso: string | null
   created_at: string
 }
 

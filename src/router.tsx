@@ -34,10 +34,12 @@ import Comunicados from '@/pages/portal/Comunicados'
 import MisDatos from '@/pages/portal/MisDatos'
 
 import GuardiaDashboard from '@/pages/guardia/GuardiaDashboard'
+import LoginGuardia from '@/pages/auth/LoginGuardia'
 
 export const router = createBrowserRouter([
   // Públicas
   { path: '/login', element: <Login /> },
+  { path: '/guardia/login', element: <LoginGuardia /> },
   { path: '/sin-acceso', element: <SinAcceso /> },
   {
     path: '/cambiar-password',
@@ -277,22 +279,8 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // Guardia
-  {
-    path: '/guardia',
-    element: (
-      <ProtectedRoute rolesPermitidos={['guardia']}>
-        <GuardiaDashboard />
-      </ProtectedRoute>
-    ),
-  },
+  // Guardia (handles own auth: PIN session or Supabase auth)
+  { path: '/guardia', element: <GuardiaDashboard /> },
   // Backward compat
-  {
-    path: '/turno',
-    element: (
-      <ProtectedRoute rolesPermitidos={['guardia']}>
-        <GuardiaDashboard />
-      </ProtectedRoute>
-    ),
-  },
+  { path: '/turno', element: <GuardiaDashboard /> },
 ])

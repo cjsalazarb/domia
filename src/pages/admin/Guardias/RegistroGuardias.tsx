@@ -2,9 +2,20 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useGuardias } from '@/hooks/useGuardias'
-import { crearUsuarioResidente } from '@/lib/crearUsuarioResidente'
 
 interface Props { condominioId: string }
+
+async function hashPin(pin: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(pin)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+function generatePin(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString()
+}
 
 export default function RegistroGuardias({ condominioId }: Props) {
   const { guardias, isLoading, crear, actualizar, eliminar } = useGuardias(condominioId)
@@ -14,11 +25,12 @@ export default function RegistroGuardias({ condominioId }: Props) {
   const [ci, setCi] = useState('')
   const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
-  const [empresa, setEmpresa] = useState('')
-  const [habilitacion, setHabilitacion] = useState('')
+  const [pin, setPin] = useState('')
   const [saving, setSaving] = useState(false)
-  const [resultado, setResultado] = useState<{ email: string; emailSent: boolean } | null>(null)
   const [error, setError] = useState('')
+  // Credentials modal
+  const [credenciales, setCredenciales] = useState<{ codigo: string; pin: string } | null>(null)
+  const [copiado, setCopiado] = useState(false)
   // Edit modal state
   const [editGuardia, setEditGuardia] = useState<any>(null)
   const [editNombre, setEditNombre] = useState('')
@@ -43,37 +55,37 @@ export default function RegistroGuardias({ condominioId }: Props) {
   })
 
   const handleSave = async () => {
+    if (!pin || pin.length !== 6) {
+      setError('El PIN debe tener 6 dígitos')
+      return
+    }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError('El email no tiene un formato válido')
       return
     }
     setSaving(true)
     setError('')
-    setResultado(null)
     try {
-      const guardia = await crear.mutateAsync({ nombre, apellido, ci, telefono: telefono || undefined, empresa: empresa || undefined, habilitacion_dgsc: habilitacion || undefined } as any)
+      // Get next GRD code
+      const { data: codeData } = await supabase.rpc('generate_grd_code')
+      const codigoGuardia = codeData || 'GRD-001'
 
-      // If email provided, create user account
-      if (email && guardia?.id) {
-        const result = await crearUsuarioResidente({
-          email,
-          nombre,
-          apellido,
-          tipo: 'guardia',
-          condominio_id: condominioId,
-          condominio_nombre: condominio?.nombre || '',
-          guardia_id: guardia.id,
-        })
+      // Hash the PIN
+      const pinHash = await hashPin(pin)
 
-        if (result.success) {
-          setResultado({ email, emailSent: result.email_sent || false })
-        } else {
-          setError(`Guardia creado, pero no se pudo crear usuario: ${result.error}`)
-          return
-        }
+      const guardia = await crear.mutateAsync({
+        nombre, apellido, ci,
+        telefono: telefono || undefined,
+        codigo_guardia: codigoGuardia,
+        pin_acceso: pinHash,
+      } as any)
+
+      if (guardia?.id) {
+        // Show credentials modal
+        setCredenciales({ codigo: codigoGuardia, pin })
       }
 
-      setNombre(''); setApellido(''); setCi(''); setTelefono(''); setEmail(''); setEmpresa(''); setHabilitacion('')
+      setNombre(''); setApellido(''); setCi(''); setTelefono(''); setEmail(''); setPin('')
       setShowForm(false)
     } catch (err: any) {
       const msg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err))
@@ -143,6 +155,34 @@ export default function RegistroGuardias({ condominioId }: Props) {
     }
   }
 
+  const handleCopiar = () => {
+    if (!credenciales) return
+    navigator.clipboard.writeText(`Código: ${credenciales.codigo} | PIN: ${credenciales.pin}`)
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 2000)
+  }
+
+  const handleImprimir = () => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow || !credenciales) return
+    printWindow.document.write(`
+      <html><head><title>Credenciales Guardia</title>
+      <style>body{font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#1a1a2e}
+      .card{background:#1a1a2e;padding:48px;border-radius:16px;text-align:center;color:white;border:2px solid #333}
+      .code{font-size:48px;font-weight:bold;color:#ff4444;margin:16px 0;letter-spacing:4px}
+      .pin{font-size:56px;font-weight:bold;color:white;margin:16px 0;letter-spacing:8px}
+      .label{font-size:14px;color:#888;text-transform:uppercase;letter-spacing:2px}
+      .msg{font-size:13px;color:#aaa;margin-top:24px;max-width:320px;margin-left:auto;margin-right:auto;line-height:1.5}</style></head>
+      <body><div class="card">
+      <div class="label">Código de Guardia</div><div class="code">${credenciales.codigo}</div>
+      <div class="label">PIN de Acceso</div><div class="pin">${credenciales.pin}</div>
+      <div class="msg">Entrega este código al guardia. Lo necesita para ingresar al portal desde la tablet.</div>
+      </div></body></html>
+    `)
+    printWindow.document.close()
+    printWindow.print()
+  }
+
   const inputStyle = { width: '100%', padding: '10px 14px', border: '1px solid #C8D4CB', borderRadius: '10px', fontSize: '14px', color: '#0D1117', fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box' as const }
   const labelStyle = { display: 'block' as const, fontSize: '12px', fontWeight: 500, color: '#0D1117', marginBottom: '4px', fontFamily: "'Inter', sans-serif" }
 
@@ -150,23 +190,12 @@ export default function RegistroGuardias({ condominioId }: Props) {
 
   return (
     <div>
-      {/* Success toast */}
-      {resultado && (
-        <div style={{ backgroundColor: '#E8F4F0', border: '1px solid #1A7A4A30', borderRadius: '12px', padding: '14px 18px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#1A7A4A' }}>
-            Usuario creado para <strong>{resultado.email}</strong>
-            {resultado.emailSent ? ' — email de bienvenida enviado' : ' — email no enviado (verificar Resend)'}
-          </div>
-          <button onClick={() => setResultado(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1A7A4A', fontSize: '16px', padding: '0 4px' }}>×</button>
-        </div>
-      )}
-
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '20px', fontWeight: 700, color: '#0D1117', margin: 0 }}>Guardias</h2>
           <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#5E6B62', marginTop: '4px' }}>{guardias.length} guardia{guardias.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={() => { setShowForm(!showForm); setError(''); setResultado(null) }} style={{ padding: '10px 20px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: 'pointer' }}>
+        <button onClick={() => { setShowForm(!showForm); setError('') }} style={{ padding: '10px 20px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: 'pointer' }}>
           {showForm ? 'Cancelar' : '+ Nuevo guardia'}
         </button>
       </div>
@@ -177,20 +206,28 @@ export default function RegistroGuardias({ condominioId }: Props) {
             <div><label style={labelStyle}>Nombre *</label><input value={nombre} onChange={e => setNombre(e.target.value)} style={inputStyle} /></div>
             <div><label style={labelStyle}>Apellido *</label><input value={apellido} onChange={e => setApellido(e.target.value)} style={inputStyle} /></div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div><label style={labelStyle}>CI *</label><input value={ci} onChange={e => setCi(e.target.value)} style={inputStyle} /></div>
             <div><label style={labelStyle}>Teléfono</label><input value={telefono} onChange={e => setTelefono(e.target.value)} style={inputStyle} /></div>
-            <div><label style={labelStyle}>Empresa</label><input value={empresa} onChange={e => setEmpresa(e.target.value)} style={inputStyle} /></div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div>
-              <label style={labelStyle}>Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} placeholder="correo@ejemplo.com" />
-              <p style={{ fontSize: '11px', color: '#5E6B62', margin: '4px 0 0' }}>Se creará cuenta de acceso al portal guardia y se enviarán credenciales.</p>
+              <label style={labelStyle}>PIN de acceso (6 dígitos) *</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  value={pin}
+                  onChange={e => { if (/^\d{0,6}$/.test(e.target.value)) setPin(e.target.value) }}
+                  style={{ ...inputStyle, flex: 1, letterSpacing: '4px', fontWeight: 700, fontSize: '18px' }}
+                  placeholder="000000"
+                  maxLength={6}
+                />
+                <button onClick={() => setPin(generatePin())} type="button" style={{ padding: '10px 14px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>Generar</button>
+              </div>
             </div>
             <div>
-              <label style={labelStyle}>N° Habilitación DGSC</label>
-              <input value={habilitacion} onChange={e => setHabilitacion(e.target.value)} style={inputStyle} />
+              <label style={labelStyle}>Email (opcional)</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} placeholder="correo@ejemplo.com" />
+              <p style={{ fontSize: '11px', color: '#5E6B62', margin: '4px 0 0' }}>Solo si necesita acceso por email (legacy).</p>
             </div>
           </div>
 
@@ -200,10 +237,10 @@ export default function RegistroGuardias({ condominioId }: Props) {
             </div>
           )}
 
-          <button onClick={handleSave} disabled={!nombre || !apellido || !ci || saving} style={{
-            padding: '10px 24px', backgroundColor: (!nombre || !apellido || !ci || saving) ? '#C8D4CB' : '#1A7A4A', color: 'white', border: 'none',
-            borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: (!nombre || !apellido || !ci || saving) ? 'not-allowed' : 'pointer',
-          }}>{saving ? 'Creando guardia y usuario...' : 'Registrar guardia'}</button>
+          <button onClick={handleSave} disabled={!nombre || !apellido || !ci || !pin || pin.length !== 6 || saving} style={{
+            padding: '10px 24px', backgroundColor: (!nombre || !apellido || !ci || !pin || pin.length !== 6 || saving) ? '#C8D4CB' : '#1A7A4A', color: 'white', border: 'none',
+            borderRadius: '10px', fontSize: '13px', fontWeight: 700, fontFamily: "'Nunito', sans-serif", cursor: (!nombre || !apellido || !ci || !pin || pin.length !== 6 || saving) ? 'not-allowed' : 'pointer',
+          }}>{saving ? 'Creando guardia...' : 'Registrar guardia'}</button>
         </div>
       )}
 
@@ -214,10 +251,13 @@ export default function RegistroGuardias({ condominioId }: Props) {
           {guardias.map(g => (
             <div key={g.id} style={{ backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '16px 20px', fontFamily: "'Inter', sans-serif", display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '15px', fontWeight: 700, color: '#0D1117' }}>{g.nombre} {g.apellido}</div>
+                <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: '15px', fontWeight: 700, color: '#0D1117' }}>
+                  {g.nombre} {g.apellido}
+                  {g.codigo_guardia && <span style={{ marginLeft: '8px', fontSize: '12px', fontWeight: 600, color: '#B83232', backgroundColor: '#FCEAEA', padding: '2px 8px', borderRadius: '6px' }}>{g.codigo_guardia}</span>}
+                </div>
                 <div style={{ fontSize: '12px', color: '#5E6B62', marginTop: '2px' }}>CI: {g.ci}{g.empresa ? ` · ${g.empresa}` : ''}{g.telefono ? ` · ${g.telefono}` : ''}</div>
-                {g.habilitacion_dgsc && <div style={{ fontSize: '11px', color: '#0D4A8F', marginTop: '2px' }}>DGSC: {g.habilitacion_dgsc}</div>}
-                {g.user_id && <div style={{ fontSize: '11px', color: '#1A7A4A', marginTop: '2px' }}>Con acceso al portal</div>}
+                {g.pin_acceso && <div style={{ fontSize: '11px', color: '#1A7A4A', marginTop: '2px' }}>PIN configurado</div>}
+                {g.user_id && !g.pin_acceso && <div style={{ fontSize: '11px', color: '#0D4A8F', marginTop: '2px' }}>Acceso por email (legacy)</div>}
               </div>
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                 <button onClick={() => openEdit(g)} style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, border: 'none', cursor: 'pointer', backgroundColor: '#EBF4FF', color: '#0D4A8F', fontFamily: "'Inter', sans-serif" }}>Editar</button>
@@ -229,6 +269,26 @@ export default function RegistroGuardias({ condominioId }: Props) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Credentials Modal */}
+      {credenciales && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '20px', padding: '40px', width: '100%', maxWidth: '420px', textAlign: 'center', border: '1px solid #333' }}>
+            <div style={{ fontSize: '13px', color: '#888', textTransform: 'uppercase', letterSpacing: '2px', fontFamily: "'Inter', sans-serif" }}>Código de Guardia</div>
+            <div style={{ fontSize: '42px', fontWeight: 800, color: '#ff4444', marginTop: '8px', letterSpacing: '4px', fontFamily: "'Nunito', sans-serif" }}>{credenciales.codigo}</div>
+            <div style={{ fontSize: '13px', color: '#888', textTransform: 'uppercase', letterSpacing: '2px', marginTop: '24px', fontFamily: "'Inter', sans-serif" }}>PIN de Acceso</div>
+            <div style={{ fontSize: '48px', fontWeight: 800, color: 'white', marginTop: '8px', letterSpacing: '8px', fontFamily: "'Nunito', sans-serif" }}>{credenciales.pin}</div>
+            <p style={{ fontSize: '13px', color: '#aaa', marginTop: '24px', lineHeight: 1.6, fontFamily: "'Inter', sans-serif" }}>
+              Entrega este código al guardia. Lo necesita para ingresar al portal desde la tablet.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '28px', justifyContent: 'center' }}>
+              <button onClick={handleImprimir} style={{ padding: '10px 20px', backgroundColor: '#333', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Imprimir</button>
+              <button onClick={handleCopiar} style={{ padding: '10px 20px', backgroundColor: '#1A7A4A', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>{copiado ? 'Copiado!' : 'Copiar'}</button>
+              <button onClick={() => setCredenciales(null)} style={{ padding: '10px 20px', backgroundColor: '#555', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Cerrar</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -244,11 +304,11 @@ export default function RegistroGuardias({ condominioId }: Props) {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div><label style={labelStyle}>CI *</label><input value={editCi} onChange={e => setEditCi(e.target.value)} style={inputStyle} /></div>
-                <div><label style={labelStyle}>Empresa</label><input value={editEmpresa} onChange={e => setEditEmpresa(e.target.value)} style={inputStyle} /></div>
+                <div><label style={labelStyle}>Teléfono</label><input value={editTelefono} onChange={e => setEditTelefono(e.target.value)} style={inputStyle} /></div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div><label style={labelStyle}>Empresa</label><input value={editEmpresa} onChange={e => setEditEmpresa(e.target.value)} style={inputStyle} /></div>
                 <div><label style={labelStyle}>N° Habilitacion DGSC</label><input value={editHabilitacion} onChange={e => setEditHabilitacion(e.target.value)} style={inputStyle} /></div>
-                <div><label style={labelStyle}>Telefono</label><input value={editTelefono} onChange={e => setEditTelefono(e.target.value)} style={inputStyle} /></div>
               </div>
             </div>
             {error && (

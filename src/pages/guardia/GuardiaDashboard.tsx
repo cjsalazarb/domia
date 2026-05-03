@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
@@ -13,13 +14,42 @@ import VehiculosModule from './modules/VehiculosModule'
 
 type Tab = 'turno' | 'visitantes' | 'incidencias' | 'alertas' | 'vehiculos'
 
+function getPinSession() {
+  try {
+    const raw = localStorage.getItem('guardia_session')
+    if (!raw) return null
+    const session = JSON.parse(raw)
+    if (session.expires && Date.now() > session.expires) {
+      localStorage.removeItem('guardia_session')
+      return null
+    }
+    return session as { guardia_id: string; codigo: string; condominio_id: string; nombre: string; expires: number }
+  } catch { return null }
+}
+
 export default function GuardiaDashboard() {
   const { user, profile, signOut } = useAuthStore()
   const [tab, setTab] = useState<Tab>('turno')
 
+  const pinSession = useMemo(() => getPinSession(), [])
+
+  // If neither Supabase auth nor PIN session, redirect to guard login
+  if (!user && !pinSession) {
+    return <Navigate to="/guardia/login" replace />
+  }
+
   const { data: guardia } = useQuery({
-    queryKey: ['mi-guardia', user?.id],
+    queryKey: ['mi-guardia', user?.id || pinSession?.guardia_id],
     queryFn: async () => {
+      if (pinSession) {
+        const { data } = await supabase
+          .from('guardias')
+          .select('id, condominio_id, nombre, apellido')
+          .eq('id', pinSession.guardia_id)
+          .eq('activo', true)
+          .single()
+        return data
+      }
       const { data } = await supabase
         .from('guardias')
         .select('id, condominio_id, nombre, apellido')
@@ -28,23 +58,26 @@ export default function GuardiaDashboard() {
         .single()
       return data
     },
-    enabled: !!user,
+    enabled: !!user || !!pinSession,
   })
 
-  const guardiaId = guardia?.id || ''
-  const condominioId = guardia?.condominio_id || profile?.condominio_id || ''
-  const guardiaName = guardia ? `${guardia.nombre} ${guardia.apellido}` : profile?.nombre || ''
+  const guardiaId = guardia?.id || pinSession?.guardia_id || ''
+  const condominioId = guardia?.condominio_id || pinSession?.condominio_id || profile?.condominio_id || ''
+  const guardiaName = guardia ? `${guardia.nombre} ${guardia.apellido}` : pinSession?.nombre || profile?.nombre || ''
 
   const { turnoActual } = useMiTurno(guardiaId)
   const { pendientes } = useAlertasGuardia(condominioId)
   const turnoActivo = turnoActual?.estado === 'activo'
 
   const handleSignOut = () => {
-    signOut()
-    window.location.href = '/login'
+    localStorage.removeItem('guardia_session')
+    if (user) {
+      signOut()
+    }
+    window.location.href = '/guardia/login'
   }
 
-  if (!guardia && user) {
+  if (!guardia && (user || pinSession)) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#F4F7F5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Inter', sans-serif" }}>
         <div style={{ textAlign: 'center', padding: '32px' }}>
