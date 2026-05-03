@@ -1,8 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://ncrjcbwxlzhgswvwfhzu.supabase.co'
-
 export interface Marcacion {
   id: string
   guardia_id: string
@@ -13,6 +11,15 @@ export interface Marcacion {
   latitud: number | null
   longitud: number | null
   created_at: string
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
 }
 
 export function useMarcaciones(guardiaId: string, condominioId: string) {
@@ -31,26 +38,31 @@ export function useMarcaciones(guardiaId: string, condominioId: string) {
 
   const registrar = useMutation({
     mutationFn: async (input: { tipo: 'entrada' | 'salida'; foto: Blob; latitud?: number; longitud?: number; turno_id?: string }) => {
-      // Use Edge Function with service role to bypass storage RLS (PIN auth has no auth.uid())
-      const formData = new FormData()
-      formData.append('foto', input.foto, 'selfie.jpg')
-      formData.append('guardia_id', guardiaId)
-      formData.append('condominio_id', condominioId)
-      formData.append('tipo', input.tipo)
-      if (input.turno_id) formData.append('turno_id', input.turno_id)
-      if (input.latitud !== undefined) formData.append('latitud', input.latitud.toString())
-      if (input.longitud !== undefined) formData.append('longitud', input.longitud.toString())
+      // Convert blob to base64
+      const imagen_base64 = await blobToBase64(input.foto)
 
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/upload-marcacion`, {
-        method: 'POST',
-        body: formData,
+      // Call Edge Function with service role (bypasses storage RLS for PIN auth)
+      const { data, error } = await supabase.functions.invoke('subir-marcador', {
+        body: {
+          imagen_base64,
+          guardia_id: guardiaId,
+          condominio_id: condominioId,
+          tipo: input.tipo,
+          gps_lat: input.latitud ?? null,
+          gps_lng: input.longitud ?? null,
+          turno_id: input.turno_id || null,
+        },
       })
 
-      const result = await res.json()
-      if (!res.ok || result.error) {
-        throw new Error(result.error || 'Error al subir marcación')
+      if (error) {
+        throw new Error(error.message || 'Error al subir marcación')
       }
-      return result as { success: boolean; foto_url: string | null }
+
+      if (data && !data.success) {
+        throw new Error(data.error || 'Error al subir marcación')
+      }
+
+      return data as { success: boolean; foto_url: string | null }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['marcaciones', guardiaId] }),
   })
