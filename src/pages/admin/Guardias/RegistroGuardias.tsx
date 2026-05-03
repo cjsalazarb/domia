@@ -38,7 +38,10 @@ export default function RegistroGuardias({ condominioId }: Props) {
   const [editEmpresa, setEditEmpresa] = useState('')
   const [editHabilitacion, setEditHabilitacion] = useState('')
   const [editTelefono, setEditTelefono] = useState('')
+  const [editPin, setEditPin] = useState('')
+  const [editPinOriginal, setEditPinOriginal] = useState('')
   const [editSaving, setEditSaving] = useState(false)
+  const [pinChanged, setPinChanged] = useState(false)
   // Deactivate confirmation
   const [confirmDeactivate, setConfirmDeactivate] = useState<any>(null)
   // Delete confirmation
@@ -86,7 +89,7 @@ export default function RegistroGuardias({ condominioId }: Props) {
     }
   }
 
-  const openEdit = (g: any) => {
+  const openEdit = async (g: any) => {
     setEditGuardia(g)
     setEditNombre(g.nombre)
     setEditApellido(g.apellido)
@@ -94,26 +97,38 @@ export default function RegistroGuardias({ condominioId }: Props) {
     setEditEmpresa(g.empresa || '')
     setEditHabilitacion(g.habilitacion_dgsc || '')
     setEditTelefono(g.telefono || '')
+    setEditPin(g.pin_acceso && g.pin_acceso.length === 6 ? g.pin_acceso : '')
+    setEditPinOriginal(g.pin_acceso && g.pin_acceso.length === 6 ? g.pin_acceso : '')
+    setPinChanged(false)
     setError('')
   }
 
   const handleEditSave = async () => {
     if (!editGuardia) return
+    if (editPin && editPin.length !== 6) {
+      setError('El PIN debe tener 6 dígitos')
+      return
+    }
     setEditSaving(true)
     setError('')
     try {
-      await actualizar.mutateAsync({
-        id: editGuardia.id,
-        updates: {
-          nombre: editNombre,
-          apellido: editApellido,
-          ci: editCi,
-          empresa: editEmpresa || null,
-          habilitacion_dgsc: editHabilitacion || null,
-          telefono: editTelefono || null,
-        },
-      })
+      const updates: any = {
+        nombre: editNombre,
+        apellido: editApellido,
+        ci: editCi,
+        empresa: editEmpresa || null,
+        habilitacion_dgsc: editHabilitacion || null,
+        telefono: editTelefono || null,
+      }
+      // If PIN was changed, hash and update
+      if (editPin && editPin !== editPinOriginal) {
+        const pinHash = await hashPin(editPin)
+        updates.pin_acceso = pinHash
+      }
+      await actualizar.mutateAsync({ id: editGuardia.id, updates })
+      const wasChanged = editPin && editPin !== editPinOriginal
       setEditGuardia(null)
+      if (wasChanged) setPinChanged(true)
     } catch (err: any) {
       setError(err?.message || 'Error al actualizar guardia')
     } finally {
@@ -283,12 +298,42 @@ export default function RegistroGuardias({ condominioId }: Props) {
         </div>
       )}
 
+      {/* PIN changed notice */}
+      {pinChanged && (
+        <div style={{ backgroundColor: '#FFF9E6', border: '1px solid #F5C518', borderRadius: '12px', padding: '14px 18px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#7A5B00' }}>
+            Recuerda entregar el nuevo PIN al guardia.
+          </div>
+          <button onClick={() => setPinChanged(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7A5B00', fontSize: '16px', padding: '0 4px' }}>×</button>
+        </div>
+      )}
+
       {/* Edit modal */}
       {editGuardia && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setEditGuardia(null)}>
           <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '100%', maxWidth: '500px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
             <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Editar Guardia</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* GRD Code + PIN row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={labelStyle}>Código de guardia</label>
+                  <input value={editGuardia.codigo_guardia || '—'} readOnly style={{ ...inputStyle, backgroundColor: '#F4F7F5', color: '#5E6B62', fontWeight: 700, letterSpacing: '2px', cursor: 'not-allowed' }} />
+                </div>
+                <div>
+                  <label style={labelStyle}>PIN de acceso (6 dígitos)</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      value={editPin}
+                      onChange={e => { if (/^\d{0,6}$/.test(e.target.value)) setEditPin(e.target.value) }}
+                      style={{ ...inputStyle, flex: 1, letterSpacing: '4px', fontWeight: 700, fontSize: '16px' }}
+                      placeholder="000000"
+                      maxLength={6}
+                    />
+                    <button onClick={() => setEditPin(generatePin())} type="button" style={{ padding: '10px 12px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>Generar</button>
+                  </div>
+                </div>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div><label style={labelStyle}>Nombre *</label><input value={editNombre} onChange={e => setEditNombre(e.target.value)} style={inputStyle} /></div>
                 <div><label style={labelStyle}>Apellido *</label><input value={editApellido} onChange={e => setEditApellido(e.target.value)} style={inputStyle} /></div>
