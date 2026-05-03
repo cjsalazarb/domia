@@ -57,7 +57,7 @@ export default function VisitantesModule({ condominioId, guardiaId }: Props) {
         nombre: nombre.trim(),
         unidad_id: unidadId || undefined,
         motivo: motivo || undefined,
-        ci: placa ? `PLACA:${placa}` : undefined,
+        placa: placa || undefined,
       })
       setNombre(''); setUnidadId(''); setMotivo(''); setPlaca('')
       setShowForm(false)
