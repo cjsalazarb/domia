@@ -6,15 +6,15 @@ export interface AccesoVehiculo {
   condominio_id: string
   guardia_id: string
   placa: string
-  marca: string | null
-  color: string | null
-  conductor: string | null
+  tipo_vehiculo: string
   unidad_id: string | null
-  motivo: string | null
   foto_url: string | null
   entrada_at: string
   salida_at: string | null
   created_at: string
+  // UI-friendly aliases
+  motivo?: string | null
+  conductor?: string | null
 }
 
 export function useVehiculos(condominioId: string, guardiaId: string) {
@@ -26,13 +26,14 @@ export function useVehiculos(condominioId: string, guardiaId: string) {
       const { data, error } = await supabase.from('acceso_vehiculos').select('*')
         .eq('condominio_id', condominioId).is('salida_at', null).order('entrada_at', { ascending: false })
       if (error) throw error
-      return data as AccesoVehiculo[]
+      // Map tipo_vehiculo to motivo for UI compatibility
+      return (data || []).map(d => ({ ...d, motivo: d.tipo_vehiculo })) as AccesoVehiculo[]
     },
     enabled: !!condominioId,
   })
 
   const registrarEntrada = useMutation({
-    mutationFn: async (input: { placa: string; marca?: string; color?: string; conductor?: string; unidad_id?: string; motivo?: string; foto?: Blob }) => {
+    mutationFn: async (input: { placa: string; motivo?: string; unidad_id?: string; foto?: Blob }) => {
       let foto_url: string | null = null
 
       if (input.foto) {
@@ -50,11 +51,8 @@ export function useVehiculos(condominioId: string, guardiaId: string) {
         condominio_id: condominioId,
         guardia_id: guardiaId,
         placa: input.placa,
-        marca: input.marca || null,
-        color: input.color || null,
-        conductor: input.conductor || null,
+        tipo_vehiculo: input.motivo || 'visitante',
         unidad_id: input.unidad_id || null,
-        motivo: input.motivo || null,
         foto_url,
         entrada_at: new Date().toISOString(),
       })
@@ -73,18 +71,10 @@ export function useVehiculos(condominioId: string, guardiaId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['vehiculos-activos', condominioId] }),
   })
 
-  const buscarPlaca = async (placa: string) => {
-    const { data, error } = await supabase.from('acceso_vehiculos').select('*')
-      .eq('condominio_id', condominioId).ilike('placa', `%${placa}%`).order('entrada_at', { ascending: false }).limit(5)
-    if (error) throw error
-    return data as AccesoVehiculo[]
-  }
-
   return {
     activos: activos.data || [],
     isLoading: activos.isLoading,
     registrarEntrada,
     registrarSalida,
-    buscarPlaca,
   }
 }

@@ -26,6 +26,8 @@ export default function VehiculosModule({ condominioId, guardiaId }: Props) {
   const { activos, isLoading, registrarEntrada, registrarSalida } = useVehiculos(condominioId, guardiaId)
   const [showForm, setShowForm] = useState(false)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
   // Form state
   const [placaInput, setPlacaInput] = useState('')
@@ -43,14 +45,25 @@ export default function VehiculosModule({ condominioId, guardiaId }: Props) {
   })
 
   const handleRegistrar = async () => {
-    if (!placaInput.trim()) return
-    await registrarEntrada.mutateAsync({
-      placa: placaInput.trim().toUpperCase(),
-      motivo: tipo || undefined,
-      unidad_id: unidadId || undefined,
-    })
-    setPlacaInput(''); setTipo(''); setUnidadId('')
-    setShowForm(false)
+    if (!placaInput.trim()) {
+      setError('La placa es obligatoria')
+      return
+    }
+    setError('')
+    setSuccess('')
+    try {
+      await registrarEntrada.mutateAsync({
+        placa: placaInput.trim().toUpperCase(),
+        motivo: tipo || undefined,
+        unidad_id: unidadId || undefined,
+      })
+      setPlacaInput(''); setTipo(''); setUnidadId('')
+      setShowForm(false)
+      setSuccess('Vehiculo registrado')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err: any) {
+      setError(err?.message || 'Error al registrar vehiculo. Verifica permisos.')
+    }
   }
 
   const handleSalida = async (id: string) => {
@@ -76,6 +89,18 @@ export default function VehiculosModule({ condominioId, guardiaId }: Props) {
 
   return (
     <div style={{ paddingBottom: '100px' }}>
+      {/* Error/Success toast */}
+      {error && (
+        <div style={{ backgroundColor: '#FEF2F2', borderLeft: '3px solid #DC2626', borderRadius: '8px', padding: '12px 16px', marginBottom: '12px', fontSize: '14px', color: '#DC2626', fontFamily: "'Inter', sans-serif" }}>
+          {error}
+          <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', fontSize: '16px' }}>×</button>
+        </div>
+      )}
+      {success && (
+        <div style={{ backgroundColor: '#F0FDF4', borderLeft: '3px solid #1A7A4A', borderRadius: '8px', padding: '12px 16px', marginBottom: '12px', fontSize: '14px', color: '#1A7A4A', fontFamily: "'Inter', sans-serif" }}>
+          {success}
+        </div>
+      )}
       {/* Counter */}
       <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '20px', marginBottom: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', textAlign: 'center' }}>
         <div style={{ fontSize: '32px', fontWeight: 800, color: '#1A7A4A', fontFamily: "'Nunito', sans-serif" }}>{activos.length}</div>
@@ -84,7 +109,7 @@ export default function VehiculosModule({ condominioId, guardiaId }: Props) {
 
       {/* Active vehicles list */}
       {activos.map(v => {
-        const tipoInfo = getTipo(v.motivo)
+        const tipoInfo = getTipo(v.motivo || null)
         return (
           <div key={v.id} style={cardStyle} onClick={() => setConfirmId(v.id)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -178,6 +203,13 @@ export default function VehiculosModule({ condominioId, guardiaId }: Props) {
                 <option value="">-- Seleccionar --</option>
                 {(unidades || []).map(u => <option key={u.id} value={u.id}>{u.numero}</option>)}
               </select>
+
+              {/* Error in form */}
+              {error && (
+                <div style={{ backgroundColor: '#FEF2F2', borderLeft: '3px solid #DC2626', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '13px', color: '#DC2626' }}>
+                  {error}
+                </div>
+              )}
 
               {/* Submit */}
               <button onClick={handleRegistrar} disabled={!placaInput.trim() || registrarEntrada.isPending} style={{
