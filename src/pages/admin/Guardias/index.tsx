@@ -5,6 +5,7 @@ import AdminLayout from '@/components/layout/AdminLayout'
 import RegistroGuardias from './RegistroGuardias'
 import GestionTurnos from './GestionTurnos'
 import ReporteHoras from './ReporteHoras'
+import Marcaciones from './Marcaciones'
 
 const TIPO_TURNO_LABEL: Record<string, string> = {
   manana: 'Turno Mañana',
@@ -100,6 +101,11 @@ export default function GuardiasAdmin() {
 
         {/* Turnos + Vista Semanal + Incidentes */}
         <GestionTurnos condominioId={id} />
+
+        <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
+
+        {/* Marcaciones / Asistencia */}
+        <Marcaciones condominioId={id} />
 
         <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '32px 0' }} />
 
