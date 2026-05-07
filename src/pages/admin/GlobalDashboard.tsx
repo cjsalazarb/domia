@@ -168,6 +168,7 @@ export default function GlobalDashboard() {
               { label: 'Condominios', path: '/admin', icon: '🏢' },
               { label: 'Clientes', path: '/admin/clientes', icon: '👥' },
               { label: 'Finanzas Global', path: '/finanzas-global', icon: '💰' },
+              { label: 'CRM / Pre-venta', path: '/admin/crm', icon: '💼' },
             ].map(item => {
               const active = window.location.pathname === item.path
               return (
