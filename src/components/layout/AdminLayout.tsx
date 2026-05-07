@@ -122,7 +122,7 @@ export default function AdminLayout({ children, condominioId, title }: Props) {
                 })}
               </>
             )}
-            {isSuper && (
+            {isSuper && !condominioId && (
               <>
                 <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.08)', margin: '8px 4px' }} />
                 {(() => {
