@@ -110,6 +110,11 @@ interface Props {
     precio_final: number
     notas?: string
     created_at?: string
+    administradora_enabled?: boolean
+    administradora_sueldo?: number
+    beneficios_json?: Record<string, unknown>
+    utilidad_pct?: number
+    utilidad_adicional?: number
   }
 }
 
@@ -135,24 +140,46 @@ function InnerHeader({ title }: { title: string }) {
   )
 }
 
-/* ─── Footer reutilizable ─── */
-function PageFooter({ numero, pagina }: { numero?: string | null; pagina: number }) {
+/* ─── Footer reutilizable con paginacion automatica ─── */
+function PageFooter({ numero }: { numero?: string | null }) {
   return (
-    <View style={s.footer} fixed>
+    <View style={s.footer}>
       <Text style={s.footerText}>ALTRION S.R.L. — Propuesta Confidencial{numero ? ` | ${numero}` : ''}</Text>
-      <Text style={s.footerText}>Pagina {pagina}</Text>
+      <Text style={s.footerText} render={({ pageNumber }) => `Pagina ${pageNumber}`} />
     </View>
   )
 }
 
 export default function PropuestaPDF({ propuesta: p }: Props) {
-  const ajustePisos = (p.num_pisos - 5) * 100
-  const dptosExtra = Math.max(0, p.num_departamentos - 20)
-  const ajusteDptos = Math.floor(dptosExtra / 10) * 50
-  const visitasExtra = Math.max(0, p.visitas_semanales - 2)
-  const ajusteVisitas = visitasExtra * 150
+  const adminOn = !!p.administradora_enabled
+  const visitasOn = (p.visitas_semanales ?? 0) > 0
+  const diasVisita = p.visitas_semanales ?? 0
+
+  /* ── Costos ── */
+  const sueldoAdmin = adminOn ? Number(p.administradora_sueldo ?? 0) : 0
+  const b: Record<string, unknown> = p.beneficios_json ?? {}
+  const totalBeneficios = adminOn ? (
+    (b.aguinaldo ? sueldoAdmin / 12 : 0) +
+    (b.afp ? sueldoAdmin * 0.03 : 0) +
+    (b.cns ? sueldoAdmin * 0.10 : 0) +
+    (b.pro_bolivia ? sueldoAdmin * 0.02 : 0) +
+    (b.riesgos ? sueldoAdmin * 0.0171 : 0) +
+    (b.vacaciones ? (sueldoAdmin / 30 * 15 / 12) : 0) +
+    (b.antiguedad ? sueldoAdmin * Number(b.pct_antiguedad ?? 5) / 100 : 0) +
+    (b.frontera ? sueldoAdmin * 0.20 : 0) +
+    (b.produccion ? Number(b.monto_produccion ?? 0) : 0) +
+    (b.poliza_acc ? Number(b.monto_poliza_acc ?? 0) / 12 : 0) +
+    (b.poliza_rc ? Number(b.monto_poliza_rc ?? 0) / 12 : 0)
+  ) : 0
+
+  const costoVisitas = visitasOn ? (3300 / 30) * diasVisita : 0
+  const totalCostosBase = 350 + (adminOn ? sueldoAdmin + totalBeneficios : 0) + costoVisitas
+  const utilidadPct = Number(p.utilidad_pct ?? 0)
+  const utilidadAdicional = Number(p.utilidad_adicional ?? 0)
+  const utilidad = totalCostosBase * utilidadPct / 100
+  const precioFinalCalc = totalCostosBase + utilidad + utilidadAdicional
+
   const fecha = formatDate(p.created_at)
-  const horasVisita = p.horas_visita ?? 4
 
   return (
     <Document>
@@ -224,7 +251,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           <Text style={{ fontSize: 9, color: C.midGray, marginTop: 2 }}>ALTRION S.R.L.</Text>
         </View>
 
-        <PageFooter numero={p.numero_propuesta} pagina={2} />
+        <PageFooter numero={p.numero_propuesta} />
       </Page>
 
       {/* ════════ PAGINA 3: MISION / VISION / VALORES ════════ */}
@@ -284,7 +311,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           </View>
         </View>
 
-        <PageFooter numero={p.numero_propuesta} pagina={3} />
+        <PageFooter numero={p.numero_propuesta} />
       </Page>
 
       {/* ════════ PAGINA 4: OBJETIVO GENERAL ════════ */}
@@ -301,36 +328,22 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
 
         <Text style={{ ...s.sectionTitle, marginTop: 24 }}>Objetivos Especificos</Text>
 
-        <View style={s.bulletRow} wrap={false}>
-          <View style={s.bulletDot} />
-          <Text style={s.bulletText}>Establecer un sistema de cobro eficiente de expensas con seguimiento automatizado de morosidad.</Text>
-        </View>
-        <View style={s.bulletRow} wrap={false}>
-          <View style={s.bulletDot} />
-          <Text style={s.bulletText}>Implementar un programa de mantenimiento preventivo para preservar el valor del inmueble.</Text>
-        </View>
-        <View style={s.bulletRow} wrap={false}>
-          <View style={s.bulletDot} />
-          <Text style={s.bulletText}>Garantizar la transparencia financiera mediante reportes mensuales accesibles en linea.</Text>
-        </View>
-        <View style={s.bulletRow} wrap={false}>
-          <View style={s.bulletDot} />
-          <Text style={s.bulletText}>Supervisar y coordinar al personal de seguridad, limpieza y mantenimiento del edificio.</Text>
-        </View>
-        <View style={s.bulletRow} wrap={false}>
-          <View style={s.bulletDot} />
-          <Text style={s.bulletText}>Facilitar la comunicacion entre la administracion y los copropietarios a traves de canales digitales.</Text>
-        </View>
-        <View style={s.bulletRow} wrap={false}>
-          <View style={s.bulletDot} />
-          <Text style={s.bulletText}>Asegurar el cumplimiento de la Ley de Propiedad Horizontal y normativas municipales aplicables.</Text>
-        </View>
-        <View style={s.bulletRow} wrap={false}>
-          <View style={s.bulletDot} />
-          <Text style={s.bulletText}>Convocar y gestionar asambleas ordinarias y extraordinarias segun estatuto del condominio.</Text>
-        </View>
+        {[
+          'Establecer un sistema de cobro eficiente de expensas con seguimiento automatizado de morosidad.',
+          'Implementar un programa de mantenimiento preventivo para preservar el valor del inmueble.',
+          'Garantizar la transparencia financiera mediante reportes mensuales accesibles en linea.',
+          'Supervisar y coordinar al personal de seguridad, limpieza y mantenimiento del edificio.',
+          'Facilitar la comunicacion entre la administracion y los copropietarios a traves de canales digitales.',
+          'Asegurar el cumplimiento de la Ley de Propiedad Horizontal y normativas municipales aplicables.',
+          'Convocar y gestionar asambleas ordinarias y extraordinarias segun estatuto del condominio.',
+        ].map((txt, i) => (
+          <View key={i} style={s.bulletRow} wrap={false}>
+            <View style={s.bulletDot} />
+            <Text style={s.bulletText}>{txt}</Text>
+          </View>
+        ))}
 
-        <PageFooter numero={p.numero_propuesta} pagina={4} />
+        <PageFooter numero={p.numero_propuesta} />
       </Page>
 
       {/* ════════ PAGINA 5: ALCANCE DEL SERVICIO ════════ */}
@@ -342,172 +355,217 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>01</Text>
           <Text style={s.alcanceTitle}>Gestion Administrativa y Financiera</Text>
-          <Text style={s.alcanceDesc}>
-            Control de ingresos y egresos, elaboracion de presupuestos, cobro de expensas, conciliaciones bancarias, emision de estados de cuenta mensuales, y gestion de fondo de reserva. Toda la informacion financiera disponible en tiempo real a traves de DOMIA.
-          </Text>
+          <Text style={s.alcanceDesc}>Control de ingresos y egresos, elaboracion de presupuestos, cobro de expensas, conciliaciones bancarias, emision de estados de cuenta mensuales, y gestion de fondo de reserva. Toda la informacion financiera disponible en tiempo real a traves de DOMIA.</Text>
         </View>
 
         <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>02</Text>
           <Text style={s.alcanceTitle}>Mantenimiento de Areas Comunes</Text>
-          <Text style={s.alcanceDesc}>
-            Programa de mantenimiento preventivo y correctivo de ascensores, bombas de agua, sistemas electricos, areas verdes, piscinas, gimnasios y demas instalaciones comunes. Coordinacion con proveedores especializados y supervision de trabajos.
-          </Text>
+          <Text style={s.alcanceDesc}>Programa de mantenimiento preventivo y correctivo de ascensores, bombas de agua, sistemas electricos, areas verdes, piscinas, gimnasios y demas instalaciones comunes. Coordinacion con proveedores especializados y supervision de trabajos.</Text>
         </View>
 
         <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>03</Text>
           <Text style={s.alcanceTitle}>Supervision de Personal</Text>
-          <Text style={s.alcanceDesc}>
-            Coordinacion y supervision del personal de seguridad, limpieza, conserjeria y mantenimiento. Control de asistencia, evaluacion de desempeno, capacitacion continua y cumplimiento de obligaciones laborales.
-          </Text>
+          <Text style={s.alcanceDesc}>Coordinacion y supervision del personal de seguridad, limpieza, conserjeria y mantenimiento. Control de asistencia, evaluacion de desempeno, capacitacion continua y cumplimiento de obligaciones laborales.</Text>
         </View>
 
         <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>04</Text>
           <Text style={s.alcanceTitle}>Atencion a Copropietarios</Text>
-          <Text style={s.alcanceDesc}>
-            Canal de comunicacion directo para consultas, reclamos y sugerencias. Gestion de reservas de areas comunes, autorizaciones de mudanza, registro de vehiculos y atencion de emergencias. Respuesta en menos de 24 horas habiles.
-          </Text>
+          <Text style={s.alcanceDesc}>Canal de comunicacion directo para consultas, reclamos y sugerencias. Gestion de reservas de areas comunes, autorizaciones de mudanza, registro de vehiculos y atencion de emergencias. Respuesta en menos de 24 horas habiles.</Text>
         </View>
 
         <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>05</Text>
           <Text style={s.alcanceTitle}>Cumplimiento Legal y Normativo</Text>
-          <Text style={s.alcanceDesc}>
-            Verificacion del cumplimiento de la Ley de Propiedad Horizontal, normativas municipales, obligaciones tributarias del condominio, seguros obligatorios y actualizacion del reglamento interno segun corresponda.
-          </Text>
+          <Text style={s.alcanceDesc}>Verificacion del cumplimiento de la Ley de Propiedad Horizontal, normativas municipales, obligaciones tributarias del condominio, seguros obligatorios y actualizacion del reglamento interno segun corresponda.</Text>
         </View>
 
-        <PageFooter numero={p.numero_propuesta} pagina={5} />
+        <PageFooter numero={p.numero_propuesta} />
       </Page>
 
-      {/* ════════ PAGINA 6: TAREAS PERIODICAS ════════ */}
-      <Page size="A4" style={s.innerPage}>
-        <InnerHeader title="Tareas" />
-        <Text style={s.pageTitle}>Tareas Periodicas</Text>
-        <Text style={s.pageSubtitle}>Cronograma de actividades para {p.nombre_condominio}</Text>
+      {/* ════════ PAGINAS 6-7: CONDICIONALES SEGUN TIPO ════════ */}
+      {adminOn ? (
+        /* ─── Administradora ON: hoja de horario y funciones ─── */
+        <Page size="A4" style={s.innerPage}>
+          <InnerHeader title="Administradora" />
+          <Text style={s.pageTitle}>Horario y Funciones de la Administradora</Text>
+          <Text style={s.pageSubtitle}>Dedicacion presencial y responsabilidades del cargo</Text>
 
-        <View style={s.highlightBox} wrap={false}>
-          <Text style={s.highlightBold}>Frecuencia de visitas presenciales</Text>
-          <Text style={s.highlightText}>
-            {p.visitas_semanales} visita{p.visitas_semanales > 1 ? 's' : ''} por semana — {horasVisita} hora{horasVisita > 1 ? 's' : ''} por visita ({p.visitas_semanales * horasVisita} horas semanales en sitio)
-          </Text>
-        </View>
-
-        <Text style={{ ...s.sectionTitle, marginTop: 16 }}>Actividades por Visita</Text>
-        <View style={s.tableHeader}>
-          <Text style={{ ...s.tableHeaderText, flex: 3 }}>Actividad</Text>
-          <Text style={{ ...s.tableHeaderText, flex: 1, textAlign: 'center' }}>Frecuencia</Text>
-        </View>
-        {[
-          ['Inspeccion general de areas comunes y equipos', 'Cada visita'],
-          ['Revision de libro de novedades de seguridad/conserjeria', 'Cada visita'],
-          ['Seguimiento de cobro de expensas y morosidad', 'Cada visita'],
-          ['Coordinacion de trabajos de mantenimiento pendientes', 'Cada visita'],
-          ['Atencion presencial a copropietarios', 'Cada visita'],
-          ['Verificacion de limpieza y orden en areas comunes', 'Cada visita'],
-        ].map(([act, freq], i) => (
-          <View key={i} style={i % 2 === 0 ? s.tareaRow : s.tareaRowAlt}>
-            <Text style={{ flex: 3, fontSize: 9 }}>{act}</Text>
-            <Text style={{ flex: 1, fontSize: 9, textAlign: 'center', color: C.midGray }}>{freq}</Text>
+          <View style={s.highlightBox} wrap={false}>
+            <Text style={s.highlightBold}>Horario de trabajo</Text>
+            <Text style={s.highlightText}>Lunes a Viernes — 8 horas diarias</Text>
+            <Text style={s.highlightText}>Sabados — 4 horas</Text>
           </View>
-        ))}
 
-        <Text style={{ ...s.sectionTitle, marginTop: 16 }}>Actividades Mensuales</Text>
-        <View style={s.tableHeader}>
-          <Text style={{ ...s.tableHeaderText, flex: 3 }}>Actividad</Text>
-          <Text style={{ ...s.tableHeaderText, flex: 1, textAlign: 'center' }}>Frecuencia</Text>
-        </View>
-        {[
-          ['Elaboracion y envio de estado de cuenta mensual', 'Mensual'],
-          ['Conciliacion bancaria y cierre contable', 'Mensual'],
-          ['Informe de mantenimientos realizados y pendientes', 'Mensual'],
-          ['Revision de contratos con proveedores', 'Trimestral'],
-          ['Convocatoria y gestion de asambleas', 'Semestral'],
-          ['Actualizacion de presupuesto anual', 'Anual'],
-        ].map(([act, freq], i) => (
-          <View key={i} style={i % 2 === 0 ? s.tareaRow : s.tareaRowAlt}>
-            <Text style={{ flex: 3, fontSize: 9 }}>{act}</Text>
-            <Text style={{ flex: 1, fontSize: 9, textAlign: 'center', color: C.midGray }}>{freq}</Text>
-          </View>
-        ))}
+          <Text style={s.sectionTitle}>Gestion Administrativa</Text>
+          {[
+            'Atencion presencial y telefonica a residentes y copropietarios.',
+            'Recepcion, clasificacion y archivo de correspondencia y documentos.',
+            'Coordinacion y supervision de proveedores de servicios y mantenimiento.',
+            'Redaccion y distribucion de circulares, comunicados y avisos internos.',
+            'Mantenimiento actualizado del archivo fisico y digital del condominio.',
+          ].map((txt, i) => (
+            <View key={i} style={s.bulletRow} wrap={false}>
+              <View style={s.bulletDot} />
+              <Text style={s.bulletText}>{txt}</Text>
+            </View>
+          ))}
 
-        <PageFooter numero={p.numero_propuesta} pagina={6} />
-      </Page>
+          <Text style={s.sectionTitle}>Gestion Financiera</Text>
+          {[
+            'Cobranza de expensas ordinarias y extraordinarias con seguimiento de morosidad.',
+            'Control de copropietarios morosos y gestion de acuerdos de pago.',
+            'Registro detallado de ingresos y egresos en la plataforma DOMIA.',
+            'Elaboracion de reportes financieros mensuales para la junta directiva.',
+            'Gestion de pagos a proveedores y control de cuentas por pagar.',
+          ].map((txt, i) => (
+            <View key={i} style={s.bulletRow} wrap={false}>
+              <View style={s.bulletDot} />
+              <Text style={s.bulletText}>{txt}</Text>
+            </View>
+          ))}
 
-      {/* ════════ PAGINA 7: ATENCION FUERA DE HORARIO + BENEFICIOS ════════ */}
-      <Page size="A4" style={s.innerPage}>
-        <InnerHeader title="Servicio" />
-        <Text style={s.pageTitle}>Atencion Fuera de Horario</Text>
-        <Text style={s.pageSubtitle}>Disponibilidad para emergencias y situaciones criticas</Text>
+          <Text style={s.sectionTitle}>Gestion Operativa</Text>
+          {[
+            'Supervision del personal de limpieza, seguridad y mantenimiento.',
+            'Control de accesos de visitantes, proveedores y personal externo.',
+            'Inspeccion y reporte del estado de areas comunes e instalaciones.',
+            'Gestion de reservas de salon de eventos, gimnasio y piscina.',
+            'Registro y seguimiento de incidencias y solicitudes de mantenimiento.',
+            'Control de inventario de suministros e insumos del condominio.',
+          ].map((txt, i) => (
+            <View key={i} style={s.bulletRow} wrap={false}>
+              <View style={s.bulletDot} />
+              <Text style={s.bulletText}>{txt}</Text>
+            </View>
+          ))}
 
-        <View style={s.mvvCard} wrap={false}>
-          <Text style={s.mvvText}>
-            ALTRION ofrece una linea de atencion para emergencias disponible fuera del horario de visitas. En caso de situaciones criticas como fallas en el suministro de agua, problemas electricos graves, emergencias de seguridad o cualquier evento que requiera intervencion inmediata, los copropietarios pueden comunicarse directamente con la administradora.
-          </Text>
-        </View>
+          <Text style={s.sectionTitle}>Atencion al Residente</Text>
+          {[
+            'Recepcion y gestion de quejas, sugerencias y reclamos de residentes.',
+            'Comunicacion permanente con la junta directiva del condominio.',
+            'Organizacion y apoyo logistico en asambleas ordinarias y extraordinarias.',
+            'Notificacion oportuna de resoluciones, acuerdos y comunicados oficiales.',
+          ].map((txt, i) => (
+            <View key={i} style={s.bulletRow} wrap={false}>
+              <View style={s.bulletDot} />
+              <Text style={s.bulletText}>{txt}</Text>
+            </View>
+          ))}
 
-        <View style={s.bulletRow} wrap={false}>
-          <View style={s.bulletDot} />
-          <Text style={s.bulletText}>Linea directa de emergencias disponible 24/7 para situaciones criticas.</Text>
-        </View>
-        <View style={s.bulletRow} wrap={false}>
-          <View style={s.bulletDot} />
-          <Text style={s.bulletText}>Coordinacion inmediata con proveedores de emergencia (plomeria, electricidad, cerrajeria).</Text>
-        </View>
-        <View style={s.bulletRow} wrap={false}>
-          <View style={s.bulletDot} />
-          <Text style={s.bulletText}>Comunicacion por WhatsApp para consultas no urgentes fuera de horario.</Text>
-        </View>
-        <View style={s.bulletRow} wrap={false}>
-          <View style={s.bulletDot} />
-          <Text style={s.bulletText}>Respuesta garantizada en un maximo de 2 horas para emergencias.</Text>
-        </View>
+          <PageFooter numero={p.numero_propuesta} />
+        </Page>
+      ) : (
+        <>
+          {/* ─── Visitas/Ninguno: mantener hojas originales ─── */}
 
-        <Text style={{ ...s.pageTitle, marginTop: 24, fontSize: 16 }}>Beneficios</Text>
-        <Text style={{ ...s.pageSubtitle, marginBottom: 14 }}>Por que elegir ALTRION para su condominio</Text>
+          {/* PAGINA 6: TAREAS PERIODICAS */}
+          <Page size="A4" style={s.innerPage}>
+            <InnerHeader title="Tareas" />
+            <Text style={s.pageTitle}>Tareas Periodicas</Text>
+            <Text style={s.pageSubtitle}>Cronograma de actividades para {p.nombre_condominio}</Text>
 
-        <View style={s.beneficioCard} wrap={false}>
-          <View style={s.beneficioIcon}><Text style={s.beneficioIconText}>$</Text></View>
-          <View style={s.beneficioContent}>
-            <Text style={s.beneficioTitle}>Transparencia Financiera Total</Text>
-            <Text style={s.beneficioDesc}>Acceso en tiempo real a estados de cuenta, ingresos, egresos y presupuestos a traves de la plataforma DOMIA.</Text>
-          </View>
-        </View>
-        <View style={s.beneficioCard} wrap={false}>
-          <View style={s.beneficioIcon}><Text style={s.beneficioIconText}>T</Text></View>
-          <View style={s.beneficioContent}>
-            <Text style={s.beneficioTitle}>Tecnologia de Punta</Text>
-            <Text style={s.beneficioDesc}>Sistema DOMIA con panel para copropietarios: consultas, pagos, reportes de incidencias y reservas desde cualquier dispositivo.</Text>
-          </View>
-        </View>
-        <View style={s.beneficioCard} wrap={false}>
-          <View style={s.beneficioIcon}><Text style={s.beneficioIconText}>P</Text></View>
-          <View style={s.beneficioContent}>
-            <Text style={s.beneficioTitle}>Personal Capacitado</Text>
-            <Text style={s.beneficioDesc}>Equipo profesional con experiencia en administracion inmobiliaria y atencion al cliente.</Text>
-          </View>
-        </View>
-        <View style={s.beneficioCard} wrap={false}>
-          <View style={s.beneficioIcon}><Text style={s.beneficioIconText}>R</Text></View>
-          <View style={s.beneficioContent}>
-            <Text style={s.beneficioTitle}>Reduccion de Morosidad</Text>
-            <Text style={s.beneficioDesc}>Sistema automatizado de cobranza con recordatorios, seguimiento y reportes de estado por copropietario.</Text>
-          </View>
-        </View>
-        <View style={s.beneficioCard} wrap={false}>
-          <View style={s.beneficioIcon}><Text style={s.beneficioIconText}>V</Text></View>
-          <View style={s.beneficioContent}>
-            <Text style={s.beneficioTitle}>Valorizacion del Inmueble</Text>
-            <Text style={s.beneficioDesc}>Mantenimiento preventivo constante que preserva y aumenta el valor de la propiedad a largo plazo.</Text>
-          </View>
-        </View>
+            {visitasOn && (
+              <View style={s.highlightBox} wrap={false}>
+                <Text style={s.highlightBold}>Frecuencia de visitas presenciales</Text>
+                <Text style={s.highlightText}>
+                  {diasVisita} dia{diasVisita > 1 ? 's' : ''} de visita al mes
+                </Text>
+              </View>
+            )}
 
-        <PageFooter numero={p.numero_propuesta} pagina={7} />
-      </Page>
+            <Text style={{ ...s.sectionTitle, marginTop: 16 }}>Actividades por Visita</Text>
+            <View style={s.tableHeader}>
+              <Text style={{ ...s.tableHeaderText, flex: 3 }}>Actividad</Text>
+              <Text style={{ ...s.tableHeaderText, flex: 1, textAlign: 'center' }}>Frecuencia</Text>
+            </View>
+            {[
+              ['Inspeccion general de areas comunes y equipos', 'Cada visita'],
+              ['Revision de libro de novedades de seguridad/conserjeria', 'Cada visita'],
+              ['Seguimiento de cobro de expensas y morosidad', 'Cada visita'],
+              ['Coordinacion de trabajos de mantenimiento pendientes', 'Cada visita'],
+              ['Atencion presencial a copropietarios', 'Cada visita'],
+              ['Verificacion de limpieza y orden en areas comunes', 'Cada visita'],
+            ].map(([act, freq], i) => (
+              <View key={i} style={i % 2 === 0 ? s.tareaRow : s.tareaRowAlt}>
+                <Text style={{ flex: 3, fontSize: 9 }}>{act}</Text>
+                <Text style={{ flex: 1, fontSize: 9, textAlign: 'center', color: C.midGray }}>{freq}</Text>
+              </View>
+            ))}
 
-      {/* ════════ PAGINA 8: PLATAFORMA DOMIA ════════ */}
+            <Text style={{ ...s.sectionTitle, marginTop: 16 }}>Actividades Mensuales</Text>
+            <View style={s.tableHeader}>
+              <Text style={{ ...s.tableHeaderText, flex: 3 }}>Actividad</Text>
+              <Text style={{ ...s.tableHeaderText, flex: 1, textAlign: 'center' }}>Frecuencia</Text>
+            </View>
+            {[
+              ['Elaboracion y envio de estado de cuenta mensual', 'Mensual'],
+              ['Conciliacion bancaria y cierre contable', 'Mensual'],
+              ['Informe de mantenimientos realizados y pendientes', 'Mensual'],
+              ['Revision de contratos con proveedores', 'Trimestral'],
+              ['Convocatoria y gestion de asambleas', 'Semestral'],
+              ['Actualizacion de presupuesto anual', 'Anual'],
+            ].map(([act, freq], i) => (
+              <View key={i} style={i % 2 === 0 ? s.tareaRow : s.tareaRowAlt}>
+                <Text style={{ flex: 3, fontSize: 9 }}>{act}</Text>
+                <Text style={{ flex: 1, fontSize: 9, textAlign: 'center', color: C.midGray }}>{freq}</Text>
+              </View>
+            ))}
+
+            <PageFooter numero={p.numero_propuesta} />
+          </Page>
+
+          {/* PAGINA 7: ATENCION FUERA DE HORARIO + BENEFICIOS */}
+          <Page size="A4" style={s.innerPage}>
+            <InnerHeader title="Servicio" />
+            <Text style={s.pageTitle}>Atencion Fuera de Horario</Text>
+            <Text style={s.pageSubtitle}>Disponibilidad para emergencias y situaciones criticas</Text>
+
+            <View style={s.mvvCard} wrap={false}>
+              <Text style={s.mvvText}>
+                ALTRION ofrece una linea de atencion para emergencias disponible fuera del horario de visitas. En caso de situaciones criticas como fallas en el suministro de agua, problemas electricos graves, emergencias de seguridad o cualquier evento que requiera intervencion inmediata, los copropietarios pueden comunicarse directamente con la administradora.
+              </Text>
+            </View>
+
+            {[
+              'Linea directa de emergencias disponible 24/7 para situaciones criticas.',
+              'Coordinacion inmediata con proveedores de emergencia (plomeria, electricidad, cerrajeria).',
+              'Comunicacion por WhatsApp para consultas no urgentes fuera de horario.',
+              'Respuesta garantizada en un maximo de 2 horas para emergencias.',
+            ].map((txt, i) => (
+              <View key={i} style={s.bulletRow} wrap={false}>
+                <View style={s.bulletDot} />
+                <Text style={s.bulletText}>{txt}</Text>
+              </View>
+            ))}
+
+            <Text style={{ ...s.pageTitle, marginTop: 24, fontSize: 16 }}>Beneficios</Text>
+            <Text style={{ ...s.pageSubtitle, marginBottom: 14 }}>Por que elegir ALTRION para su condominio</Text>
+
+            {[
+              { icon: '$', title: 'Transparencia Financiera Total', desc: 'Acceso en tiempo real a estados de cuenta, ingresos, egresos y presupuestos a traves de la plataforma DOMIA.' },
+              { icon: 'T', title: 'Tecnologia de Punta', desc: 'Sistema DOMIA con panel para copropietarios: consultas, pagos, reportes de incidencias y reservas desde cualquier dispositivo.' },
+              { icon: 'P', title: 'Personal Capacitado', desc: 'Equipo profesional con experiencia en administracion inmobiliaria y atencion al cliente.' },
+              { icon: 'R', title: 'Reduccion de Morosidad', desc: 'Sistema automatizado de cobranza con recordatorios, seguimiento y reportes de estado por copropietario.' },
+              { icon: 'V', title: 'Valorizacion del Inmueble', desc: 'Mantenimiento preventivo constante que preserva y aumenta el valor de la propiedad a largo plazo.' },
+            ].map((b, i) => (
+              <View key={i} style={s.beneficioCard} wrap={false}>
+                <View style={s.beneficioIcon}><Text style={s.beneficioIconText}>{b.icon}</Text></View>
+                <View style={s.beneficioContent}>
+                  <Text style={s.beneficioTitle}>{b.title}</Text>
+                  <Text style={s.beneficioDesc}>{b.desc}</Text>
+                </View>
+              </View>
+            ))}
+
+            <PageFooter numero={p.numero_propuesta} />
+          </Page>
+        </>
+      )}
+
+      {/* ════════ PLATAFORMA DOMIA ════════ */}
       <Page size="A4" style={s.innerPage}>
         <InnerHeader title="Tecnologia" />
         <Text style={s.pageTitle}>Plataforma DOMIA</Text>
@@ -557,10 +615,10 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           </Text>
         </View>
 
-        <PageFooter numero={p.numero_propuesta} pagina={8} />
+        <PageFooter numero={p.numero_propuesta} />
       </Page>
 
-      {/* ════════ PAGINA 9: PROPUESTA ECONOMICA ════════ */}
+      {/* ════════ PROPUESTA ECONOMICA ════════ */}
       <Page size="A4" style={s.innerPage}>
         <InnerHeader title="Propuesta Economica" />
         <Text style={s.pageTitle}>Propuesta Economica</Text>
@@ -589,21 +647,25 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           </View>
         </View>
 
-        {/* Parametros */}
+        {/* Parametros del Servicio */}
         <Text style={s.sectionTitle}>Parametros del Servicio</Text>
         <View style={s.infoRow} wrap={false}>
-          <View style={s.infoBlock}>
-            <Text style={s.infoLabel}>Pisos</Text>
-            <Text style={s.infoValue}>{p.num_pisos}</Text>
-          </View>
           <View style={s.infoBlock}>
             <Text style={s.infoLabel}>Departamentos</Text>
             <Text style={s.infoValue}>{p.num_departamentos}</Text>
           </View>
-          <View style={s.infoBlock}>
-            <Text style={s.infoLabel}>Visitas / Semana</Text>
-            <Text style={s.infoValue}>{p.visitas_semanales}</Text>
-          </View>
+          {adminOn && (
+            <View style={s.infoBlock}>
+              <Text style={s.infoLabel}>Administradora</Text>
+              <Text style={s.infoValue}>Sueldo base {formatBs(sueldoAdmin)}</Text>
+            </View>
+          )}
+          {visitasOn && (
+            <View style={s.infoBlock}>
+              <Text style={s.infoLabel}>Visitas diarias</Text>
+              <Text style={s.infoValue}>{diasVisita} dias/mes — {formatBs(costoVisitas)}</Text>
+            </View>
+          )}
         </View>
 
         {/* Desglose de precio */}
@@ -613,31 +675,45 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
             <Text style={{ ...s.tableHeaderText, flex: 3 }}>Concepto</Text>
             <Text style={{ ...s.tableHeaderText, flex: 1, textAlign: 'right' }}>Monto</Text>
           </View>
-          <View style={s.tableRow}>
-            <Text style={{ flex: 3, fontSize: 10 }}>Tarifa base (5 pisos, 20 dptos, 2 visitas)</Text>
-            <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(1200)}</Text>
-          </View>
-          {ajustePisos !== 0 && (
-            <View style={s.tableRowAlt}>
-              <Text style={{ flex: 3, fontSize: 10 }}>Ajuste pisos ({p.num_pisos} pisos, {ajustePisos > 0 ? '+' : ''}{ajustePisos / 100} x Bs. 100)</Text>
-              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{ajustePisos > 0 ? '+' : ''}{formatBs(ajustePisos)}</Text>
-            </View>
-          )}
-          {ajusteDptos > 0 && (
+
+          {adminOn && (
             <View style={s.tableRow}>
-              <Text style={{ flex: 3, fontSize: 10 }}>Ajuste departamentos ({p.num_departamentos} dptos, +{Math.floor(dptosExtra / 10)} x Bs. 50)</Text>
-              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>+{formatBs(ajusteDptos)}</Text>
+              <Text style={{ flex: 3, fontSize: 10 }}>Administradora (sueldo base)</Text>
+              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(sueldoAdmin)}</Text>
             </View>
           )}
-          {ajusteVisitas > 0 && (
+          {adminOn && totalBeneficios > 0 && (
             <View style={s.tableRowAlt}>
-              <Text style={{ flex: 3, fontSize: 10 }}>Visitas adicionales ({p.visitas_semanales} visitas, +{visitasExtra} x Bs. 150)</Text>
-              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>+{formatBs(ajusteVisitas)}</Text>
+              <Text style={{ flex: 3, fontSize: 10 }}>Beneficios salariales</Text>
+              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(totalBeneficios)}</Text>
             </View>
           )}
+          {visitasOn && (
+            <View style={adminOn ? s.tableRow : s.tableRow}>
+              <Text style={{ flex: 3, fontSize: 10 }}>Visitas diarias ({diasVisita} dias/mes)</Text>
+              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(costoVisitas)}</Text>
+            </View>
+          )}
+          <View style={s.tableRowAlt}>
+            <Text style={{ flex: 3, fontSize: 10 }}>App DOMIA</Text>
+            <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(350)}</Text>
+          </View>
+          {utilidadPct > 0 && (
+            <View style={s.tableRow}>
+              <Text style={{ flex: 3, fontSize: 10 }}>Utilidad ({utilidadPct}%)</Text>
+              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(utilidad)}</Text>
+            </View>
+          )}
+          {utilidadAdicional > 0 && (
+            <View style={s.tableRowAlt}>
+              <Text style={{ flex: 3, fontSize: 10 }}>Utilidad adicional</Text>
+              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(utilidadAdicional)}</Text>
+            </View>
+          )}
+
           <View style={s.tableTotal}>
-            <Text style={s.tableTotalLabel}>PRECIO MENSUAL</Text>
-            <Text style={s.tableTotalMonto}>{formatBs(p.precio_final)}</Text>
+            <Text style={s.tableTotalLabel}>PRECIO FINAL</Text>
+            <Text style={s.tableTotalMonto}>{formatBs(precioFinalCalc)}</Text>
           </View>
         </View>
 
@@ -649,7 +725,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           </View>
         )}
 
-        <PageFooter numero={p.numero_propuesta} pagina={9} />
+        <PageFooter numero={p.numero_propuesta} />
       </Page>
     </Document>
   )
