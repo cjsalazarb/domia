@@ -73,6 +73,9 @@ const s = StyleSheet.create({
   capturaTitle: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: C.navy, marginBottom: 4 },
   capturaDesc: { fontSize: 9, lineHeight: 1.5, color: C.midGray },
   capturaGrid: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  screenshotWrap: { marginBottom: 22, borderWidth: 0.5, borderColor: '#DEDEDE' },
+  screenshotImg: { width: '100%' },
+  screenshotCaption: { fontSize: 8, color: C.midGray, textAlign: 'center', paddingVertical: 5, backgroundColor: C.lightGray },
 
   /* ── Propuesta economica ── */
   infoRow: { flexDirection: 'row', marginBottom: 8, gap: 12 },
@@ -178,6 +181,12 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
   const utilidadAdicional = Number(p.utilidad_adicional ?? 0)
   const utilidad = totalCostosBase * utilidadPct / 100
   const precioFinalCalc = totalCostosBase + utilidad + utilidadAdicional
+
+  // Factor para distribuir utilidad proporcionalmente en el desglose
+  const factor = totalCostosBase > 0 ? precioFinalCalc / totalCostosBase : 1
+  const adminPdf = adminOn ? (sueldoAdmin + totalBeneficios) * factor : 0
+  const visitasPdf = visitasOn ? costoVisitas * factor : 0
+  const domiaPdf = 350 * factor
 
   const fecha = formatDate(p.created_at)
 
@@ -565,7 +574,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         </>
       )}
 
-      {/* ════════ PLATAFORMA DOMIA ════════ */}
+      {/* ════════ PLATAFORMA DOMIA — pag 1 (capturas 1-2) ════════ */}
       <Page size="A4" style={s.innerPage}>
         <InnerHeader title="Tecnologia" />
         <Text style={s.pageTitle}>Plataforma DOMIA</Text>
@@ -575,37 +584,31 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           Todos nuestros condominios administrados cuentan con acceso a DOMIA, nuestra plataforma web desarrollada internamente que centraliza toda la gestion del condominio en un solo lugar.
         </Text>
 
-        <View style={s.capturaGrid} wrap={false}>
-          <View style={{ ...s.capturaCard, flex: 1 }}>
-            <Text style={s.capturaTitle}>Dashboard Principal</Text>
-            <Text style={s.capturaDesc}>Vista general con indicadores clave: cobranza del mes, morosidad, gastos vs presupuesto, y alertas pendientes.</Text>
-          </View>
-          <View style={{ ...s.capturaCard, flex: 1 }}>
-            <Text style={s.capturaTitle}>Gestion de Residentes</Text>
-            <Text style={s.capturaDesc}>Directorio completo de copropietarios e inquilinos, con datos de contacto, estado de pagos y documentos.</Text>
-          </View>
+        <View style={s.screenshotWrap} wrap={false}>
+          <Image src="/domia_captura_1.png" style={s.screenshotImg} />
+          <Text style={s.screenshotCaption}>Dashboard del condominio</Text>
         </View>
 
-        <View style={s.capturaGrid} wrap={false}>
-          <View style={{ ...s.capturaCard, flex: 1 }}>
-            <Text style={s.capturaTitle}>Cobranza y Expensas</Text>
-            <Text style={s.capturaDesc}>Generacion automatica de boletas, seguimiento de pagos, recordatorios por WhatsApp y reportes de morosidad.</Text>
-          </View>
-          <View style={{ ...s.capturaCard, flex: 1 }}>
-            <Text style={s.capturaTitle}>Gastos y Presupuesto</Text>
-            <Text style={s.capturaDesc}>Registro detallado de gastos con respaldo fotografico, categorias y comparacion contra presupuesto aprobado.</Text>
-          </View>
+        <View style={s.screenshotWrap} wrap={false}>
+          <Image src="/domia_captura_2.png" style={s.screenshotImg} />
+          <Text style={s.screenshotCaption}>Modulo de Residentes y Propietarios</Text>
         </View>
 
-        <View style={s.capturaGrid} wrap={false}>
-          <View style={{ ...s.capturaCard, flex: 1 }}>
-            <Text style={s.capturaTitle}>Mantenimiento</Text>
-            <Text style={s.capturaDesc}>Solicitudes de mantenimiento con seguimiento de estado, asignacion de proveedores y historial completo.</Text>
-          </View>
-          <View style={{ ...s.capturaCard, flex: 1 }}>
-            <Text style={s.capturaTitle}>Portal del Residente</Text>
-            <Text style={s.capturaDesc}>Acceso individual para cada copropietario: pagos en linea, consultas, reservas de areas comunes y notificaciones.</Text>
-          </View>
+        <PageFooter numero={p.numero_propuesta} />
+      </Page>
+
+      {/* ════════ PLATAFORMA DOMIA — pag 2 (capturas 3-4) ════════ */}
+      <Page size="A4" style={s.innerPage}>
+        <InnerHeader title="Tecnologia" />
+
+        <View style={s.screenshotWrap} wrap={false}>
+          <Image src="/domia_captura_3.png" style={s.screenshotImg} />
+          <Text style={s.screenshotCaption}>Modulo Financiero y Cobranza</Text>
+        </View>
+
+        <View style={s.screenshotWrap} wrap={false}>
+          <Image src="/domia_captura_4.png" style={s.screenshotImg} />
+          <Text style={s.screenshotCaption}>Portal del Residente</Text>
         </View>
 
         <View style={s.highlightBox} wrap={false}>
@@ -657,7 +660,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           {adminOn && (
             <View style={s.infoBlock}>
               <Text style={s.infoLabel}>Administradora</Text>
-              <Text style={s.infoValue}>Sueldo base {formatBs(sueldoAdmin)}</Text>
+              <Text style={s.infoValue}>Incluida</Text>
             </View>
           )}
           {visitasOn && (
@@ -678,38 +681,20 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
 
           {adminOn && (
             <View style={s.tableRow}>
-              <Text style={{ flex: 3, fontSize: 10 }}>Administradora (sueldo base)</Text>
-              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(sueldoAdmin)}</Text>
-            </View>
-          )}
-          {adminOn && totalBeneficios > 0 && (
-            <View style={s.tableRowAlt}>
-              <Text style={{ flex: 3, fontSize: 10 }}>Beneficios salariales</Text>
-              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(totalBeneficios)}</Text>
+              <Text style={{ flex: 3, fontSize: 10 }}>Administradora</Text>
+              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(adminPdf)}</Text>
             </View>
           )}
           {visitasOn && (
-            <View style={adminOn ? s.tableRow : s.tableRow}>
-              <Text style={{ flex: 3, fontSize: 10 }}>Visitas diarias ({diasVisita} dias/mes)</Text>
-              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(costoVisitas)}</Text>
-            </View>
-          )}
-          <View style={s.tableRowAlt}>
-            <Text style={{ flex: 3, fontSize: 10 }}>App DOMIA</Text>
-            <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(350)}</Text>
-          </View>
-          {utilidadPct > 0 && (
-            <View style={s.tableRow}>
-              <Text style={{ flex: 3, fontSize: 10 }}>Utilidad ({utilidadPct}%)</Text>
-              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(utilidad)}</Text>
-            </View>
-          )}
-          {utilidadAdicional > 0 && (
             <View style={s.tableRowAlt}>
-              <Text style={{ flex: 3, fontSize: 10 }}>Utilidad adicional</Text>
-              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(utilidadAdicional)}</Text>
+              <Text style={{ flex: 3, fontSize: 10 }}>Visitas diarias ({diasVisita} dias/mes)</Text>
+              <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(visitasPdf)}</Text>
             </View>
           )}
+          <View style={visitasOn || adminOn ? s.tableRow : s.tableRowAlt}>
+            <Text style={{ flex: 3, fontSize: 10 }}>App DOMIA</Text>
+            <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(domiaPdf)}</Text>
+          </View>
 
           <View style={s.tableTotal}>
             <Text style={s.tableTotalLabel}>PRECIO FINAL</Text>
