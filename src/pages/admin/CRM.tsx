@@ -39,9 +39,9 @@ const ESTADOS: { value: Estado; label: string; color: string; bg: string }[] = [
   { value: 'vencida', label: 'Vencida', color: '#B83232', bg: '#FCEAEA' },
 ]
 
-function calcularPrecio(visitasActivo: boolean, diasVisita: number, adminActivo: boolean, sueldoAdmin: number): number {
+function calcularPrecio(visitasActivo: boolean, diasVisita: number, adminActivo: boolean, sueldoAdmin: number, totalBeneficios: number): number {
   const costoVisitas = visitasActivo ? (3300 / 30) * diasVisita : 0
-  const costoAdmin = adminActivo ? sueldoAdmin : 0
+  const costoAdmin = adminActivo ? sueldoAdmin + totalBeneficios : 0
   return 350 + costoVisitas + costoAdmin
 }
 
@@ -71,10 +71,41 @@ export default function CRM() {
   const [diasVisita, setDiasVisita] = useState(10)
   const [adminActivo, setAdminActivo] = useState(false)
   const [sueldoAdmin, setSueldoAdmin] = useState(3000)
+  const [beneficiosExpandido, setBeneficiosExpandido] = useState(false)
+  // Benefits checkboxes
+  const [benAguinaldo, setBenAguinaldo] = useState(false)
+  const [benAfp, setBenAfp] = useState(false)
+  const [benCns, setBenCns] = useState(false)
+  const [benProBolivia, setBenProBolivia] = useState(false)
+  const [benRiesgos, setBenRiesgos] = useState(false)
+  const [benVacaciones, setBenVacaciones] = useState(false)
+  const [benAntiguedad, setBenAntiguedad] = useState(false)
+  const [pctAntiguedad, setPctAntiguedad] = useState(5)
+  const [benFrontera, setBenFrontera] = useState(false)
+  const [benProduccion, setBenProduccion] = useState(false)
+  const [montoProduccion, setMontoProduccion] = useState(500)
+  const [benPolizaAcc, setBenPolizaAcc] = useState(false)
+  const [montoPolizaAcc, setMontoPolizaAcc] = useState(1200)
+  const [benPolizaRC, setBenPolizaRC] = useState(false)
+  const [montoPolizaRC, setMontoPolizaRC] = useState(1200)
   const [precioFinal, setPrecioFinal] = useState(350)
   const [notas, setNotas] = useState('')
 
-  const precioCalc = calcularPrecio(visitasActivo, diasVisita, adminActivo, sueldoAdmin)
+  const totalBeneficios = adminActivo ? (
+    (benAguinaldo ? sueldoAdmin / 12 : 0) +
+    (benAfp ? sueldoAdmin * 0.03 : 0) +
+    (benCns ? sueldoAdmin * 0.10 : 0) +
+    (benProBolivia ? sueldoAdmin * 0.02 : 0) +
+    (benRiesgos ? sueldoAdmin * 0.0171 : 0) +
+    (benVacaciones ? (sueldoAdmin / 30 * 15 / 12) : 0) +
+    (benAntiguedad ? sueldoAdmin * pctAntiguedad / 100 : 0) +
+    (benFrontera ? sueldoAdmin * 0.20 : 0) +
+    (benProduccion ? montoProduccion : 0) +
+    (benPolizaAcc ? montoPolizaAcc / 12 : 0) +
+    (benPolizaRC ? montoPolizaRC / 12 : 0)
+  ) : 0
+
+  const precioCalc = calcularPrecio(visitasActivo, diasVisita, adminActivo, sueldoAdmin, totalBeneficios)
 
   // Sync precioFinal when params change (only if user hasn't manually overridden)
   const [precioManual, setPrecioManual] = useState(false)
@@ -148,6 +179,11 @@ export default function CRM() {
     setDiasVisita(10)
     setAdminActivo(false)
     setSueldoAdmin(3000)
+    setBeneficiosExpandido(false)
+    setBenAguinaldo(false); setBenAfp(false); setBenCns(false); setBenProBolivia(false)
+    setBenRiesgos(false); setBenVacaciones(false); setBenAntiguedad(false); setPctAntiguedad(5)
+    setBenFrontera(false); setBenProduccion(false); setMontoProduccion(500)
+    setBenPolizaAcc(false); setMontoPolizaAcc(1200); setBenPolizaRC(false); setMontoPolizaRC(1200)
     setPrecioFinal(350)
     setPrecioManual(false)
     setNotas('')
@@ -167,6 +203,11 @@ export default function CRM() {
     setDiasVisita(dias)
     setAdminActivo(false)
     setSueldoAdmin(3000)
+    setBeneficiosExpandido(false)
+    setBenAguinaldo(false); setBenAfp(false); setBenCns(false); setBenProBolivia(false)
+    setBenRiesgos(false); setBenVacaciones(false); setBenAntiguedad(false); setPctAntiguedad(5)
+    setBenFrontera(false); setBenProduccion(false); setMontoProduccion(500)
+    setBenPolizaAcc(false); setMontoPolizaAcc(1200); setBenPolizaRC(false); setMontoPolizaRC(1200)
     setPrecioFinal(p.precio_final)
     setPrecioManual(true)
     setNotas(p.notas || '')
@@ -427,6 +468,116 @@ export default function CRM() {
                     <div>
                       <label style={{ ...labelStyle, marginBottom: '4px' }}>Sueldo mensual (Bs.)</label>
                       <input type="number" min={0} value={sueldoAdmin} onChange={e => { setSueldoAdmin(Number(e.target.value)); setPrecioManual(false) }} style={inputStyle} />
+
+                      {/* Beneficios salariales */}
+                      <button type="button" onClick={() => setBeneficiosExpandido(v => !v)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '12px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px', fontWeight: 700, color: '#1A7A4A', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: "'Inter', sans-serif" }}>
+                        <span style={{ fontSize: '10px' }}>{beneficiosExpandido ? '▼' : '▶'}</span>
+                        Beneficios salariales
+                        {totalBeneficios > 0 && <span style={{ fontSize: '11px', color: '#5E6B62', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— Bs. {totalBeneficios.toFixed(0)}/mes</span>}
+                      </button>
+
+                      {beneficiosExpandido && (
+                        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {[
+                            { label: 'Aguinaldo', value: sueldoAdmin / 12, checked: benAguinaldo, set: setBenAguinaldo, extra: null },
+                            { label: 'AFP', value: sueldoAdmin * 0.03, checked: benAfp, set: setBenAfp, extra: null },
+                            { label: 'CNS', value: sueldoAdmin * 0.10, checked: benCns, set: setBenCns, extra: null },
+                            { label: 'PRO-Bolivia', value: sueldoAdmin * 0.02, checked: benProBolivia, set: setBenProBolivia, extra: null },
+                            { label: 'Seg. Riesgos Laborales', value: sueldoAdmin * 0.0171, checked: benRiesgos, set: setBenRiesgos, extra: null },
+                            { label: 'Vacaciones', value: (sueldoAdmin / 30 * 15 / 12), checked: benVacaciones, set: setBenVacaciones, extra: null },
+                          ].map(b => (
+                            <label key={b.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <input type="checkbox" checked={b.checked} onChange={e => { b.set(e.target.checked); setPrecioManual(false) }}
+                                  style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
+                                <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif" }}>{b.label}</span>
+                              </div>
+                              <span style={{ fontSize: '12px', color: b.checked ? '#1A7A4A' : '#5E6B62', fontWeight: b.checked ? 600 : 400, fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+                                Bs. {b.value.toFixed(0)}
+                              </span>
+                            </label>
+                          ))}
+
+                          {/* Bono Antigüedad */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <input type="checkbox" checked={benAntiguedad} onChange={e => { setBenAntiguedad(e.target.checked); setPrecioManual(false) }}
+                                style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
+                              <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif" }}>Bono Antiguedad</span>
+                              <input type="number" min={0} max={100} value={pctAntiguedad} onChange={e => { setPctAntiguedad(Number(e.target.value)); setPrecioManual(false) }}
+                                style={{ width: '52px', padding: '3px 6px', border: '1px solid #C8D4CB', borderRadius: '6px', fontSize: '12px', fontFamily: "'Inter', sans-serif", outline: 'none' }} />
+                              <span style={{ fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>%</span>
+                            </div>
+                            <span style={{ fontSize: '12px', color: benAntiguedad ? '#1A7A4A' : '#5E6B62', fontWeight: benAntiguedad ? 600 : 400, fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+                              Bs. {(sueldoAdmin * pctAntiguedad / 100).toFixed(0)}
+                            </span>
+                          </div>
+
+                          {/* Subsidio Frontera */}
+                          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <input type="checkbox" checked={benFrontera} onChange={e => { setBenFrontera(e.target.checked); setPrecioManual(false) }}
+                                style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
+                              <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif" }}>Subsidio Frontera</span>
+                            </div>
+                            <span style={{ fontSize: '12px', color: benFrontera ? '#1A7A4A' : '#5E6B62', fontWeight: benFrontera ? 600 : 400, fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+                              Bs. {(sueldoAdmin * 0.20).toFixed(0)}
+                            </span>
+                          </label>
+
+                          {/* Bono Producción */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <input type="checkbox" checked={benProduccion} onChange={e => { setBenProduccion(e.target.checked); setPrecioManual(false) }}
+                                style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
+                              <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif" }}>Bono Produccion</span>
+                              <input type="number" min={0} value={montoProduccion} onChange={e => { setMontoProduccion(Number(e.target.value)); setPrecioManual(false) }}
+                                style={{ width: '72px', padding: '3px 6px', border: '1px solid #C8D4CB', borderRadius: '6px', fontSize: '12px', fontFamily: "'Inter', sans-serif", outline: 'none' }} />
+                              <span style={{ fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>Bs/mes</span>
+                            </div>
+                            <span style={{ fontSize: '12px', color: benProduccion ? '#1A7A4A' : '#5E6B62', fontWeight: benProduccion ? 600 : 400, fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+                              Bs. {montoProduccion.toFixed(0)}
+                            </span>
+                          </div>
+
+                          {/* Póliza Accidentes Personales */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                              <input type="checkbox" checked={benPolizaAcc} onChange={e => { setBenPolizaAcc(e.target.checked); setPrecioManual(false) }}
+                                style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
+                              <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif", flexShrink: 0 }}>Poliza Acc.</span>
+                              <input type="number" min={0} value={montoPolizaAcc} onChange={e => { setMontoPolizaAcc(Number(e.target.value)); setPrecioManual(false) }}
+                                style={{ width: '72px', padding: '3px 6px', border: '1px solid #C8D4CB', borderRadius: '6px', fontSize: '12px', fontFamily: "'Inter', sans-serif", outline: 'none' }} />
+                              <span style={{ fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>Bs/año</span>
+                            </div>
+                            <span style={{ fontSize: '12px', color: benPolizaAcc ? '#1A7A4A' : '#5E6B62', fontWeight: benPolizaAcc ? 600 : 400, fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+                              Bs. {(montoPolizaAcc / 12).toFixed(0)}
+                            </span>
+                          </div>
+
+                          {/* Póliza Responsabilidad Civil */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                              <input type="checkbox" checked={benPolizaRC} onChange={e => { setBenPolizaRC(e.target.checked); setPrecioManual(false) }}
+                                style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
+                              <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif", flexShrink: 0 }}>Poliza RC</span>
+                              <input type="number" min={0} value={montoPolizaRC} onChange={e => { setMontoPolizaRC(Number(e.target.value)); setPrecioManual(false) }}
+                                style={{ width: '72px', padding: '3px 6px', border: '1px solid #C8D4CB', borderRadius: '6px', fontSize: '12px', fontFamily: "'Inter', sans-serif", outline: 'none' }} />
+                              <span style={{ fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>Bs/año</span>
+                            </div>
+                            <span style={{ fontSize: '12px', color: benPolizaRC ? '#1A7A4A' : '#5E6B62', fontWeight: benPolizaRC ? 600 : 400, fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap' }}>
+                              Bs. {(montoPolizaRC / 12).toFixed(0)}
+                            </span>
+                          </div>
+
+                          {/* Total beneficios */}
+                          <div style={{ borderTop: '1px solid #C8D4CB', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>Beneficios por administradora:</span>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A7A4A', fontFamily: "'Nunito', sans-serif" }}>Bs. {totalBeneficios.toFixed(0)}/mes</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -452,10 +603,18 @@ export default function CRM() {
                 <div style={{ fontSize: '12px', fontWeight: 600, color: '#5E6B62', marginBottom: '10px', fontFamily: "'Inter', sans-serif" }}>Desglose del precio</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontFamily: "'Inter', sans-serif" }}>
                   {adminActivo && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#5E6B62' }}>Administradora</span>
-                      <span style={{ fontWeight: 600 }}>Bs. {sueldoAdmin.toLocaleString('es-BO')}</span>
-                    </div>
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#5E6B62' }}>Administradora (sueldo)</span>
+                        <span style={{ fontWeight: 600 }}>Bs. {sueldoAdmin.toLocaleString('es-BO')}</span>
+                      </div>
+                      {totalBeneficios > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#5E6B62' }}>Beneficios salariales</span>
+                          <span style={{ fontWeight: 600 }}>Bs. {totalBeneficios.toFixed(0)}</span>
+                        </div>
+                      )}
+                    </>
                   )}
                   {visitasActivo && (
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
