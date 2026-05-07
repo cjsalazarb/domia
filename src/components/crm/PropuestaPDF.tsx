@@ -464,6 +464,51 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
             </View>
           ))}
 
+          {/* ── Respaldo y Supervisión ── */}
+          <Text style={{ ...s.sectionTitle, marginTop: 20 }}>Respaldo y Supervision de ALTRION</Text>
+
+          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 10, color: C.navy, marginBottom: 6, marginTop: 4 }}>
+            Supervisora de Operaciones
+          </Text>
+          <Text style={{ ...s.paragraph, marginBottom: 6 }}>
+            ALTRION cuenta con una Supervisora de Operaciones que brinda respaldo continuo a la Administradora del condominio:
+          </Text>
+          {[
+            'Visitas periodicas de supervision para verificar el cumplimiento de funciones.',
+            'Evaluacion del desempeno y calidad del servicio prestado.',
+            'Apoyo en la resolucion de situaciones complejas o excepcionales.',
+            'Canal directo de comunicacion entre el condominio y ALTRION.',
+            'Garantia de continuidad del servicio ante ausencias o imprevistos.',
+          ].map((txt, i) => (
+            <View key={i} style={s.bulletRow} wrap={false}>
+              <View style={s.bulletDot} />
+              <Text style={s.bulletText}>{txt}</Text>
+            </View>
+          ))}
+
+          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 10, color: C.navy, marginBottom: 6, marginTop: 10 }}>
+            Contadora
+          </Text>
+          <Text style={{ ...s.paragraph, marginBottom: 6 }}>
+            ALTRION dispone de una Contadora profesional que supervisa y valida toda la gestion contable:
+          </Text>
+          {[
+            'Revision y validacion de los registros contables realizados por la Administradora.',
+            'Supervision de los asientos contables generados automaticamente por la plataforma DOMIA.',
+            'Elaboracion y revision de estados financieros mensuales.',
+            'Cumplimiento de normativas contables y tributarias bolivianas.',
+            'Asesoria en temas financieros y contables al directorio del condominio.',
+          ].map((txt, i) => (
+            <View key={i} style={s.bulletRow} wrap={false}>
+              <View style={s.bulletDot} />
+              <Text style={s.bulletText}>{txt}</Text>
+            </View>
+          ))}
+
+          <Text style={{ fontSize: 9, color: C.midGray, lineHeight: 1.6, marginTop: 14, fontStyle: 'italic' }} wrap={false}>
+            Esta estructura de supervision garantiza que la administracion del condominio cuente con respaldo profesional en todo momento, combinando la presencia diaria de la Administradora con la experiencia de un equipo especializado.
+          </Text>
+
           <PageFooter numero={p.numero_propuesta} />
         </Page>
       ) : (
