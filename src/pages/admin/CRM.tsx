@@ -39,12 +39,10 @@ const ESTADOS: { value: Estado; label: string; color: string; bg: string }[] = [
   { value: 'vencida', label: 'Vencida', color: '#B83232', bg: '#FCEAEA' },
 ]
 
-function calcularPrecio(pisos: number, dptos: number, visitas: number): number {
-  let precio = 1200
-  precio += (pisos - 5) * 100
-  precio += Math.floor(Math.max(0, dptos - 20) / 10) * 50
-  precio += Math.max(0, visitas - 2) * 150
-  return Math.max(800, precio)
+function calcularPrecio(visitasActivo: boolean, diasVisita: number, adminActivo: boolean, sueldoAdmin: number): number {
+  const costoVisitas = visitasActivo ? (3300 / 30) * diasVisita : 0
+  const costoAdmin = adminActivo ? sueldoAdmin : 0
+  return 350 + costoVisitas + costoAdmin
 }
 
 function getEstadoStyle(estado: Estado) {
@@ -68,13 +66,15 @@ export default function CRM() {
   const [nombreCondominio, setNombreCondominio] = useState('')
   const [direccion, setDireccion] = useState('')
   const [ciudad, setCiudad] = useState('')
-  const [numPisos, setNumPisos] = useState(5)
   const [numDptos, setNumDptos] = useState(20)
-  const [visitasSem, setVisitasSem] = useState(2)
-  const [precioFinal, setPrecioFinal] = useState(1200)
+  const [visitasActivo, setVisitasActivo] = useState(false)
+  const [diasVisita, setDiasVisita] = useState(10)
+  const [adminActivo, setAdminActivo] = useState(false)
+  const [sueldoAdmin, setSueldoAdmin] = useState(3000)
+  const [precioFinal, setPrecioFinal] = useState(350)
   const [notas, setNotas] = useState('')
 
-  const precioCalc = calcularPrecio(numPisos, numDptos, visitasSem)
+  const precioCalc = calcularPrecio(visitasActivo, diasVisita, adminActivo, sueldoAdmin)
 
   // Sync precioFinal when params change (only if user hasn't manually overridden)
   const [precioManual, setPrecioManual] = useState(false)
@@ -143,10 +143,12 @@ export default function CRM() {
     setNombreCondominio('')
     setDireccion('')
     setCiudad('')
-    setNumPisos(5)
     setNumDptos(20)
-    setVisitasSem(2)
-    setPrecioFinal(1200)
+    setVisitasActivo(false)
+    setDiasVisita(10)
+    setAdminActivo(false)
+    setSueldoAdmin(3000)
+    setPrecioFinal(350)
     setPrecioManual(false)
     setNotas('')
   }
@@ -159,11 +161,14 @@ export default function CRM() {
     setNombreCondominio(p.nombre_condominio)
     setDireccion(p.direccion || '')
     setCiudad(p.ciudad || '')
-    setNumPisos(p.num_pisos)
     setNumDptos(p.num_departamentos)
-    setVisitasSem(p.visitas_semanales)
+    const dias = p.visitas_semanales > 0 ? p.visitas_semanales : 10
+    setVisitasActivo(p.visitas_semanales > 0)
+    setDiasVisita(dias)
+    setAdminActivo(false)
+    setSueldoAdmin(3000)
     setPrecioFinal(p.precio_final)
-    setPrecioManual(p.precio_final !== calcularPrecio(p.num_pisos, p.num_departamentos, p.visitas_semanales))
+    setPrecioManual(true)
     setNotas(p.notas || '')
     setVista('form')
   }
@@ -177,9 +182,9 @@ export default function CRM() {
       nombre_condominio: nombreCondominio,
       direccion: direccion || null,
       ciudad: ciudad || null,
-      num_pisos: numPisos,
+      num_pisos: 1,
       num_departamentos: numDptos,
-      visitas_semanales: visitasSem,
+      visitas_semanales: visitasActivo ? diasVisita : 0,
       precio_calculado: precioCalc,
       precio_final: precioMostrado,
       notas: notas || null,
@@ -314,7 +319,7 @@ export default function CRM() {
                             <span style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117' }}>{p.nombre_condominio}</span>
                           </div>
                           <div style={{ fontSize: '12px', color: '#5E6B62', marginTop: '2px' }}>
-                            {p.nombre_prospecto}{p.ciudad ? ` · ${p.ciudad}` : ''} · {p.num_pisos} pisos · {p.num_departamentos} dptos
+                            {p.nombre_prospecto}{p.ciudad ? ` · ${p.ciudad}` : ''} · {p.num_departamentos} dptos
                           </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -402,57 +407,70 @@ export default function CRM() {
 
               {/* Calculadora */}
               <div style={{ fontSize: '12px', fontWeight: 700, color: '#1A7A4A', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px', fontFamily: "'Inter', sans-serif" }}>Calculadora de precio</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <label style={labelStyle}>Pisos</label>
-                  <input type="number" min={1} value={numPisos} onChange={e => { setNumPisos(Number(e.target.value)); setPrecioManual(false) }} style={inputStyle} />
+
+              {/* Departamentos */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={labelStyle}>Departamentos</label>
+                <input type="number" min={1} value={numDptos} onChange={e => setNumDptos(Number(e.target.value))} style={{ ...inputStyle, width: '200px' }} />
+              </div>
+
+              {/* Opciones: Administradora + Visitas diarias */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                {/* Administradora */}
+                <div style={{ backgroundColor: adminActivo ? '#E8F4F0' : '#F4F7F5', borderRadius: '12px', padding: '16px', border: `1px solid ${adminActivo ? '#0D9E6E' : '#C8D4CB'}` }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: adminActivo ? '12px' : '0' }}>
+                    <input type="checkbox" checked={adminActivo} onChange={e => { setAdminActivo(e.target.checked); setPrecioManual(false) }}
+                      style={{ width: '18px', height: '18px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#0D1117', fontFamily: "'Inter', sans-serif" }}>Administradora</span>
+                  </label>
+                  {adminActivo && (
+                    <div>
+                      <label style={{ ...labelStyle, marginBottom: '4px' }}>Sueldo mensual (Bs.)</label>
+                      <input type="number" min={0} value={sueldoAdmin} onChange={e => { setSueldoAdmin(Number(e.target.value)); setPrecioManual(false) }} style={inputStyle} />
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label style={labelStyle}>Departamentos</label>
-                  <input type="number" min={1} value={numDptos} onChange={e => { setNumDptos(Number(e.target.value)); setPrecioManual(false) }} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Visitas / semana</label>
-                  <input type="number" min={1} value={visitasSem} onChange={e => { setVisitasSem(Number(e.target.value)); setPrecioManual(false) }} style={inputStyle} />
+
+                {/* Visitas diarias */}
+                <div style={{ backgroundColor: visitasActivo ? '#E8F4F0' : '#F4F7F5', borderRadius: '12px', padding: '16px', border: `1px solid ${visitasActivo ? '#0D9E6E' : '#C8D4CB'}` }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: visitasActivo ? '12px' : '0' }}>
+                    <input type="checkbox" checked={visitasActivo} onChange={e => { setVisitasActivo(e.target.checked); setPrecioManual(false) }}
+                      style={{ width: '18px', height: '18px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#0D1117', fontFamily: "'Inter', sans-serif" }}>Visitas diarias</span>
+                  </label>
+                  {visitasActivo && (
+                    <div>
+                      <label style={{ ...labelStyle, marginBottom: '4px' }}>Dias de visita al mes</label>
+                      <input type="number" min={1} max={31} value={diasVisita} onChange={e => { setDiasVisita(Number(e.target.value)); setPrecioManual(false) }} style={inputStyle} />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Desglose en tiempo real */}
+              {/* Desglose */}
               <div style={{ backgroundColor: '#F4F7F5', borderRadius: '12px', padding: '20px', marginBottom: '16px' }}>
                 <div style={{ fontSize: '12px', fontWeight: 600, color: '#5E6B62', marginBottom: '10px', fontFamily: "'Inter', sans-serif" }}>Desglose del precio</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontFamily: "'Inter', sans-serif" }}>
+                  {adminActivo && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#5E6B62' }}>Administradora</span>
+                      <span style={{ fontWeight: 600 }}>Bs. {sueldoAdmin.toLocaleString('es-BO')}</span>
+                    </div>
+                  )}
+                  {visitasActivo && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#5E6B62' }}>Visitas diarias ({diasVisita}d)</span>
+                      <span style={{ fontWeight: 600 }}>Bs. {((3300 / 30) * diasVisita).toFixed(0)}</span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#5E6B62' }}>Base (5 pisos, 20 dptos, 2 visitas)</span>
-                    <span style={{ fontWeight: 600 }}>Bs. 1.200</span>
+                    <span style={{ color: '#5E6B62' }}>App DOMIA</span>
+                    <span style={{ fontWeight: 600 }}>Bs. 350</span>
                   </div>
-                  {numPisos !== 5 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#5E6B62' }}>Ajuste pisos ({numPisos} pisos)</span>
-                      <span style={{ fontWeight: 600, color: (numPisos - 5) * 100 >= 0 ? '#0D1117' : '#1A7A4A' }}>{(numPisos - 5) * 100 > 0 ? '+' : ''}Bs. {((numPisos - 5) * 100).toFixed(0)}</span>
-                    </div>
-                  )}
-                  {numDptos > 20 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#5E6B62' }}>Dptos adicionales ({numDptos} dptos)</span>
-                      <span style={{ fontWeight: 600 }}>+Bs. {(Math.floor((numDptos - 20) / 10) * 50).toFixed(0)}</span>
-                    </div>
-                  )}
-                  {visitasSem > 2 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#5E6B62' }}>Visitas extra ({visitasSem} visitas)</span>
-                      <span style={{ fontWeight: 600 }}>+Bs. {((visitasSem - 2) * 150).toFixed(0)}</span>
-                    </div>
-                  )}
-                  {precioCalc <= 800 && precioCalc !== 1200 + (numPisos - 5) * 100 + Math.floor(Math.max(0, numDptos - 20) / 10) * 50 + Math.max(0, visitasSem - 2) * 150 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#C07A2E' }}>
-                      <span>Minimo aplicado</span>
-                      <span style={{ fontWeight: 600 }}>Bs. 800</span>
-                    </div>
-                  )}
                   <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '4px 0' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: 700, color: '#1A7A4A', fontSize: '15px', fontFamily: "'Nunito', sans-serif" }}>Precio calculado</span>
-                    <span style={{ fontWeight: 800, color: '#1A7A4A', fontSize: '18px', fontFamily: "'Nunito', sans-serif" }}>Bs. {precioCalc.toFixed(0)}</span>
+                    <span style={{ fontWeight: 700, color: '#1A7A4A', fontSize: '15px', fontFamily: "'Nunito', sans-serif" }}>TOTAL</span>
+                    <span style={{ fontWeight: 800, color: '#1A7A4A', fontSize: '18px', fontFamily: "'Nunito', sans-serif" }}>Bs. {precioCalc.toLocaleString('es-BO')}</span>
                   </div>
                 </div>
               </div>
