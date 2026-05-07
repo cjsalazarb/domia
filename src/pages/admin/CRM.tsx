@@ -580,7 +580,7 @@ export default function CRM() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                               <input type="checkbox" checked={benPolizaAcc} onChange={e => { setBenPolizaAcc(e.target.checked) }}
                                 style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
-                              <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif", flexShrink: 0 }}>Poliza Acc.</span>
+                              <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif", flexShrink: 0 }}>Póliza de Seguro contra Accidentes Personales</span>
                               <input type="number" min={0} value={montoPolizaAcc} onChange={e => { setMontoPolizaAcc(Number(e.target.value)) }}
                                 style={{ width: '72px', padding: '3px 6px', border: '1px solid #C8D4CB', borderRadius: '6px', fontSize: '12px', fontFamily: "'Inter', sans-serif", outline: 'none' }} />
                               <span style={{ fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>Bs/año</span>
@@ -595,7 +595,7 @@ export default function CRM() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                               <input type="checkbox" checked={benPolizaRC} onChange={e => { setBenPolizaRC(e.target.checked) }}
                                 style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
-                              <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif", flexShrink: 0 }}>Poliza RC</span>
+                              <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif", flexShrink: 0 }}>Póliza de Responsabilidad Civil</span>
                               <input type="number" min={0} value={montoPolizaRC} onChange={e => { setMontoPolizaRC(Number(e.target.value)) }}
                                 style={{ width: '72px', padding: '3px 6px', border: '1px solid #C8D4CB', borderRadius: '6px', fontSize: '12px', fontFamily: "'Inter', sans-serif", outline: 'none' }} />
                               <span style={{ fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>Bs/año</span>
