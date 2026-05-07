@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
@@ -27,6 +27,11 @@ interface Propuesta {
   notas: string | null
   condominio_creado_id: string | null
   created_at: string
+  administradora_enabled: boolean
+  administradora_sueldo: number
+  beneficios_json: Record<string, unknown>
+  utilidad_pct: number
+  utilidad_adicional: number
 }
 
 const ESTADOS: { value: Estado; label: string; color: string; bg: string }[] = [
@@ -39,10 +44,12 @@ const ESTADOS: { value: Estado; label: string; color: string; bg: string }[] = [
   { value: 'vencida', label: 'Vencida', color: '#B83232', bg: '#FCEAEA' },
 ]
 
-function calcularPrecio(visitasActivo: boolean, diasVisita: number, adminActivo: boolean, sueldoAdmin: number, totalBeneficios: number): number {
+function calcularPrecio(visitasActivo: boolean, diasVisita: number, adminActivo: boolean, sueldoAdmin: number, totalBeneficios: number, utilidadPct: number, utilidadAdicional: number): number {
   const costoVisitas = visitasActivo ? (3300 / 30) * diasVisita : 0
   const costoAdmin = adminActivo ? sueldoAdmin + totalBeneficios : 0
-  return 350 + costoVisitas + costoAdmin
+  const totalCostos = 350 + costoVisitas + costoAdmin
+  const utilidad = totalCostos * utilidadPct / 100
+  return totalCostos + utilidad + utilidadAdicional
 }
 
 function getEstadoStyle(estado: Estado) {
@@ -88,7 +95,8 @@ export default function CRM() {
   const [montoPolizaAcc, setMontoPolizaAcc] = useState(1200)
   const [benPolizaRC, setBenPolizaRC] = useState(false)
   const [montoPolizaRC, setMontoPolizaRC] = useState(1200)
-  const [precioFinal, setPrecioFinal] = useState(350)
+  const [utilidadPct, setUtilidadPct] = useState(0)
+  const [utilidadAdicional, setUtilidadAdicional] = useState(0)
   const [notas, setNotas] = useState('')
 
   const totalBeneficios = adminActivo ? (
@@ -105,11 +113,12 @@ export default function CRM() {
     (benPolizaRC ? montoPolizaRC / 12 : 0)
   ) : 0
 
-  const precioCalc = calcularPrecio(visitasActivo, diasVisita, adminActivo, sueldoAdmin, totalBeneficios)
-
-  // Sync precioFinal when params change (only if user hasn't manually overridden)
-  const [precioManual, setPrecioManual] = useState(false)
-  const precioMostrado = precioManual ? precioFinal : precioCalc
+  const precioCalc = calcularPrecio(visitasActivo, diasVisita, adminActivo, sueldoAdmin, totalBeneficios, utilidadPct, utilidadAdicional)
+  const totalCostosBase = (() => {
+    const costoVisitas = visitasActivo ? (3300 / 30) * diasVisita : 0
+    const costoAdmin = adminActivo ? sueldoAdmin + totalBeneficios : 0
+    return 350 + costoVisitas + costoAdmin
+  })()
 
   const { data: propuestas = [], isLoading } = useQuery({
     queryKey: ['propuestas-crm'],
@@ -184,13 +193,19 @@ export default function CRM() {
     setBenRiesgos(false); setBenVacaciones(false); setBenAntiguedad(false); setPctAntiguedad(5)
     setBenFrontera(false); setBenProduccion(false); setMontoProduccion(500)
     setBenPolizaAcc(false); setMontoPolizaAcc(1200); setBenPolizaRC(false); setMontoPolizaRC(1200)
-    setPrecioFinal(350)
-    setPrecioManual(false)
+    setUtilidadPct(0); setUtilidadAdicional(0)
     setNotas('')
   }
 
   function abrirEditar(p: Propuesta) {
     setEditando(p)
+    setVista('form')
+  }
+
+  // Pre-populate calculator state whenever editando changes
+  useEffect(() => {
+    if (!editando) return
+    const p = editando
     setNombreProspecto(p.nombre_prospecto)
     setTelefono(p.telefono || '')
     setEmail(p.email || '')
@@ -198,21 +213,27 @@ export default function CRM() {
     setDireccion(p.direccion || '')
     setCiudad(p.ciudad || '')
     setNumDptos(p.num_departamentos)
-    const dias = p.visitas_semanales > 0 ? p.visitas_semanales : 10
+    // Visitas
     setVisitasActivo(p.visitas_semanales > 0)
-    setDiasVisita(dias)
-    setAdminActivo(false)
-    setSueldoAdmin(3000)
+    setDiasVisita(p.visitas_semanales > 0 ? p.visitas_semanales : 10)
+    // Administradora
+    setAdminActivo(!!p.administradora_enabled)
+    setSueldoAdmin(Number(p.administradora_sueldo) || 3000)
+    // Benefits
+    const b: Record<string, unknown> = p.beneficios_json || {}
     setBeneficiosExpandido(false)
-    setBenAguinaldo(false); setBenAfp(false); setBenCns(false); setBenProBolivia(false)
-    setBenRiesgos(false); setBenVacaciones(false); setBenAntiguedad(false); setPctAntiguedad(5)
-    setBenFrontera(false); setBenProduccion(false); setMontoProduccion(500)
-    setBenPolizaAcc(false); setMontoPolizaAcc(1200); setBenPolizaRC(false); setMontoPolizaRC(1200)
-    setPrecioFinal(p.precio_final)
-    setPrecioManual(true)
+    setBenAguinaldo(!!b.aguinaldo); setBenAfp(!!b.afp); setBenCns(!!b.cns)
+    setBenProBolivia(!!b.pro_bolivia); setBenRiesgos(!!b.riesgos); setBenVacaciones(!!b.vacaciones)
+    setBenAntiguedad(!!b.antiguedad); setPctAntiguedad(Number(b.pct_antiguedad) || 5)
+    setBenFrontera(!!b.frontera)
+    setBenProduccion(!!b.produccion); setMontoProduccion(Number(b.monto_produccion) || 500)
+    setBenPolizaAcc(!!b.poliza_acc); setMontoPolizaAcc(Number(b.monto_poliza_acc) || 1200)
+    setBenPolizaRC(!!b.poliza_rc); setMontoPolizaRC(Number(b.monto_poliza_rc) || 1200)
+    // Utilidad
+    setUtilidadPct(Number(p.utilidad_pct) || 0)
+    setUtilidadAdicional(Number(p.utilidad_adicional) || 0)
     setNotas(p.notas || '')
-    setVista('form')
-  }
+  }, [editando])
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -226,8 +247,21 @@ export default function CRM() {
       num_pisos: 1,
       num_departamentos: numDptos,
       visitas_semanales: visitasActivo ? diasVisita : 0,
+      administradora_enabled: adminActivo,
+      administradora_sueldo: adminActivo ? sueldoAdmin : 0,
+      beneficios_json: adminActivo ? {
+        aguinaldo: benAguinaldo, afp: benAfp, cns: benCns, pro_bolivia: benProBolivia,
+        riesgos: benRiesgos, vacaciones: benVacaciones,
+        antiguedad: benAntiguedad, pct_antiguedad: pctAntiguedad,
+        frontera: benFrontera,
+        produccion: benProduccion, monto_produccion: montoProduccion,
+        poliza_acc: benPolizaAcc, monto_poliza_acc: montoPolizaAcc,
+        poliza_rc: benPolizaRC, monto_poliza_rc: montoPolizaRC,
+      } : {},
+      utilidad_pct: utilidadPct,
+      utilidad_adicional: utilidadAdicional,
       precio_calculado: precioCalc,
-      precio_final: precioMostrado,
+      precio_final: precioCalc,
       notas: notas || null,
       ...(!editando && { created_by: profile!.id, estado: 'borrador' }),
       updated_at: new Date().toISOString(),
@@ -460,14 +494,14 @@ export default function CRM() {
                 {/* Administradora */}
                 <div style={{ backgroundColor: adminActivo ? '#E8F4F0' : '#F4F7F5', borderRadius: '12px', padding: '16px', border: `1px solid ${adminActivo ? '#0D9E6E' : '#C8D4CB'}` }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: adminActivo ? '12px' : '0' }}>
-                    <input type="checkbox" checked={adminActivo} onChange={e => { setAdminActivo(e.target.checked); setPrecioManual(false) }}
+                    <input type="checkbox" checked={adminActivo} onChange={e => { setAdminActivo(e.target.checked) }}
                       style={{ width: '18px', height: '18px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
                     <span style={{ fontSize: '14px', fontWeight: 600, color: '#0D1117', fontFamily: "'Inter', sans-serif" }}>Administradora</span>
                   </label>
                   {adminActivo && (
                     <div>
                       <label style={{ ...labelStyle, marginBottom: '4px' }}>Sueldo mensual (Bs.)</label>
-                      <input type="number" min={0} value={sueldoAdmin} onChange={e => { setSueldoAdmin(Number(e.target.value)); setPrecioManual(false) }} style={inputStyle} />
+                      <input type="number" min={0} value={sueldoAdmin} onChange={e => { setSueldoAdmin(Number(e.target.value)) }} style={inputStyle} />
 
                       {/* Beneficios salariales */}
                       <button type="button" onClick={() => setBeneficiosExpandido(v => !v)}
@@ -489,7 +523,7 @@ export default function CRM() {
                           ].map(b => (
                             <label key={b.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', gap: '8px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <input type="checkbox" checked={b.checked} onChange={e => { b.set(e.target.checked); setPrecioManual(false) }}
+                                <input type="checkbox" checked={b.checked} onChange={e => { b.set(e.target.checked) }}
                                   style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
                                 <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif" }}>{b.label}</span>
                               </div>
@@ -502,10 +536,10 @@ export default function CRM() {
                           {/* Bono Antigüedad */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <input type="checkbox" checked={benAntiguedad} onChange={e => { setBenAntiguedad(e.target.checked); setPrecioManual(false) }}
+                              <input type="checkbox" checked={benAntiguedad} onChange={e => { setBenAntiguedad(e.target.checked) }}
                                 style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
                               <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif" }}>Bono Antiguedad</span>
-                              <input type="number" min={0} max={100} value={pctAntiguedad} onChange={e => { setPctAntiguedad(Number(e.target.value)); setPrecioManual(false) }}
+                              <input type="number" min={0} max={100} value={pctAntiguedad} onChange={e => { setPctAntiguedad(Number(e.target.value)) }}
                                 style={{ width: '52px', padding: '3px 6px', border: '1px solid #C8D4CB', borderRadius: '6px', fontSize: '12px', fontFamily: "'Inter', sans-serif", outline: 'none' }} />
                               <span style={{ fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>%</span>
                             </div>
@@ -517,7 +551,7 @@ export default function CRM() {
                           {/* Subsidio Frontera */}
                           <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', gap: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <input type="checkbox" checked={benFrontera} onChange={e => { setBenFrontera(e.target.checked); setPrecioManual(false) }}
+                              <input type="checkbox" checked={benFrontera} onChange={e => { setBenFrontera(e.target.checked) }}
                                 style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
                               <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif" }}>Subsidio Frontera</span>
                             </div>
@@ -529,10 +563,10 @@ export default function CRM() {
                           {/* Bono Producción */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <input type="checkbox" checked={benProduccion} onChange={e => { setBenProduccion(e.target.checked); setPrecioManual(false) }}
+                              <input type="checkbox" checked={benProduccion} onChange={e => { setBenProduccion(e.target.checked) }}
                                 style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
                               <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif" }}>Bono Produccion</span>
-                              <input type="number" min={0} value={montoProduccion} onChange={e => { setMontoProduccion(Number(e.target.value)); setPrecioManual(false) }}
+                              <input type="number" min={0} value={montoProduccion} onChange={e => { setMontoProduccion(Number(e.target.value)) }}
                                 style={{ width: '72px', padding: '3px 6px', border: '1px solid #C8D4CB', borderRadius: '6px', fontSize: '12px', fontFamily: "'Inter', sans-serif", outline: 'none' }} />
                               <span style={{ fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>Bs/mes</span>
                             </div>
@@ -544,10 +578,10 @@ export default function CRM() {
                           {/* Póliza Accidentes Personales */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                              <input type="checkbox" checked={benPolizaAcc} onChange={e => { setBenPolizaAcc(e.target.checked); setPrecioManual(false) }}
+                              <input type="checkbox" checked={benPolizaAcc} onChange={e => { setBenPolizaAcc(e.target.checked) }}
                                 style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
                               <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif", flexShrink: 0 }}>Poliza Acc.</span>
-                              <input type="number" min={0} value={montoPolizaAcc} onChange={e => { setMontoPolizaAcc(Number(e.target.value)); setPrecioManual(false) }}
+                              <input type="number" min={0} value={montoPolizaAcc} onChange={e => { setMontoPolizaAcc(Number(e.target.value)) }}
                                 style={{ width: '72px', padding: '3px 6px', border: '1px solid #C8D4CB', borderRadius: '6px', fontSize: '12px', fontFamily: "'Inter', sans-serif", outline: 'none' }} />
                               <span style={{ fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>Bs/año</span>
                             </div>
@@ -559,10 +593,10 @@ export default function CRM() {
                           {/* Póliza Responsabilidad Civil */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                              <input type="checkbox" checked={benPolizaRC} onChange={e => { setBenPolizaRC(e.target.checked); setPrecioManual(false) }}
+                              <input type="checkbox" checked={benPolizaRC} onChange={e => { setBenPolizaRC(e.target.checked) }}
                                 style={{ width: '15px', height: '15px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
                               <span style={{ fontSize: '12px', color: '#0D1117', fontFamily: "'Inter', sans-serif", flexShrink: 0 }}>Poliza RC</span>
-                              <input type="number" min={0} value={montoPolizaRC} onChange={e => { setMontoPolizaRC(Number(e.target.value)); setPrecioManual(false) }}
+                              <input type="number" min={0} value={montoPolizaRC} onChange={e => { setMontoPolizaRC(Number(e.target.value)) }}
                                 style={{ width: '72px', padding: '3px 6px', border: '1px solid #C8D4CB', borderRadius: '6px', fontSize: '12px', fontFamily: "'Inter', sans-serif", outline: 'none' }} />
                               <span style={{ fontSize: '11px', color: '#5E6B62', fontFamily: "'Inter', sans-serif" }}>Bs/año</span>
                             </div>
@@ -585,16 +619,30 @@ export default function CRM() {
                 {/* Visitas diarias */}
                 <div style={{ backgroundColor: visitasActivo ? '#E8F4F0' : '#F4F7F5', borderRadius: '12px', padding: '16px', border: `1px solid ${visitasActivo ? '#0D9E6E' : '#C8D4CB'}` }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: visitasActivo ? '12px' : '0' }}>
-                    <input type="checkbox" checked={visitasActivo} onChange={e => { setVisitasActivo(e.target.checked); setPrecioManual(false) }}
+                    <input type="checkbox" checked={visitasActivo} onChange={e => { setVisitasActivo(e.target.checked) }}
                       style={{ width: '18px', height: '18px', accentColor: '#0D9E6E', cursor: 'pointer', flexShrink: 0 }} />
                     <span style={{ fontSize: '14px', fontWeight: 600, color: '#0D1117', fontFamily: "'Inter', sans-serif" }}>Visitas diarias</span>
                   </label>
                   {visitasActivo && (
                     <div>
                       <label style={{ ...labelStyle, marginBottom: '4px' }}>Dias de visita al mes</label>
-                      <input type="number" min={1} max={31} value={diasVisita} onChange={e => { setDiasVisita(Number(e.target.value)); setPrecioManual(false) }} style={inputStyle} />
+                      <input type="number" min={1} max={31} value={diasVisita} onChange={e => { setDiasVisita(Number(e.target.value)) }} style={inputStyle} />
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Utilidad */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                <div>
+                  <label style={labelStyle}>Porcentaje de utilidad (%)</label>
+                  <input type="number" min={0} max={100} step={0.5} value={utilidadPct}
+                    onChange={e => setUtilidadPct(Number(e.target.value))} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Utilidad adicional (Bs.)</label>
+                  <input type="number" min={0} value={utilidadAdicional}
+                    onChange={e => setUtilidadAdicional(Number(e.target.value))} style={inputStyle} />
                 </div>
               </div>
 
@@ -626,18 +674,24 @@ export default function CRM() {
                     <span style={{ color: '#5E6B62' }}>App DOMIA</span>
                     <span style={{ fontWeight: 600 }}>Bs. 350</span>
                   </div>
+                  {utilidadPct > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#5E6B62' }}>Utilidad ({utilidadPct}%)</span>
+                      <span style={{ fontWeight: 600 }}>Bs. {(totalCostosBase * utilidadPct / 100).toFixed(0)}</span>
+                    </div>
+                  )}
+                  {utilidadAdicional > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#5E6B62' }}>Utilidad adicional</span>
+                      <span style={{ fontWeight: 600 }}>Bs. {utilidadAdicional.toFixed(0)}</span>
+                    </div>
+                  )}
                   <div style={{ height: '1px', backgroundColor: '#C8D4CB', margin: '4px 0' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: 700, color: '#1A7A4A', fontSize: '15px', fontFamily: "'Nunito', sans-serif" }}>TOTAL</span>
+                    <span style={{ fontWeight: 700, color: '#1A7A4A', fontSize: '15px', fontFamily: "'Nunito', sans-serif" }}>PRECIO FINAL</span>
                     <span style={{ fontWeight: 800, color: '#1A7A4A', fontSize: '18px', fontFamily: "'Nunito', sans-serif" }}>Bs. {precioCalc.toLocaleString('es-BO')}</span>
                   </div>
                 </div>
-              </div>
-
-              {/* Precio final override */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={labelStyle}>Precio final (puedes ajustar manualmente)</label>
-                <input type="number" min={0} value={precioMostrado} onChange={e => { setPrecioFinal(Number(e.target.value)); setPrecioManual(true) }} style={{ ...inputStyle, fontWeight: 700, fontSize: '16px', color: '#1A7A4A' }} />
               </div>
 
               {/* Notas */}
