@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useEdificios, useUnidades, useDocumentos, useCondominios } from '@/hooks/useCondominios'
@@ -71,6 +71,15 @@ function TabUnidades({ condominioId }: { condominioId: string }) {
     queryFn: async () => {
       const { data } = await supabase.from('condominios').select('nombre').eq('id', condominioId).single()
       return data?.nombre || ''
+    },
+    enabled: !!condominioId,
+  })
+
+  const { data: condoCostoM2 } = useQuery({
+    queryKey: ['condo-costo-m2-unidades', condominioId],
+    queryFn: async () => {
+      const { data } = await supabase.from('condominios').select('costo_m2').eq('id', condominioId).single()
+      return data?.costo_m2 as number | null ?? null
     },
     enabled: !!condominioId,
   })
@@ -177,22 +186,31 @@ function TabUnidades({ condominioId }: { condominioId: string }) {
 
       {unidades.length === 0 ? <div style={{ color: '#5E6B62', fontSize: '13px', padding: '20px', textAlign: 'center' }}>Sin unidades</div> : (
         <div style={{ backgroundColor: 'white', borderRadius: '16px', overflow: 'hidden', border: '1px solid #E8F4F0' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 0.8fr 0.6fr 0.8fr', padding: '10px 16px', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            <span>Numero</span><span>Edificio</span><span>Piso</span><span>Tipo</span><span>m²</span><span></span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.5fr 0.8fr 0.5fr 0.9fr 0.8fr', padding: '10px 16px', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <span>Numero</span><span>Edificio</span><span>Piso</span><span>Tipo</span><span>m²</span><span>Cuota (Bs.)</span><span></span>
           </div>
-          {unidades.map((u, i) => (
-            <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.7fr 0.8fr 0.6fr 0.8fr', padding: '10px 16px', fontSize: '13px', borderBottom: i < unidades.length - 1 ? '1px solid #F0F0F0' : 'none', alignItems: 'center' }}>
-              <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117' }}>{u.numero}</span>
-              <span style={{ color: '#5E6B62' }}>{(u.edificios as { nombre: string } | null)?.nombre || '—'}</span>
-              <span style={{ color: '#5E6B62' }}>{u.piso || '—'}</span>
-              <span style={{ color: '#5E6B62', textTransform: 'capitalize' }}>{u.tipo.replace('_', ' ')}</span>
-              <span style={{ color: '#5E6B62' }}>{u.area_m2 || '—'}</span>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                <button onClick={() => openEdit(u)} style={{ padding: '3px 8px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Editar</button>
-                <button onClick={() => handleDelete(u.id)} style={{ padding: '3px 8px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Eliminar</button>
+          {unidades.map((u, i) => {
+            const cuota = condoCostoM2 != null && u.area_m2 != null ? u.area_m2 * condoCostoM2 : null
+            const sinM2 = condoCostoM2 != null && u.area_m2 == null
+            return (
+              <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.5fr 0.8fr 0.5fr 0.9fr 0.8fr', padding: '10px 16px', fontSize: '13px', borderBottom: i < unidades.length - 1 ? '1px solid #F0F0F0' : 'none', alignItems: 'center' }}>
+                <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117' }}>{u.numero}</span>
+                <span style={{ color: '#5E6B62' }}>{(u.edificios as { nombre: string } | null)?.nombre || '—'}</span>
+                <span style={{ color: '#5E6B62' }}>{u.piso || '—'}</span>
+                <span style={{ color: '#5E6B62', textTransform: 'capitalize' }}>{u.tipo.replace('_', ' ')}</span>
+                <span style={{ color: '#5E6B62' }}>{u.area_m2 ?? '—'}</span>
+                {condoCostoM2 == null
+                  ? <span style={{ color: '#5E6B62', fontSize: '11px' }}>Sin tarifa</span>
+                  : sinM2
+                    ? <span style={{ color: '#C07A2E', fontSize: '11px', fontWeight: 600 }}>Sin m²</span>
+                    : <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#1A7A4A' }}>Bs. {cuota!.toFixed(0)}</span>}
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button onClick={() => openEdit(u)} style={{ padding: '3px 8px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Editar</button>
+                  <button onClick={() => handleDelete(u.id)} style={{ padding: '3px 8px', backgroundColor: '#FCEAEA', color: '#B83232', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Eliminar</button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -356,19 +374,118 @@ function TabDocumentos({ condominioId }: { condominioId: string }) {
 }
 
 function TabConfig({ condominioId }: { condominioId: string }) {
+  const qc = useQueryClient()
   const { cuotasActuales } = useCuotas(condominioId)
+  const [costoM2, setCostoM2] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [success, setSuccess] = useState('')
+  const [error, setError] = useState('')
+
+  const { data: condoCosto } = useQuery({
+    queryKey: ['condo-costo-m2', condominioId],
+    queryFn: async () => {
+      const { data } = await supabase.from('condominios').select('costo_m2').eq('id', condominioId).single()
+      return data
+    },
+    enabled: !!condominioId,
+  })
+
+  const { data: unidadesResumen } = useQuery({
+    queryKey: ['unidades-resumen-cuotas', condominioId],
+    queryFn: async () => {
+      const { data } = await supabase.from('unidades').select('numero, area_m2').eq('condominio_id', condominioId).eq('activa', true).order('numero')
+      return data || []
+    },
+    enabled: !!condominioId,
+  })
+
+  useEffect(() => {
+    if (condoCosto?.costo_m2 != null) setCostoM2(String(condoCosto.costo_m2))
+  }, [condoCosto])
+
+  const handleSave = async () => {
+    setSaving(true); setError(''); setSuccess('')
+    try {
+      const valor = costoM2 ? parseFloat(costoM2) : null
+      const { error: err } = await supabase.from('condominios').update({ costo_m2: valor }).eq('id', condominioId)
+      if (err) throw err
+      qc.invalidateQueries({ queryKey: ['condo-costo-m2', condominioId] })
+      qc.invalidateQueries({ queryKey: ['condo-costo-m2-unidades', condominioId] })
+      setSuccess('Tarifa guardada correctamente')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar')
+    } finally { setSaving(false) }
+  }
+
+  const tarifaActual = costoM2 ? parseFloat(costoM2) : null
+
   return (
     <div>
-      <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Cuotas actuales</h3>
-      {Object.keys(cuotasActuales).length === 0 ? <div style={{ color: '#5E6B62', fontSize: '13px', padding: '20px', textAlign: 'center' }}>Sin cuotas configuradas. Ve al módulo Financiero para configurar.</div> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {Object.entries(cuotasActuales).map(([tipo, cuota]) => (
-            <div key={tipo} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', backgroundColor: '#F4F7F5', borderRadius: '10px', alignItems: 'center' }}>
-              <span style={{ fontFamily: "'Inter', sans-serif", color: '#0D1117', textTransform: 'capitalize' }}>{tipo.replace('_', ' ')}</span>
-              <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, color: '#1A7A4A' }}>Bs. {Number(cuota.monto).toFixed(2)}</span>
-            </div>
-          ))}
+      <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Tarifa por m²</h3>
+
+      <div style={{ backgroundColor: '#F4F7F5', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#5E6B62', margin: '0 0 14px', lineHeight: '1.5' }}>
+          Define una tarifa global por m². Las cuotas mensuales se calcularán automáticamente: <strong>m² × tarifa</strong>. Si una unidad no tiene m², se usará la cuota fija como respaldo.
+        </p>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '180px' }}>
+            <label style={lS}>Tarifa por m² (Bs/m²)</label>
+            <input type="number" value={costoM2} onChange={e => { setCostoM2(e.target.value); setSuccess('') }}
+              placeholder="Ej: 8.00" min="0" step="0.01" style={iS} />
+          </div>
+          <button onClick={handleSave} disabled={saving} style={{
+            padding: '10px 20px', backgroundColor: saving ? '#C8D4CB' : '#1A7A4A', color: 'white',
+            border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700,
+            fontFamily: "'Nunito', sans-serif", cursor: saving ? 'not-allowed' : 'pointer',
+          }}>{saving ? 'Guardando...' : 'Guardar tarifa'}</button>
         </div>
+        {error && <div style={{ backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#B83232', marginTop: '10px', fontFamily: "'Inter', sans-serif" }}>{error}</div>}
+        {success && <div style={{ backgroundColor: '#E8F4F0', borderLeft: '3px solid #1A7A4A', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#1A7A4A', marginTop: '10px', fontFamily: "'Inter', sans-serif" }}>{success}</div>}
+      </div>
+
+      {tarifaActual != null && unidadesResumen && unidadesResumen.length > 0 && (
+        <div style={{ marginBottom: '20px' }}>
+          <h4 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '14px', fontWeight: 700, color: '#0D1117', margin: '0 0 10px' }}>
+            Resumen a Bs. {tarifaActual.toFixed(2)}/m²
+          </h4>
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', border: '1px solid #E8F4F0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.8fr 1fr', padding: '8px 14px', backgroundColor: '#F4F7F5', fontFamily: "'Inter', sans-serif", fontSize: '10px', fontWeight: 600, color: '#5E6B62', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              <span>Unidad</span><span>m²</span><span>Cuota (Bs.)</span>
+            </div>
+            {unidadesResumen.map((u, i) => {
+              const cuota = u.area_m2 != null ? u.area_m2 * tarifaActual : null
+              return (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 0.8fr 1fr', padding: '8px 14px', fontSize: '13px', borderBottom: i < unidadesResumen.length - 1 ? '1px solid #F0F0F0' : 'none', alignItems: 'center' }}>
+                  <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#0D1117' }}>{u.numero}</span>
+                  <span style={{ color: u.area_m2 != null ? '#5E6B62' : '#C07A2E' }}>{u.area_m2 != null ? u.area_m2 : 'Sin m²'}</span>
+                  {cuota != null
+                    ? <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: '#1A7A4A' }}>Bs. {cuota.toFixed(0)}</span>
+                    : <span style={{ color: '#C07A2E', fontSize: '12px' }}>Sin m²</span>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {Object.keys(cuotasActuales).length > 0 && (
+        <div>
+          <h4 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '14px', fontWeight: 600, color: '#5E6B62', margin: '0 0 8px' }}>
+            Cuotas fijas {tarifaActual ? '(respaldo para unidades sin m²)' : ''}
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {Object.entries(cuotasActuales).map(([tipo, cuota]) => (
+              <div key={tipo} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', backgroundColor: '#F4F7F5', borderRadius: '10px', alignItems: 'center', opacity: tarifaActual ? 0.6 : 1 }}>
+                <span style={{ fontFamily: "'Inter', sans-serif", color: '#0D1117', textTransform: 'capitalize' }}>{tipo.replace('_', ' ')}</span>
+                <span style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 800, color: '#1A7A4A' }}>Bs. {Number(cuota.monto).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {Object.keys(cuotasActuales).length === 0 && !tarifaActual && (
+        <div style={{ color: '#5E6B62', fontSize: '13px', padding: '20px', textAlign: 'center' }}>Sin cuotas configuradas. Ingresa una tarifa por m² o ve al módulo Financiero para configurar cuotas fijas.</div>
       )}
     </div>
   )

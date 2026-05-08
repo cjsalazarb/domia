@@ -24,8 +24,8 @@ serve(async () => {
     const { data: unidades, error: unidadesErr } = await supabase
       .from('unidades')
       .select(`
-        id, numero, tipo, condominio_id, pagador_cuota,
-        condominios(nombre),
+        id, numero, tipo, area_m2, condominio_id, pagador_cuota,
+        condominios(nombre, costo_m2),
         residentes(id, nombre, apellido, email, tipo)
       `)
       .eq('activa', true)
@@ -59,12 +59,22 @@ serve(async () => {
 
     for (const unidad of unidades || []) {
       try {
-        // Find the cuota for this unit type
-        const cuotaKey = `${unidad.condominio_id}:${unidad.tipo}`
-        const monto = cuotaMap[cuotaKey]
-        if (!monto) {
-          omitidos++
-          continue
+        // Determine amount: prefer m² × costo_m2, fall back to fixed cuota
+        const condo = unidad.condominios as { nombre: string; costo_m2: number | null } | null
+        const costoM2 = condo?.costo_m2 ?? null
+        const areaM2 = (unidad as unknown as { area_m2: number | null }).area_m2 ?? null
+
+        let monto: number
+        if (costoM2 != null && areaM2 != null) {
+          monto = areaM2 * costoM2
+        } else {
+          const cuotaKey = `${unidad.condominio_id}:${unidad.tipo}`
+          const cuotaFija = cuotaMap[cuotaKey]
+          if (!cuotaFija) {
+            omitidos++
+            continue
+          }
+          monto = cuotaFija
         }
 
         // Find the resident who should pay

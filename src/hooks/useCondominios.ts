@@ -6,6 +6,7 @@ export interface Condominio {
   nit: string | null; telefono: string | null; email_contacto: string | null; logo_url: string | null;
   estado: string; admin_id: string | null; recargo_mora_porcentaje: number; notas: string | null;
   tiene_personeria_juridica: boolean;
+  costo_m2: number | null;
   archivado_en: string | null; archivado_por: string | null;
   eliminado_en: string | null; eliminado_por: string | null;
   created_at: string;
