@@ -7,6 +7,7 @@ function App() {
   const { loading, initialize } = useAuthStore()
 
   useEffect(() => {
+    document.getElementById('initial-loader')?.remove()
     initialize()
   }, [initialize])
 

@@ -12,6 +12,17 @@
     <title>DOMIA</title>
   </head>
   <body>
+    <div id="initial-loader" style="display:flex;align-items:center;justify-content:center;height:100vh;background:#F4F7F5;font-family:'Nunito',sans-serif;">
+      <div style="text-align:center;">
+        <div style="font-size:28px;font-weight:800;letter-spacing:1px;">
+          <span style="color:#0D1117;">DOM</span><span style="color:#1A7A4A;">IA</span>
+        </div>
+        <div style="margin-top:16px;display:flex;justify-content:center;">
+          <div style="width:32px;height:32px;border:3px solid #1A7A4A;border-top-color:transparent;border-radius:50%;animation:domia-spin 0.8s linear infinite;"></div>
+        </div>
+      </div>
+    </div>
+    <style>@keyframes domia-spin{to{transform:rotate(360deg)}}</style>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
