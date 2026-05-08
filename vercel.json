@@ -1,5 +1,15 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron/subscription-reminders",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/generar-recibos",
+      "schedule": "0 12 1 * *"
+    }
+  ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/|assets/|.*\\..*).*)", "destination": "/index.html" }
   ]
 }
