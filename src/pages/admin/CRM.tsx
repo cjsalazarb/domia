@@ -65,6 +65,8 @@ export default function CRM() {
   const [editando, setEditando] = useState<Propuesta | null>(null)
   const [filtroEstado, setFiltroEstado] = useState<Estado | 'todos'>('todos')
   const [busqueda, setBusqueda] = useState('')
+  const [pdfLoading, setPdfLoading] = useState<string | null>(null)
+  const [pdfError, setPdfError] = useState<string | null>(null)
 
   // Form state
   const [nombreProspecto, setNombreProspecto] = useState('')
@@ -269,8 +271,24 @@ export default function CRM() {
   }
 
   async function handlePDF(p: Propuesta) {
-    const blob = await pdf(<PropuestaPDF propuesta={p as any} />).toBlob()
-    window.open(URL.createObjectURL(blob), '_blank')
+    setPdfLoading(p.id)
+    setPdfError(null)
+    try {
+      const blob = await pdf(<PropuestaPDF propuesta={p as any} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `propuesta-${p.nombre_condominio.replace(/\s+/g, '-').toLowerCase()}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('PDF error:', err)
+      setPdfError('Error al generar PDF: ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setPdfLoading(null)
+    }
   }
 
   // KPIs
@@ -339,6 +357,13 @@ export default function CRM() {
             </div>
 
             {/* Filtros y búsqueda */}
+            {pdfError && (
+              <div style={{ backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#B83232', marginBottom: '16px', fontFamily: "'Inter', sans-serif", display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>{pdfError}</span>
+                <button onClick={() => setPdfError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B83232', fontSize: '16px', lineHeight: 1, padding: '0 4px' }}>×</button>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
               <input
                 type="text"
@@ -405,7 +430,9 @@ export default function CRM() {
 
                       <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
                         <button onClick={() => abrirEditar(p)} style={{ padding: '6px 14px', backgroundColor: '#F4F7F5', color: '#0D1117', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>Editar</button>
-                        <button onClick={() => handlePDF(p)} style={{ padding: '6px 14px', backgroundColor: '#EBF4FF', color: '#0D4A8F', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>PDF</button>
+                        <button onClick={() => handlePDF(p)} disabled={pdfLoading === p.id} style={{ padding: '6px 14px', backgroundColor: pdfLoading === p.id ? '#C8D4CB' : '#EBF4FF', color: pdfLoading === p.id ? '#5E6B62' : '#0D4A8F', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: pdfLoading === p.id ? 'not-allowed' : 'pointer', fontFamily: "'Inter', sans-serif" }}>
+                          {pdfLoading === p.id ? 'Generando...' : 'PDF'}
+                        </button>
 
                         {/* Estado transitions */}
                         {p.estado === 'borrador' && (
