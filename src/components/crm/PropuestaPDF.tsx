@@ -1,13 +1,16 @@
 import { Document, Page, Text, View, Image, StyleSheet, Font } from '@react-pdf/renderer'
 import altrionLogo from '@/assets/altrion-logo.jpg'
+import RobotoRegular from '@/assets/fonts/Roboto-Regular.ttf'
+import RobotoBold from '@/assets/fonts/Roboto-Bold.ttf'
+import RobotoItalic from '@/assets/fonts/Roboto-Italic.ttf'
 
-/* ─── Roboto — soporte completo de caracteres latinos (á é í ó ú ñ ü ¿ ¡) ─── */
+/* ─── Roboto local — sin dependencia de CDN, soporte completo de latinos ─── */
 Font.register({
   family: 'Roboto',
   fonts: [
-    { src: 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxP.ttf' },
-    { src: 'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmEU9fBBc9.ttf', fontWeight: 700 },
-    { src: 'https://fonts.gstatic.com/s/roboto/v30/KFOkCnqEu92Fr1Mu51xIIzI.ttf', fontStyle: 'italic' },
+    { src: RobotoRegular },
+    { src: RobotoBold, fontWeight: 'bold' },
+    { src: RobotoItalic, fontStyle: 'italic' },
   ],
 })
 
