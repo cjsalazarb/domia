@@ -1,5 +1,15 @@
-import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer'
+import { Document, Page, Text, View, Image, StyleSheet, Font } from '@react-pdf/renderer'
 import altrionLogo from '@/assets/altrion-logo.jpg'
+
+/* ─── Roboto — soporte completo de caracteres latinos (á é í ó ú ñ ü ¿ ¡) ─── */
+Font.register({
+  family: 'Roboto',
+  fonts: [
+    { src: 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxP.ttf' },
+    { src: 'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmEU9fBBc9.ttf', fontWeight: 700 },
+    { src: 'https://fonts.gstatic.com/s/roboto/v30/KFOkCnqEu92Fr1Mu51xIIzI.ttf', fontStyle: 'italic' },
+  ],
+})
 
 /* ─── colores ALTRION ─── */
 const C = {
@@ -17,78 +27,78 @@ const s = StyleSheet.create({
   coverTop: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 60 },
   coverLogo: { width: 180, marginBottom: 30 },
   coverLine: { width: 60, height: 2, backgroundColor: C.gold, marginBottom: 24 },
-  coverTitle: { fontFamily: 'Helvetica-Bold', fontSize: 28, color: C.white, textAlign: 'center', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 },
-  coverSubtitle: { fontFamily: 'Helvetica', fontSize: 14, color: C.gold, textAlign: 'center', letterSpacing: 1 },
+  coverTitle: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 28, color: C.white, textAlign: 'center', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 },
+  coverSubtitle: { fontFamily: 'Roboto', fontSize: 14, color: C.gold, textAlign: 'center', letterSpacing: 1 },
   coverBottom: { paddingHorizontal: 60, paddingBottom: 50 },
   coverInfoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  coverLabel: { fontFamily: 'Helvetica', fontSize: 9, color: C.gold, textTransform: 'uppercase', letterSpacing: 1 },
-  coverValue: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: C.white },
+  coverLabel: { fontFamily: 'Roboto', fontSize: 9, color: C.gold, textTransform: 'uppercase', letterSpacing: 1 },
+  coverValue: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 11, color: C.white },
   coverDivider: { height: 1, backgroundColor: C.gold, opacity: 0.3, marginBottom: 20, marginTop: 10 },
 
-  /* ── Paginas interiores ── */
-  innerPage: { padding: 50, fontFamily: 'Helvetica', fontSize: 10, color: C.darkText },
+  /* ── Páginas interiores ── */
+  innerPage: { padding: 50, fontFamily: 'Roboto', fontSize: 10, color: C.darkText },
   innerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   innerLogo: { width: 80 },
-  innerHeaderTitle: { fontFamily: 'Helvetica-Bold', fontSize: 9, color: C.midGray, textTransform: 'uppercase', letterSpacing: 1 },
+  innerHeaderTitle: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 9, color: C.midGray, textTransform: 'uppercase', letterSpacing: 1 },
   innerDivider: { height: 2, backgroundColor: C.gold, marginBottom: 20 },
-  pageTitle: { fontFamily: 'Helvetica-Bold', fontSize: 18, color: C.navy, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
+  pageTitle: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 18, color: C.navy, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
   pageSubtitle: { fontSize: 10, color: C.midGray, marginBottom: 20 },
-  sectionTitle: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: C.navy, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 16 },
+  sectionTitle: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 11, color: C.navy, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 16 },
   paragraph: { fontSize: 10, lineHeight: 1.7, marginBottom: 10, color: C.darkText },
   bulletRow: { flexDirection: 'row', marginBottom: 6, paddingLeft: 8 },
   bulletDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.gold, marginTop: 4, marginRight: 8 },
   bulletText: { flex: 1, fontSize: 10, lineHeight: 1.6, color: C.darkText },
 
-  /* ── Mision/Vision/Valores ── */
+  /* ── Misión/Visión/Valores ── */
   mvvCard: { backgroundColor: C.lightGray, borderRadius: 8, padding: 16, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: C.gold },
-  mvvTitle: { fontFamily: 'Helvetica-Bold', fontSize: 12, color: C.navy, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  mvvTitle: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 12, color: C.navy, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
   mvvText: { fontSize: 10, lineHeight: 1.7, color: C.darkText },
   valorItem: { flexDirection: 'row', marginBottom: 8, alignItems: 'flex-start' },
-  valorNumber: { fontFamily: 'Helvetica-Bold', fontSize: 16, color: C.gold, marginRight: 10, width: 20 },
+  valorNumber: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 16, color: C.gold, marginRight: 10, width: 20 },
   valorContent: { flex: 1 },
-  valorName: { fontFamily: 'Helvetica-Bold', fontSize: 10, color: C.navy, marginBottom: 2 },
+  valorName: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 10, color: C.navy, marginBottom: 2 },
   valorDesc: { fontSize: 9, color: C.midGray, lineHeight: 1.5 },
 
   /* ── Alcance / Tareas ── */
   alcanceCard: { backgroundColor: C.white, borderRadius: 6, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#E5E5E5' },
-  alcanceNum: { fontFamily: 'Helvetica-Bold', fontSize: 20, color: C.gold, marginBottom: 4 },
-  alcanceTitle: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: C.navy, marginBottom: 6 },
+  alcanceNum: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 20, color: C.gold, marginBottom: 4 },
+  alcanceTitle: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 11, color: C.navy, marginBottom: 6 },
   alcanceDesc: { fontSize: 9, lineHeight: 1.6, color: C.darkText },
   tareaRow: { flexDirection: 'row', padding: 8, borderBottomWidth: 1, borderBottomColor: '#E5E5E5' },
   tareaRowAlt: { flexDirection: 'row', padding: 8, borderBottomWidth: 1, borderBottomColor: '#E5E5E5', backgroundColor: '#FAFAFA' },
   highlightBox: { backgroundColor: C.navy, borderRadius: 6, padding: 14, marginTop: 12 },
   highlightText: { fontSize: 10, color: C.gold, lineHeight: 1.6 },
-  highlightBold: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: C.white, marginBottom: 4 },
+  highlightBold: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 11, color: C.white, marginBottom: 4 },
 
   /* ── Beneficios ── */
   beneficioCard: { flexDirection: 'row', marginBottom: 10, backgroundColor: C.lightGray, borderRadius: 8, padding: 12, alignItems: 'flex-start' },
   beneficioIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  beneficioIconText: { fontFamily: 'Helvetica-Bold', fontSize: 12, color: C.gold },
+  beneficioIconText: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 12, color: C.gold },
   beneficioContent: { flex: 1 },
-  beneficioTitle: { fontFamily: 'Helvetica-Bold', fontSize: 10, color: C.navy, marginBottom: 3 },
+  beneficioTitle: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 10, color: C.navy, marginBottom: 3 },
   beneficioDesc: { fontSize: 9, lineHeight: 1.5, color: C.darkText },
 
   /* ── Capturas DOMIA ── */
   capturaCard: { backgroundColor: C.lightGray, borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#E0E0E0' },
-  capturaTitle: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: C.navy, marginBottom: 4 },
+  capturaTitle: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 11, color: C.navy, marginBottom: 4 },
   capturaDesc: { fontSize: 9, lineHeight: 1.5, color: C.midGray },
   capturaGrid: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   screenshotWrap: { marginBottom: 22, borderWidth: 0.5, borderColor: '#DEDEDE' },
   screenshotImg: { width: '100%' },
   screenshotCaption: { fontSize: 8, color: C.midGray, textAlign: 'center', paddingVertical: 5, backgroundColor: C.lightGray },
 
-  /* ── Propuesta economica ── */
+  /* ── Propuesta económica ── */
   infoRow: { flexDirection: 'row', marginBottom: 8, gap: 12 },
   infoBlock: { flex: 1, backgroundColor: C.lightGray, borderRadius: 6, padding: 10 },
-  infoLabel: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.midGray, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
-  infoValue: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: C.darkText },
+  infoLabel: { fontSize: 7, fontFamily: 'Roboto', fontWeight: 700, color: C.midGray, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
+  infoValue: { fontFamily: 'Roboto', fontWeight: 700, fontSize: 11, color: C.darkText },
   tableHeader: { flexDirection: 'row', backgroundColor: C.navy, borderRadius: 4, padding: 8, marginBottom: 3 },
-  tableHeaderText: { color: C.white, fontSize: 8, fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', letterSpacing: 0.5 },
+  tableHeaderText: { color: C.white, fontSize: 8, fontFamily: 'Roboto', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
   tableRow: { flexDirection: 'row', padding: 10, borderBottomWidth: 1, borderBottomColor: '#E5E5E5' },
   tableRowAlt: { flexDirection: 'row', padding: 10, borderBottomWidth: 1, borderBottomColor: '#E5E5E5', backgroundColor: '#FAFAFA' },
   tableTotal: { flexDirection: 'row', padding: 12, backgroundColor: C.navy, borderRadius: 4, marginTop: 4 },
-  tableTotalLabel: { flex: 3, fontFamily: 'Helvetica-Bold', fontSize: 13, color: C.gold },
-  tableTotalMonto: { flex: 1, fontFamily: 'Helvetica-Bold', fontSize: 16, textAlign: 'right', color: C.gold },
+  tableTotalLabel: { flex: 3, fontFamily: 'Roboto', fontWeight: 700, fontSize: 13, color: C.gold },
+  tableTotalMonto: { flex: 1, fontFamily: 'Roboto', fontWeight: 700, fontSize: 16, textAlign: 'right', color: C.gold },
   notesBox: { marginTop: 16, backgroundColor: C.lightGray, borderRadius: 6, padding: 12, borderLeftWidth: 3, borderLeftColor: C.gold },
 
   /* ── Footer compartido ── */
@@ -130,7 +140,7 @@ function formatDate(d?: string) {
   return new Date(d).toLocaleDateString('es-BO', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-/* ─── Header reutilizable para paginas interiores ─── */
+/* ─── Header reutilizable para páginas interiores ─── */
 function InnerHeader({ title }: { title: string }) {
   return (
     <>
@@ -143,12 +153,12 @@ function InnerHeader({ title }: { title: string }) {
   )
 }
 
-/* ─── Footer reutilizable con paginacion automatica ─── */
+/* ─── Footer reutilizable con paginación automática ─── */
 function PageFooter({ numero }: { numero?: string | null }) {
   return (
     <View style={s.footer}>
       <Text style={s.footerText}>ALTRION S.R.L. — Propuesta Confidencial{numero ? ` | ${numero}` : ''}</Text>
-      <Text style={s.footerText} render={({ pageNumber }) => `Pagina ${pageNumber}`} />
+      <Text style={s.footerText} render={({ pageNumber }) => `Página ${pageNumber}`} />
     </View>
   )
 }
@@ -192,13 +202,13 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
 
   return (
     <Document>
-      {/* ════════ PAGINA 1: PORTADA ════════ */}
+      {/* ════════ PÁGINA 1: PORTADA ════════ */}
       <Page size="A4" style={s.coverPage}>
         <View style={s.coverTop}>
           <Image src={altrionLogo} style={s.coverLogo} />
           <View style={s.coverLine} />
           <Text style={s.coverTitle}>Propuesta Comercial</Text>
-          <Text style={s.coverSubtitle}>Administracion Integral de Condominios</Text>
+          <Text style={s.coverSubtitle}>Administración Integral de Condominios</Text>
         </View>
         <View style={s.coverBottom}>
           <View style={s.coverDivider} />
@@ -227,7 +237,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         </View>
       </Page>
 
-      {/* ════════ PAGINA 2: CARTA DE PRESENTACION ════════ */}
+      {/* ════════ PÁGINA 2: CARTA DE PRESENTACIÓN ════════ */}
       <Page size="A4" style={s.innerPage}>
         <View style={s.innerHeader}>
           <Image src={altrionLogo} style={s.innerLogo} />
@@ -235,51 +245,51 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         </View>
         <View style={s.innerDivider} />
 
-        <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 12, marginBottom: 16, color: C.navy }}>
+        <Text style={{ fontFamily: 'Roboto', fontWeight: 700, fontSize: 12, marginBottom: 16, color: C.navy }}>
           Estimado/a {p.nombre_prospecto},
         </Text>
 
         <Text style={s.paragraph}>
-          Es un placer dirigirnos a usted para presentarle nuestra propuesta de servicios de administracion integral para el condominio {p.nombre_condominio}. En ALTRION, nos especializamos en brindar soluciones profesionales que garantizan la tranquilidad y el bienestar de los copropietarios.
+          Es un placer dirigirnos a usted para presentarle nuestra propuesta de servicios de administración integral para el condominio {p.nombre_condominio}. En ALTRION, nos especializamos en brindar soluciones profesionales que garantizan la tranquilidad y el bienestar de los copropietarios.
         </Text>
         <Text style={s.paragraph}>
-          Nuestra experiencia en la administracion de condominios nos permite ofrecer un servicio completo que incluye gestion financiera transparente, mantenimiento preventivo y correctivo, atencion personalizada a propietarios y cumplimiento normativo vigente.
+          Nuestra experiencia en la administración de condominios nos permite ofrecer un servicio completo que incluye gestión financiera transparente, mantenimiento preventivo y correctivo, atención personalizada a propietarios y cumplimiento normativo vigente.
         </Text>
         <Text style={s.paragraph}>
-          Utilizamos tecnologia de vanguardia a traves de nuestra plataforma DOMIA, que permite a los copropietarios acceder en tiempo real a la informacion financiera, reportar incidencias y mantenerse informados sobre todas las actividades del condominio.
+          Utilizamos tecnología de vanguardia a través de nuestra plataforma DOMIA, que permite a los copropietarios acceder en tiempo real a la información financiera, reportar incidencias y mantenerse informados sobre todas las actividades del condominio.
         </Text>
         <Text style={s.paragraph}>
-          En las siguientes paginas encontrara el detalle de nuestra propuesta economica, adaptada a las caracteristicas especificas de {p.nombre_condominio}. Quedamos a su entera disposicion para resolver cualquier consulta.
+          En las siguientes páginas encontrará el detalle de nuestra propuesta económica, adaptada a las características específicas de {p.nombre_condominio}. Quedamos a su entera disposición para resolver cualquier consulta.
         </Text>
 
         <Text style={{ ...s.paragraph, marginTop: 10 }}>Atentamente,</Text>
 
         <View style={{ marginTop: 20 }}>
-          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 11, color: C.navy }}>Maria del Carmen Salcedo Feeney</Text>
-          <Text style={{ fontSize: 9, color: C.midGray, marginTop: 2 }}>Gerente de Administracion</Text>
+          <Text style={{ fontFamily: 'Roboto', fontWeight: 700, fontSize: 11, color: C.navy }}>María del Carmen Salcedo Feeney</Text>
+          <Text style={{ fontSize: 9, color: C.midGray, marginTop: 2 }}>Gerente de Administración</Text>
           <Text style={{ fontSize: 9, color: C.midGray, marginTop: 2 }}>ALTRION S.R.L.</Text>
         </View>
 
         <PageFooter numero={p.numero_propuesta} />
       </Page>
 
-      {/* ════════ PAGINA 3: MISION / VISION / VALORES ════════ */}
+      {/* ════════ PÁGINA 3: MISIÓN / VISIÓN / VALORES ════════ */}
       <Page size="A4" style={s.innerPage}>
-        <InnerHeader title="Quienes Somos" />
-        <Text style={s.pageTitle}>Mision, Vision y Valores</Text>
-        <Text style={s.pageSubtitle}>Los pilares que guian nuestro trabajo diario</Text>
+        <InnerHeader title="Quiénes Somos" />
+        <Text style={s.pageTitle}>Misión, Visión y Valores</Text>
+        <Text style={s.pageSubtitle}>Los pilares que guían nuestro trabajo diario</Text>
 
         <View style={s.mvvCard} wrap={false}>
-          <Text style={s.mvvTitle}>Mision</Text>
+          <Text style={s.mvvTitle}>Misión</Text>
           <Text style={s.mvvText}>
-            Brindar servicios de administracion de condominios con excelencia, transparencia y compromiso, utilizando tecnologia innovadora para optimizar la gestion y mejorar la calidad de vida de los copropietarios en Bolivia.
+            Brindar servicios de administración de condominios con excelencia, transparencia y compromiso, utilizando tecnología innovadora para optimizar la gestión y mejorar la calidad de vida de los copropietarios en Bolivia.
           </Text>
         </View>
 
         <View style={s.mvvCard} wrap={false}>
-          <Text style={s.mvvTitle}>Vision</Text>
+          <Text style={s.mvvTitle}>Visión</Text>
           <Text style={s.mvvText}>
-            Ser la empresa lider en administracion de condominios en Bolivia, reconocida por la confianza, profesionalismo y soluciones tecnologicas que generamos para nuestras comunidades.
+            Ser la empresa líder en administración de condominios en Bolivia, reconocida por la confianza, profesionalismo y soluciones tecnológicas que generamos para nuestras comunidades.
           </Text>
         </View>
 
@@ -288,21 +298,21 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           <Text style={s.valorNumber}>1</Text>
           <View style={s.valorContent}>
             <Text style={s.valorName}>Transparencia</Text>
-            <Text style={s.valorDesc}>Rendicion de cuentas clara y accesible en todo momento a traves de nuestra plataforma digital.</Text>
+            <Text style={s.valorDesc}>Rendición de cuentas clara y accesible en todo momento a través de nuestra plataforma digital.</Text>
           </View>
         </View>
         <View style={s.valorItem} wrap={false}>
           <Text style={s.valorNumber}>2</Text>
           <View style={s.valorContent}>
             <Text style={s.valorName}>Compromiso</Text>
-            <Text style={s.valorDesc}>Dedicacion total al bienestar de cada comunidad que administramos, con atencion personalizada.</Text>
+            <Text style={s.valorDesc}>Dedicación total al bienestar de cada comunidad que administramos, con atención personalizada.</Text>
           </View>
         </View>
         <View style={s.valorItem} wrap={false}>
           <Text style={s.valorNumber}>3</Text>
           <View style={s.valorContent}>
-            <Text style={s.valorName}>Innovacion</Text>
-            <Text style={s.valorDesc}>Implementacion de tecnologia de punta para simplificar y mejorar la gestion condominial.</Text>
+            <Text style={s.valorName}>Innovación</Text>
+            <Text style={s.valorDesc}>Implementación de tecnología de punta para simplificar y mejorar la gestión condominial.</Text>
           </View>
         </View>
         <View style={s.valorItem} wrap={false}>
@@ -315,15 +325,15 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         <View style={s.valorItem} wrap={false}>
           <Text style={s.valorNumber}>5</Text>
           <View style={s.valorContent}>
-            <Text style={s.valorName}>Cercania</Text>
-            <Text style={s.valorDesc}>Relacion directa y accesible con cada copropietario, construyendo confianza a largo plazo.</Text>
+            <Text style={s.valorName}>Cercanía</Text>
+            <Text style={s.valorDesc}>Relación directa y accesible con cada copropietario, construyendo confianza a largo plazo.</Text>
           </View>
         </View>
 
         <PageFooter numero={p.numero_propuesta} />
       </Page>
 
-      {/* ════════ PAGINA 4: OBJETIVO GENERAL ════════ */}
+      {/* ════════ PÁGINA 4: OBJETIVO GENERAL ════════ */}
       <Page size="A4" style={s.innerPage}>
         <InnerHeader title="Objetivo" />
         <Text style={s.pageTitle}>Objetivo General</Text>
@@ -331,20 +341,20 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
 
         <View style={{ ...s.mvvCard, borderLeftColor: C.navy }} wrap={false}>
           <Text style={{ ...s.mvvText, fontSize: 11, lineHeight: 1.8 }}>
-            Proveer al condominio {p.nombre_condominio} un servicio de administracion integral que garantice el correcto funcionamiento de todas las areas comunes, la transparencia en el manejo de recursos financieros, el cumplimiento de la normativa vigente y la satisfaccion de todos los copropietarios, apoyados en nuestra plataforma tecnologica DOMIA.
+            Proveer al condominio {p.nombre_condominio} un servicio de administración integral que garantice el correcto funcionamiento de todas las áreas comunes, la transparencia en el manejo de recursos financieros, el cumplimiento de la normativa vigente y la satisfacción de todos los copropietarios, apoyados en nuestra plataforma tecnológica DOMIA.
           </Text>
         </View>
 
-        <Text style={{ ...s.sectionTitle, marginTop: 24 }}>Objetivos Especificos</Text>
+        <Text style={{ ...s.sectionTitle, marginTop: 24 }}>Objetivos Específicos</Text>
 
         {[
           'Establecer un sistema de cobro eficiente de expensas con seguimiento automatizado de morosidad.',
           'Implementar un programa de mantenimiento preventivo para preservar el valor del inmueble.',
-          'Garantizar la transparencia financiera mediante reportes mensuales accesibles en linea.',
+          'Garantizar la transparencia financiera mediante reportes mensuales accesibles en línea.',
           'Supervisar y coordinar al personal de seguridad, limpieza y mantenimiento del edificio.',
-          'Facilitar la comunicacion entre la administracion y los copropietarios a traves de canales digitales.',
+          'Facilitar la comunicación entre la administración y los copropietarios a través de canales digitales.',
           'Asegurar el cumplimiento de la Ley de Propiedad Horizontal y normativas municipales aplicables.',
-          'Convocar y gestionar asambleas ordinarias y extraordinarias segun estatuto del condominio.',
+          'Convocar y gestionar asambleas ordinarias y extraordinarias según estatuto del condominio.',
         ].map((txt, i) => (
           <View key={i} style={s.bulletRow} wrap={false}>
             <View style={s.bulletDot} />
@@ -355,66 +365,66 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         <PageFooter numero={p.numero_propuesta} />
       </Page>
 
-      {/* ════════ PAGINA 5: ALCANCE DEL SERVICIO ════════ */}
+      {/* ════════ PÁGINA 5: ALCANCE DEL SERVICIO ════════ */}
       <Page size="A4" style={s.innerPage}>
         <InnerHeader title="Alcance" />
         <Text style={s.pageTitle}>Alcance del Servicio</Text>
-        <Text style={s.pageSubtitle}>Las cinco areas de gestion integral que cubrimos</Text>
+        <Text style={s.pageSubtitle}>Las cinco áreas de gestión integral que cubrimos</Text>
 
         <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>01</Text>
-          <Text style={s.alcanceTitle}>Gestion Administrativa y Financiera</Text>
-          <Text style={s.alcanceDesc}>Control de ingresos y egresos, elaboracion de presupuestos, cobro de expensas, conciliaciones bancarias, emision de estados de cuenta mensuales, y gestion de fondo de reserva. Toda la informacion financiera disponible en tiempo real a traves de DOMIA.</Text>
+          <Text style={s.alcanceTitle}>Gestión Administrativa y Financiera</Text>
+          <Text style={s.alcanceDesc}>Control de ingresos y egresos, elaboración de presupuestos, cobro de expensas, conciliaciones bancarias, emisión de estados de cuenta mensuales, y gestión de fondo de reserva. Toda la información financiera disponible en tiempo real a través de DOMIA.</Text>
         </View>
 
         <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>02</Text>
-          <Text style={s.alcanceTitle}>Mantenimiento de Areas Comunes</Text>
-          <Text style={s.alcanceDesc}>Programa de mantenimiento preventivo y correctivo de ascensores, bombas de agua, sistemas electricos, areas verdes, piscinas, gimnasios y demas instalaciones comunes. Coordinacion con proveedores especializados y supervision de trabajos.</Text>
+          <Text style={s.alcanceTitle}>Mantenimiento de Áreas Comunes</Text>
+          <Text style={s.alcanceDesc}>Programa de mantenimiento preventivo y correctivo de ascensores, bombas de agua, sistemas eléctricos, áreas verdes, piscinas, gimnasios y demás instalaciones comunes. Coordinación con proveedores especializados y supervisión de trabajos.</Text>
         </View>
 
         <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>03</Text>
-          <Text style={s.alcanceTitle}>Supervision de Personal</Text>
-          <Text style={s.alcanceDesc}>Coordinacion y supervision del personal de seguridad, limpieza, conserjeria y mantenimiento. Control de asistencia, evaluacion de desempeno, capacitacion continua y cumplimiento de obligaciones laborales.</Text>
+          <Text style={s.alcanceTitle}>Supervisión de Personal</Text>
+          <Text style={s.alcanceDesc}>Coordinación y supervisión del personal de seguridad, limpieza, conserjería y mantenimiento. Control de asistencia, evaluación de desempeño, capacitación continua y cumplimiento de obligaciones laborales.</Text>
         </View>
 
         <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>04</Text>
-          <Text style={s.alcanceTitle}>Atencion a Copropietarios</Text>
-          <Text style={s.alcanceDesc}>Canal de comunicacion directo para consultas, reclamos y sugerencias. Gestion de reservas de areas comunes, autorizaciones de mudanza, registro de vehiculos y atencion de emergencias. Respuesta en menos de 24 horas habiles.</Text>
+          <Text style={s.alcanceTitle}>Atención a Copropietarios</Text>
+          <Text style={s.alcanceDesc}>Canal de comunicación directo para consultas, reclamos y sugerencias. Gestión de reservas de áreas comunes, autorizaciones de mudanza, registro de vehículos y atención de emergencias. Respuesta en menos de 24 horas hábiles.</Text>
         </View>
 
         <View style={s.alcanceCard} wrap={false}>
           <Text style={s.alcanceNum}>05</Text>
           <Text style={s.alcanceTitle}>Cumplimiento Legal y Normativo</Text>
-          <Text style={s.alcanceDesc}>Verificacion del cumplimiento de la Ley de Propiedad Horizontal, normativas municipales, obligaciones tributarias del condominio, seguros obligatorios y actualizacion del reglamento interno segun corresponda.</Text>
+          <Text style={s.alcanceDesc}>Verificación del cumplimiento de la Ley de Propiedad Horizontal, normativas municipales, obligaciones tributarias del condominio, seguros obligatorios y actualización del reglamento interno según corresponda.</Text>
         </View>
 
         <PageFooter numero={p.numero_propuesta} />
       </Page>
 
-      {/* ════════ PAGINAS 6-7: CONDICIONALES SEGUN TIPO ════════ */}
+      {/* ════════ PÁGINAS 6-7: CONDICIONALES SEGÚN TIPO ════════ */}
       {adminOn ? (
         /* ─── Administradora ON: hoja de horario y funciones ─── */
         <Page size="A4" style={s.innerPage}>
           <InnerHeader title="Administradora" />
           <Text style={s.pageTitle}>Horario y Funciones de la Administradora</Text>
-          <Text style={s.pageSubtitle}>Dedicacion presencial y responsabilidades del cargo</Text>
+          <Text style={s.pageSubtitle}>Dedicación presencial y responsabilidades del cargo</Text>
 
           <View style={s.highlightBox} wrap={false}>
             <Text style={s.highlightBold}>Horario de trabajo</Text>
             <Text style={s.highlightText}>Lunes a Viernes — 8 horas diarias</Text>
-            <Text style={s.highlightText}>Sabados — 4 horas</Text>
+            <Text style={s.highlightText}>Sábados — 4 horas</Text>
           </View>
 
-          <Text style={s.sectionTitle}>Gestion Administrativa</Text>
+          <Text style={s.sectionTitle}>Gestión Administrativa</Text>
           {[
-            'Atencion presencial y telefonica a residentes y copropietarios.',
-            'Recepcion, clasificacion y archivo de correspondencia y documentos.',
-            'Coordinacion y supervision de proveedores de servicios y mantenimiento.',
-            'Redaccion y distribucion de circulares, comunicados y avisos internos.',
-            'Mantenimiento actualizado del archivo fisico y digital del condominio.',
+            'Atención presencial y telefónica a residentes y copropietarios.',
+            'Recepción, clasificación y archivo de correspondencia y documentos.',
+            'Coordinación y supervisión de proveedores de servicios y mantenimiento.',
+            'Redacción y distribución de circulares, comunicados y avisos internos.',
+            'Mantenimiento actualizado del archivo físico y digital del condominio.',
           ].map((txt, i) => (
             <View key={i} style={s.bulletRow} wrap={false}>
               <View style={s.bulletDot} />
@@ -422,13 +432,13 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
             </View>
           ))}
 
-          <Text style={s.sectionTitle}>Gestion Financiera</Text>
+          <Text style={s.sectionTitle}>Gestión Financiera</Text>
           {[
             'Cobranza de expensas ordinarias y extraordinarias con seguimiento de morosidad.',
-            'Control de copropietarios morosos y gestion de acuerdos de pago.',
+            'Control de copropietarios morosos y gestión de acuerdos de pago.',
             'Registro detallado de ingresos y egresos en la plataforma DOMIA.',
-            'Elaboracion de reportes financieros mensuales para la junta directiva.',
-            'Gestion de pagos a proveedores y control de cuentas por pagar.',
+            'Elaboración de reportes financieros mensuales para la junta directiva.',
+            'Gestión de pagos a proveedores y control de cuentas por pagar.',
           ].map((txt, i) => (
             <View key={i} style={s.bulletRow} wrap={false}>
               <View style={s.bulletDot} />
@@ -436,12 +446,12 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
             </View>
           ))}
 
-          <Text style={s.sectionTitle}>Gestion Operativa</Text>
+          <Text style={s.sectionTitle}>Gestión Operativa</Text>
           {[
-            'Supervision del personal de limpieza, seguridad y mantenimiento.',
+            'Supervisión del personal de limpieza, seguridad y mantenimiento.',
             'Control de accesos de visitantes, proveedores y personal externo.',
-            'Inspeccion y reporte del estado de areas comunes e instalaciones.',
-            'Gestion de reservas de salon de eventos, gimnasio y piscina.',
+            'Inspección y reporte del estado de áreas comunes e instalaciones.',
+            'Gestión de reservas de salón de eventos, gimnasio y piscina.',
             'Registro y seguimiento de incidencias y solicitudes de mantenimiento.',
             'Control de inventario de suministros e insumos del condominio.',
           ].map((txt, i) => (
@@ -451,12 +461,12 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
             </View>
           ))}
 
-          <Text style={s.sectionTitle}>Atencion al Residente</Text>
+          <Text style={s.sectionTitle}>Atención al Residente</Text>
           {[
-            'Recepcion y gestion de quejas, sugerencias y reclamos de residentes.',
-            'Comunicacion permanente con la junta directiva del condominio.',
-            'Organizacion y apoyo logistico en asambleas ordinarias y extraordinarias.',
-            'Notificacion oportuna de resoluciones, acuerdos y comunicados oficiales.',
+            'Recepción y gestión de quejas, sugerencias y reclamos de residentes.',
+            'Comunicación permanente con la junta directiva del condominio.',
+            'Organización y apoyo logístico en asambleas ordinarias y extraordinarias.',
+            'Notificación oportuna de resoluciones, acuerdos y comunicados oficiales.',
           ].map((txt, i) => (
             <View key={i} style={s.bulletRow} wrap={false}>
               <View style={s.bulletDot} />
@@ -465,20 +475,20 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           ))}
 
           {/* ── Respaldo y Supervisión ── */}
-          <Text style={{ ...s.sectionTitle, marginTop: 20 }}>Respaldo y Supervision de ALTRION</Text>
+          <Text style={{ ...s.sectionTitle, marginTop: 20 }}>Respaldo y Supervisión de ALTRION</Text>
 
-          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 10, color: C.navy, marginBottom: 6, marginTop: 4 }}>
+          <Text style={{ fontFamily: 'Roboto', fontWeight: 700, fontSize: 10, color: C.navy, marginBottom: 6, marginTop: 4 }}>
             Supervisora de Operaciones
           </Text>
           <Text style={{ ...s.paragraph, marginBottom: 6 }}>
             ALTRION cuenta con una Supervisora de Operaciones que brinda respaldo continuo a la Administradora del condominio:
           </Text>
           {[
-            'Visitas periodicas de supervision para verificar el cumplimiento de funciones.',
-            'Evaluacion del desempeno y calidad del servicio prestado.',
-            'Apoyo en la resolucion de situaciones complejas o excepcionales.',
-            'Canal directo de comunicacion entre el condominio y ALTRION.',
-            'Garantia de continuidad del servicio ante ausencias o imprevistos.',
+            'Visitas periódicas de supervisión para verificar el cumplimiento de funciones.',
+            'Evaluación del desempeño y calidad del servicio prestado.',
+            'Apoyo en la resolución de situaciones complejas o excepcionales.',
+            'Canal directo de comunicación entre el condominio y ALTRION.',
+            'Garantía de continuidad del servicio ante ausencias o imprevistos.',
           ].map((txt, i) => (
             <View key={i} style={s.bulletRow} wrap={false}>
               <View style={s.bulletDot} />
@@ -486,18 +496,18 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
             </View>
           ))}
 
-          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 10, color: C.navy, marginBottom: 6, marginTop: 10 }}>
+          <Text style={{ fontFamily: 'Roboto', fontWeight: 700, fontSize: 10, color: C.navy, marginBottom: 6, marginTop: 10 }}>
             Contadora
           </Text>
           <Text style={{ ...s.paragraph, marginBottom: 6 }}>
-            ALTRION dispone de una Contadora profesional que supervisa y valida toda la gestion contable:
+            ALTRION dispone de una Contadora profesional que supervisa y valida toda la gestión contable:
           </Text>
           {[
-            'Revision y validacion de los registros contables realizados por la Administradora.',
-            'Supervision de los asientos contables generados automaticamente por la plataforma DOMIA.',
-            'Elaboracion y revision de estados financieros mensuales.',
+            'Revisión y validación de los registros contables realizados por la Administradora.',
+            'Supervisión de los asientos contables generados automáticamente por la plataforma DOMIA.',
+            'Elaboración y revisión de estados financieros mensuales.',
             'Cumplimiento de normativas contables y tributarias bolivianas.',
-            'Asesoria en temas financieros y contables al directorio del condominio.',
+            'Asesoría en temas financieros y contables al directorio del condominio.',
           ].map((txt, i) => (
             <View key={i} style={s.bulletRow} wrap={false}>
               <View style={s.bulletDot} />
@@ -506,7 +516,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           ))}
 
           <Text style={{ fontSize: 9, color: C.midGray, lineHeight: 1.6, marginTop: 14, fontStyle: 'italic' }} wrap={false}>
-            Esta estructura de supervision garantiza que la administracion del condominio cuente con respaldo profesional en todo momento, combinando la presencia diaria de la Administradora con la experiencia de un equipo especializado.
+            Esta estructura de supervisión garantiza que la administración del condominio cuente con respaldo profesional en todo momento, combinando la presencia diaria de la Administradora con la experiencia de un equipo especializado.
           </Text>
 
           <PageFooter numero={p.numero_propuesta} />
@@ -515,17 +525,17 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         <>
           {/* ─── Visitas/Ninguno: mantener hojas originales ─── */}
 
-          {/* PAGINA 6: TAREAS PERIODICAS */}
+          {/* PÁGINA 6: TAREAS PERIÓDICAS */}
           <Page size="A4" style={s.innerPage}>
             <InnerHeader title="Tareas" />
-            <Text style={s.pageTitle}>Tareas Periodicas</Text>
+            <Text style={s.pageTitle}>Tareas Periódicas</Text>
             <Text style={s.pageSubtitle}>Cronograma de actividades para {p.nombre_condominio}</Text>
 
             {visitasOn && (
               <View style={s.highlightBox} wrap={false}>
                 <Text style={s.highlightBold}>Frecuencia de visitas presenciales</Text>
                 <Text style={s.highlightText}>
-                  {diasVisita} dia{diasVisita > 1 ? 's' : ''} de visita al mes
+                  {diasVisita} día{diasVisita > 1 ? 's' : ''} de visita al mes
                 </Text>
               </View>
             )}
@@ -536,12 +546,12 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
               <Text style={{ ...s.tableHeaderText, flex: 1, textAlign: 'center' }}>Frecuencia</Text>
             </View>
             {[
-              ['Inspeccion general de areas comunes y equipos', 'Cada visita'],
-              ['Revision de libro de novedades de seguridad/conserjeria', 'Cada visita'],
+              ['Inspección general de áreas comunes y equipos', 'Cada visita'],
+              ['Revisión de libro de novedades de seguridad/conserjería', 'Cada visita'],
               ['Seguimiento de cobro de expensas y morosidad', 'Cada visita'],
-              ['Coordinacion de trabajos de mantenimiento pendientes', 'Cada visita'],
-              ['Atencion presencial a copropietarios', 'Cada visita'],
-              ['Verificacion de limpieza y orden en areas comunes', 'Cada visita'],
+              ['Coordinación de trabajos de mantenimiento pendientes', 'Cada visita'],
+              ['Atención presencial a copropietarios', 'Cada visita'],
+              ['Verificación de limpieza y orden en áreas comunes', 'Cada visita'],
             ].map(([act, freq], i) => (
               <View key={i} style={i % 2 === 0 ? s.tareaRow : s.tareaRowAlt}>
                 <Text style={{ flex: 3, fontSize: 9 }}>{act}</Text>
@@ -555,12 +565,12 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
               <Text style={{ ...s.tableHeaderText, flex: 1, textAlign: 'center' }}>Frecuencia</Text>
             </View>
             {[
-              ['Elaboracion y envio de estado de cuenta mensual', 'Mensual'],
-              ['Conciliacion bancaria y cierre contable', 'Mensual'],
+              ['Elaboración y envío de estado de cuenta mensual', 'Mensual'],
+              ['Conciliación bancaria y cierre contable', 'Mensual'],
               ['Informe de mantenimientos realizados y pendientes', 'Mensual'],
-              ['Revision de contratos con proveedores', 'Trimestral'],
-              ['Convocatoria y gestion de asambleas', 'Semestral'],
-              ['Actualizacion de presupuesto anual', 'Anual'],
+              ['Revisión de contratos con proveedores', 'Trimestral'],
+              ['Convocatoria y gestión de asambleas', 'Semestral'],
+              ['Actualización de presupuesto anual', 'Anual'],
             ].map(([act, freq], i) => (
               <View key={i} style={i % 2 === 0 ? s.tareaRow : s.tareaRowAlt}>
                 <Text style={{ flex: 3, fontSize: 9 }}>{act}</Text>
@@ -571,23 +581,23 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
             <PageFooter numero={p.numero_propuesta} />
           </Page>
 
-          {/* PAGINA 7: ATENCION FUERA DE HORARIO + BENEFICIOS */}
+          {/* PÁGINA 7: ATENCIÓN FUERA DE HORARIO + BENEFICIOS */}
           <Page size="A4" style={s.innerPage}>
             <InnerHeader title="Servicio" />
-            <Text style={s.pageTitle}>Atencion Fuera de Horario</Text>
-            <Text style={s.pageSubtitle}>Disponibilidad para emergencias y situaciones criticas</Text>
+            <Text style={s.pageTitle}>Atención Fuera de Horario</Text>
+            <Text style={s.pageSubtitle}>Disponibilidad para emergencias y situaciones críticas</Text>
 
             <View style={s.mvvCard} wrap={false}>
               <Text style={s.mvvText}>
-                ALTRION ofrece una linea de atencion para emergencias disponible fuera del horario de visitas. En caso de situaciones criticas como fallas en el suministro de agua, problemas electricos graves, emergencias de seguridad o cualquier evento que requiera intervencion inmediata, los copropietarios pueden comunicarse directamente con la administradora.
+                ALTRION ofrece una línea de atención para emergencias disponible fuera del horario de visitas. En caso de situaciones críticas como fallas en el suministro de agua, problemas eléctricos graves, emergencias de seguridad o cualquier evento que requiera intervención inmediata, los copropietarios pueden comunicarse directamente con la administradora.
               </Text>
             </View>
 
             {[
-              'Linea directa de emergencias disponible 24/7 para situaciones criticas.',
-              'Coordinacion inmediata con proveedores de emergencia (plomeria, electricidad, cerrajeria).',
-              'Comunicacion por WhatsApp para consultas no urgentes fuera de horario.',
-              'Respuesta garantizada en un maximo de 2 horas para emergencias.',
+              'Línea directa de emergencias disponible 24/7 para situaciones críticas.',
+              'Coordinación inmediata con proveedores de emergencia (plomería, electricidad, cerrajería).',
+              'Comunicación por WhatsApp para consultas no urgentes fuera de horario.',
+              'Respuesta garantizada en un máximo de 2 horas para emergencias.',
             ].map((txt, i) => (
               <View key={i} style={s.bulletRow} wrap={false}>
                 <View style={s.bulletDot} />
@@ -596,14 +606,14 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
             ))}
 
             <Text style={{ ...s.pageTitle, marginTop: 24, fontSize: 16 }}>Beneficios</Text>
-            <Text style={{ ...s.pageSubtitle, marginBottom: 14 }}>Por que elegir ALTRION para su condominio</Text>
+            <Text style={{ ...s.pageSubtitle, marginBottom: 14 }}>¿Por qué elegir ALTRION para su condominio?</Text>
 
             {[
-              { icon: '$', title: 'Transparencia Financiera Total', desc: 'Acceso en tiempo real a estados de cuenta, ingresos, egresos y presupuestos a traves de la plataforma DOMIA.' },
-              { icon: 'T', title: 'Tecnologia de Punta', desc: 'Sistema DOMIA con panel para copropietarios: consultas, pagos, reportes de incidencias y reservas desde cualquier dispositivo.' },
-              { icon: 'P', title: 'Personal Capacitado', desc: 'Equipo profesional con experiencia en administracion inmobiliaria y atencion al cliente.' },
-              { icon: 'R', title: 'Reduccion de Morosidad', desc: 'Sistema automatizado de cobranza con recordatorios, seguimiento y reportes de estado por copropietario.' },
-              { icon: 'V', title: 'Valorizacion del Inmueble', desc: 'Mantenimiento preventivo constante que preserva y aumenta el valor de la propiedad a largo plazo.' },
+              { icon: '$', title: 'Transparencia Financiera Total', desc: 'Acceso en tiempo real a estados de cuenta, ingresos, egresos y presupuestos a través de la plataforma DOMIA.' },
+              { icon: 'T', title: 'Tecnología de Punta', desc: 'Sistema DOMIA con panel para copropietarios: consultas, pagos, reportes de incidencias y reservas desde cualquier dispositivo.' },
+              { icon: 'P', title: 'Personal Capacitado', desc: 'Equipo profesional con experiencia en administración inmobiliaria y atención al cliente.' },
+              { icon: 'R', title: 'Reducción de Morosidad', desc: 'Sistema automatizado de cobranza con recordatorios, seguimiento y reportes de estado por copropietario.' },
+              { icon: 'V', title: 'Valorización del Inmueble', desc: 'Mantenimiento preventivo constante que preserva y aumenta el valor de la propiedad a largo plazo.' },
             ].map((b, i) => (
               <View key={i} style={s.beneficioCard} wrap={false}>
                 <View style={s.beneficioIcon}><Text style={s.beneficioIconText}>{b.icon}</Text></View>
@@ -619,14 +629,14 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         </>
       )}
 
-      {/* ════════ PLATAFORMA DOMIA — pag 1 (capturas 1-2) ════════ */}
+      {/* ════════ PLATAFORMA DOMIA — pág. 1 (capturas 1-2) ════════ */}
       <Page size="A4" style={s.innerPage}>
-        <InnerHeader title="Tecnologia" />
+        <InnerHeader title="Tecnología" />
         <Text style={s.pageTitle}>Plataforma DOMIA</Text>
-        <Text style={s.pageSubtitle}>Sistema integral de gestion condominial incluido en el servicio</Text>
+        <Text style={s.pageSubtitle}>Sistema integral de gestión condominial incluido en el servicio</Text>
 
         <Text style={s.paragraph}>
-          Todos nuestros condominios administrados cuentan con acceso a DOMIA, nuestra plataforma web desarrollada internamente que centraliza toda la gestion del condominio en un solo lugar.
+          Todos nuestros condominios administrados cuentan con acceso a DOMIA, nuestra plataforma web desarrollada internamente que centraliza toda la gestión del condominio en un solo lugar.
         </Text>
 
         <View style={s.screenshotWrap} wrap={false}>
@@ -636,19 +646,19 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
 
         <View style={s.screenshotWrap} wrap={false}>
           <Image src="/domia_captura_2.png" style={s.screenshotImg} />
-          <Text style={s.screenshotCaption}>Modulo de Residentes y Propietarios</Text>
+          <Text style={s.screenshotCaption}>Módulo de Residentes y Propietarios</Text>
         </View>
 
         <PageFooter numero={p.numero_propuesta} />
       </Page>
 
-      {/* ════════ PLATAFORMA DOMIA — pag 2 (capturas 3-4) ════════ */}
+      {/* ════════ PLATAFORMA DOMIA — pág. 2 (capturas 3-4) ════════ */}
       <Page size="A4" style={s.innerPage}>
-        <InnerHeader title="Tecnologia" />
+        <InnerHeader title="Tecnología" />
 
         <View style={s.screenshotWrap} wrap={false}>
           <Image src="/domia_captura_3.png" style={s.screenshotImg} />
-          <Text style={s.screenshotCaption}>Modulo Financiero y Cobranza</Text>
+          <Text style={s.screenshotCaption}>Módulo Financiero y Cobranza</Text>
         </View>
 
         <View style={s.screenshotWrap} wrap={false}>
@@ -659,17 +669,17 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         <View style={s.highlightBox} wrap={false}>
           <Text style={s.highlightBold}>Acceso incluido sin costo adicional</Text>
           <Text style={s.highlightText}>
-            La plataforma DOMIA esta incluida en el costo mensual del servicio de administracion. No genera cargos adicionales por licencias, usuarios ni actualizaciones.
+            La plataforma DOMIA está incluida en el costo mensual del servicio de administración. No genera cargos adicionales por licencias, usuarios ni actualizaciones.
           </Text>
         </View>
 
         <PageFooter numero={p.numero_propuesta} />
       </Page>
 
-      {/* ════════ PROPUESTA ECONOMICA ════════ */}
+      {/* ════════ PROPUESTA ECONÓMICA ════════ */}
       <Page size="A4" style={s.innerPage}>
-        <InnerHeader title="Propuesta Economica" />
-        <Text style={s.pageTitle}>Propuesta Economica</Text>
+        <InnerHeader title="Propuesta Económica" />
+        <Text style={s.pageTitle}>Propuesta Económica</Text>
         <Text style={s.pageSubtitle}>{p.nombre_condominio} — {p.numero_propuesta || 'Borrador'}</Text>
 
         {/* Datos del condominio */}
@@ -686,17 +696,17 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         </View>
         <View style={s.infoRow} wrap={false}>
           <View style={s.infoBlock}>
-            <Text style={s.infoLabel}>Ubicacion</Text>
+            <Text style={s.infoLabel}>Ubicación</Text>
             <Text style={s.infoValue}>{[p.direccion, p.ciudad].filter(Boolean).join(', ') || '—'}</Text>
           </View>
           <View style={s.infoBlock}>
-            <Text style={s.infoLabel}>Telefono / Email</Text>
+            <Text style={s.infoLabel}>Teléfono / Email</Text>
             <Text style={s.infoValue}>{[p.telefono, p.email].filter(Boolean).join(' / ') || '—'}</Text>
           </View>
         </View>
 
-        {/* Parametros del Servicio */}
-        <Text style={s.sectionTitle}>Parametros del Servicio</Text>
+        {/* Parámetros del Servicio */}
+        <Text style={s.sectionTitle}>Parámetros del Servicio</Text>
         <View style={s.infoRow} wrap={false}>
           <View style={s.infoBlock}>
             <Text style={s.infoLabel}>Departamentos</Text>
@@ -711,7 +721,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           {visitasOn && (
             <View style={s.infoBlock}>
               <Text style={s.infoLabel}>Visitas diarias</Text>
-              <Text style={s.infoValue}>{diasVisita} dias/mes — {formatBs(costoVisitas)}</Text>
+              <Text style={s.infoValue}>{diasVisita} días/mes — {formatBs(costoVisitas)}</Text>
             </View>
           )}
         </View>
@@ -732,7 +742,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
           )}
           {visitasOn && (
             <View style={s.tableRowAlt}>
-              <Text style={{ flex: 3, fontSize: 10 }}>Visitas diarias ({diasVisita} dias/mes)</Text>
+              <Text style={{ flex: 3, fontSize: 10 }}>Visitas diarias ({diasVisita} días/mes)</Text>
               <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(visitasPdf)}</Text>
             </View>
           )}
