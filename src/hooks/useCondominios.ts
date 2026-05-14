@@ -7,6 +7,7 @@ export interface Condominio {
   estado: string; admin_id: string | null; recargo_mora_porcentaje: number; notas: string | null;
   tiene_personeria_juridica: boolean;
   costo_m2: number | null;
+  dia_generacion_recibos: number;
   archivado_en: string | null; archivado_por: string | null;
   eliminado_en: string | null; eliminado_por: string | null;
   created_at: string;

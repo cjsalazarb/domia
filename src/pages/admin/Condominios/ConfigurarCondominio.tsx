@@ -377,6 +377,7 @@ function TabConfig({ condominioId }: { condominioId: string }) {
   const qc = useQueryClient()
   const { cuotasActuales } = useCuotas(condominioId)
   const [costoM2, setCostoM2] = useState('')
+  const [diaGeneracion, setDiaGeneracion] = useState('')
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
@@ -384,7 +385,7 @@ function TabConfig({ condominioId }: { condominioId: string }) {
   const { data: condoCosto } = useQuery({
     queryKey: ['condo-costo-m2', condominioId],
     queryFn: async () => {
-      const { data } = await supabase.from('condominios').select('costo_m2').eq('id', condominioId).single()
+      const { data } = await supabase.from('condominios').select('costo_m2, dia_generacion_recibos').eq('id', condominioId).single()
       return data
     },
     enabled: !!condominioId,
@@ -401,17 +402,19 @@ function TabConfig({ condominioId }: { condominioId: string }) {
 
   useEffect(() => {
     if (condoCosto?.costo_m2 != null) setCostoM2(String(condoCosto.costo_m2))
+    if (condoCosto?.dia_generacion_recibos != null) setDiaGeneracion(String(condoCosto.dia_generacion_recibos))
   }, [condoCosto])
 
   const handleSave = async () => {
     setSaving(true); setError(''); setSuccess('')
     try {
       const valor = costoM2 ? parseFloat(costoM2) : null
-      const { error: err } = await supabase.from('condominios').update({ costo_m2: valor }).eq('id', condominioId)
+      const dia = diaGeneracion ? Math.min(28, Math.max(1, parseInt(diaGeneracion))) : 1
+      const { error: err } = await supabase.from('condominios').update({ costo_m2: valor, dia_generacion_recibos: dia }).eq('id', condominioId)
       if (err) throw err
       qc.invalidateQueries({ queryKey: ['condo-costo-m2', condominioId] })
       qc.invalidateQueries({ queryKey: ['condo-costo-m2-unidades', condominioId] })
-      setSuccess('Tarifa guardada correctamente')
+      setSuccess('Configuración guardada correctamente')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar')
     } finally { setSaving(false) }
@@ -421,24 +424,32 @@ function TabConfig({ condominioId }: { condominioId: string }) {
 
   return (
     <div>
-      <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Tarifa por m²</h3>
+      <h3 style={{ fontFamily: "'Nunito', sans-serif", fontSize: '16px', fontWeight: 700, color: '#0D1117', margin: '0 0 16px' }}>Configuración de Cuotas</h3>
 
       <div style={{ backgroundColor: '#F4F7F5', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
         <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#5E6B62', margin: '0 0 14px', lineHeight: '1.5' }}>
           Define una tarifa global por m². Las cuotas mensuales se calcularán automáticamente: <strong>m² × tarifa</strong>. Si una unidad no tiene m², se usará la cuota fija como respaldo.
         </p>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: '180px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div>
             <label style={lS}>Tarifa por m² (Bs/m²)</label>
             <input type="number" value={costoM2} onChange={e => { setCostoM2(e.target.value); setSuccess('') }}
               placeholder="Ej: 8.00" min="0" step="0.01" style={iS} />
           </div>
-          <button onClick={handleSave} disabled={saving} style={{
-            padding: '10px 20px', backgroundColor: saving ? '#C8D4CB' : '#1A7A4A', color: 'white',
-            border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700,
-            fontFamily: "'Nunito', sans-serif", cursor: saving ? 'not-allowed' : 'pointer',
-          }}>{saving ? 'Guardando...' : 'Guardar tarifa'}</button>
+          <div>
+            <label style={lS}>Día de generación de recibos (1-28)</label>
+            <input type="number" value={diaGeneracion} onChange={e => { setDiaGeneracion(e.target.value); setSuccess('') }}
+              placeholder="1" min="1" max="28" step="1" style={iS} />
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', color: '#5E6B62', margin: '4px 0 0' }}>
+              Día del mes en que se generarán los recibos automáticamente
+            </p>
+          </div>
         </div>
+        <button onClick={handleSave} disabled={saving} style={{
+          padding: '10px 20px', backgroundColor: saving ? '#C8D4CB' : '#1A7A4A', color: 'white',
+          border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700,
+          fontFamily: "'Nunito', sans-serif", cursor: saving ? 'not-allowed' : 'pointer',
+        }}>{saving ? 'Guardando...' : 'Guardar configuración'}</button>
         {error && <div style={{ backgroundColor: '#FCEAEA', borderLeft: '3px solid #B83232', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#B83232', marginTop: '10px', fontFamily: "'Inter', sans-serif" }}>{error}</div>}
         {success && <div style={{ backgroundColor: '#E8F4F0', borderLeft: '3px solid #1A7A4A', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#1A7A4A', marginTop: '10px', fontFamily: "'Inter', sans-serif" }}>{success}</div>}
       </div>
