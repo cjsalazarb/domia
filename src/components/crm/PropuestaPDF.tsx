@@ -196,10 +196,10 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
   const precioFinalCalc = totalCostosBase + utilidad + utilidadAdicional
 
   // Factor para distribuir utilidad proporcionalmente en el desglose
+  // App DOMIA (350) se absorbe en Administradora (o en Visitas si admin está off)
   const factor = totalCostosBase > 0 ? precioFinalCalc / totalCostosBase : 1
-  const adminPdf = adminOn ? (sueldoAdmin + totalBeneficios) * factor : 0
-  const visitasPdf = visitasOn ? costoVisitas * factor : 0
-  const domiaPdf = 350 * factor
+  const adminPdf = adminOn ? (sueldoAdmin + totalBeneficios + 350) * factor : 0
+  const visitasPdf = visitasOn ? (costoVisitas + (!adminOn ? 350 : 0)) * factor : 0
 
   const fecha = formatDate(p.created_at)
 
@@ -744,15 +744,11 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
             </View>
           )}
           {visitasOn && (
-            <View style={s.tableRowAlt}>
+            <View style={adminOn ? s.tableRowAlt : s.tableRow}>
               <Text style={{ flex: 3, fontSize: 10 }}>Visitas diarias ({diasVisita} días/mes)</Text>
               <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(visitasPdf)}</Text>
             </View>
           )}
-          <View style={visitasOn || adminOn ? s.tableRow : s.tableRowAlt}>
-            <Text style={{ flex: 3, fontSize: 10 }}>App DOMIA</Text>
-            <Text style={{ flex: 1, fontSize: 10, textAlign: 'right' }}>{formatBs(domiaPdf)}</Text>
-          </View>
 
           <View style={s.tableTotal}>
             <Text style={s.tableTotalLabel}>PRECIO FINAL</Text>
