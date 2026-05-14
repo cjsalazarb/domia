@@ -10,8 +10,12 @@ const supabase = createClient(
 const resendApiKey = Deno.env.get('RESEND_API_KEY')
 const appUrl = Deno.env.get('APP_URL') || 'https://app.domia.me'
 
-serve(async () => {
+serve(async (req) => {
   try {
+    // Accept optional condominio_id — if provided, generate only for that condominio
+    const body = await req.json().catch(() => ({}))
+    const condominioId: string | null = body?.condominio_id ?? null
+
     const hoy = new Date()
     const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0]
     const fechaVencimiento = new Date(hoy.getFullYear(), hoy.getMonth(), 10).toISOString().split('T')[0]
@@ -20,8 +24,8 @@ serve(async () => {
       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
     const mesLabel = `${meses[hoy.getMonth()]} ${hoy.getFullYear()}`
 
-    // Get active units with their cuota and active resident (pagador)
-    const { data: unidades, error: unidadesErr } = await supabase
+    // Get active units — scoped to condominio_id if provided
+    let unidadesQuery = supabase
       .from('unidades')
       .select(`
         id, numero, tipo, area_m2, condominio_id, pagador_cuota,
@@ -29,6 +33,12 @@ serve(async () => {
         residentes(id, nombre, apellido, email, tipo)
       `)
       .eq('activa', true)
+
+    if (condominioId) {
+      unidadesQuery = unidadesQuery.eq('condominio_id', condominioId)
+    }
+
+    const { data: unidades, error: unidadesErr } = await unidadesQuery
 
     if (unidadesErr) {
       return new Response(JSON.stringify({ success: false, error: unidadesErr.message }), {
@@ -38,11 +48,17 @@ serve(async () => {
     }
 
     // Get cuotas indexed by condominio + tipo_unidad
-    const { data: cuotas } = await supabase
+    let cuotasQuery = supabase
       .from('cuotas')
       .select('condominio_id, tipo_unidad, monto')
       .eq('activa', true)
       .order('vigente_desde', { ascending: false })
+
+    if (condominioId) {
+      cuotasQuery = cuotasQuery.eq('condominio_id', condominioId)
+    }
+
+    const { data: cuotas } = await cuotasQuery
 
     const cuotaMap: Record<string, number> = {}
     for (const c of cuotas || []) {
@@ -181,6 +197,7 @@ serve(async () => {
     return new Response(
       JSON.stringify({
         success: true,
+        condominio_id: condominioId,
         periodo: primerDiaMes,
         fechaVencimiento,
         generados,
