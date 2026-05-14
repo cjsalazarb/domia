@@ -8,7 +8,7 @@ import RobotoItalic from '@/assets/fonts/Roboto-Italic.ttf'
 Font.register({
   family: 'Roboto',
   fonts: [
-    { src: RobotoRegular },
+    { src: RobotoRegular, fontWeight: 'normal' },
     { src: RobotoBold, fontWeight: 'bold' },
     { src: RobotoItalic, fontStyle: 'italic' },
   ],
@@ -135,7 +135,7 @@ interface Props {
 }
 
 function formatBs(n: number) {
-  return `Bs. ${n.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `Bs. ${(n ?? 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 function formatDate(d?: string) {
@@ -713,7 +713,7 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
         <View style={s.infoRow} wrap={false}>
           <View style={s.infoBlock}>
             <Text style={s.infoLabel}>Departamentos</Text>
-            <Text style={s.infoValue}>{p.num_departamentos}</Text>
+            <Text style={s.infoValue}>{p.num_departamentos ?? '—'}</Text>
           </View>
           {adminOn && (
             <View style={s.infoBlock}>
