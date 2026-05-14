@@ -195,12 +195,11 @@ export default function PropuestaPDF({ propuesta: p }: Props) {
   const utilidad = totalCostosBase * utilidadPct / 100
   const precioFinalCalc = totalCostosBase + utilidad + utilidadAdicional
 
-  // Factor proporcional: distribuye utilidad entre los tres conceptos
-  // totalCostosBase siempre incluye 350 (DOMIA), por lo que domiaPdf nunca es 0
+  // App DOMIA (350) se absorbe en Administradora/Visitas; la línea App DOMIA es informativa (siempre Bs. 0)
   const factor = totalCostosBase > 0 ? precioFinalCalc / totalCostosBase : 1
-  const adminPdf = adminOn ? (sueldoAdmin + totalBeneficios) * factor : 0
-  const visitasPdf = visitasOn ? costoVisitas * factor : 0
-  const domiaPdf = 350 * factor
+  const adminPdf = adminOn ? (sueldoAdmin + totalBeneficios + 350) * factor : 0
+  const visitasPdf = visitasOn ? (costoVisitas + (!adminOn ? 350 : 0)) * factor : 0
+  const domiaPdf = 0
 
   const fecha = formatDate(p.created_at)
 
